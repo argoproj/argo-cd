@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KafkaMirrorMaker"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KafkaMirrorMaker spec update to be observed"
+  inputPath: testdata/progressing_oldGeneration.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to reconcile the KafkaMirrorMaker deployment"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "Reconciliation is paused"
+  inputPath: testdata/suspended.yaml
