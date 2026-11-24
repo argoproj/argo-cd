@@ -80,8 +80,8 @@ the appropriate tool.
   > Otherwise, Git ignores the filter and fetches all objects.
 
   > [!NOTE]
-  > Git records the filter in each cached repository and keeps using it after the setting is removed. If the
-  > repo-server clone directory is on a persistent volume, clear it when you remove the setting.
+  > Git records a filter in each cached repository. Once this setting is removed, `argocd-repo-server` clones each
+  > partial repository again in full on its next request.
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With

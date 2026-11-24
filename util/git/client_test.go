@@ -585,6 +585,28 @@ func Test_nativeGitClient_PartialCloneFilter(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, creds.calls)
 	})
+
+	t.Run("removing a filter clones a partial clone again in full", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		root := t.TempDir()
+		filtered, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, filtered.Init())
+		require.NoError(t, filtered.Fetch(ctx, "", 0))
+		require.NoError(t, filtered.Init())
+		assert.Equal(t, 2, countMissingObjects(t, root), "Init keeps a partial clone while a filter is set")
+
+		full, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, full.Init())
+		require.NoError(t, full.Fetch(ctx, "", 0))
+		_, err = outputCmd(ctx, root, "git", "config", "--get", "remote.origin.promisor")
+		require.Error(t, err)
+		assert.Equal(t, 0, countMissingObjects(t, root))
+		_, err = full.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+	})
 }
 
 func Test_IsAnnotatedTag(t *testing.T) {

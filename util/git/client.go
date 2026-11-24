@@ -583,11 +583,15 @@ func (m *nativeGitClient) RepoURL() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	_, err := git.PlainOpen(m.root)
+	existing, err := git.PlainOpen(m.root)
 	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, git.ErrRepositoryNotExists) {
+		// A clone keeps a recorded filter after the setting is removed, and its checkouts would then
+		// download contents without credentials. Clone it again in full instead.
+		if m.partialCloneFilter != "" || !isPartialClone(existing) {
+			return nil
+		}
+		log.Infof("Re-initializing %s because it is a partial clone and no filter is set", m.repoURL)
+	} else if !errors.Is(err, git.ErrRepositoryNotExists) {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
@@ -608,6 +612,16 @@ func (m *nativeGitClient) Init() error {
 		URLs: []string{m.repoURL},
 	})
 	return err
+}
+
+// isPartialClone reports whether Git has marked the origin remote as a promisor, which it does on the
+// first fetch with an object filter.
+func isPartialClone(repo *git.Repository) bool {
+	cfg, err := repo.Config()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(cfg.Raw.Section("remote").Subsection(git.DefaultRemoteName).Option("promisor"), "true")
 }
 
 // IsLFSEnabled returns true if the repository is LFS enabled
