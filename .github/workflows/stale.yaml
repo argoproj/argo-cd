@@ -14,19 +14,20 @@ jobs:
     name: Label stale issues and PRs
     runs-on: ubuntu-24.04
     permissions:
+      actions: write # to persist state between runs
       issues: write # to label stale issues
       pull-requests: write # to label stale PRs
     steps:
       - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: block
           disable-sudo-and-containers: "true"
           allowed-endpoints: >
             api.github.com:443
 
-      - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10.4.0
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 

@@ -104,3 +104,50 @@ func Test_isStatefulSetChild(t *testing.T) {
 		})
 	}
 }
+
+func Test_isStatefulSetChild_doesNotRetainManifest(t *testing.T) {
+	un, err := kube.ToUnstructured(&appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "StatefulSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sw-broker",
+		},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "emqx-data",
+					},
+				},
+			},
+		},
+	})
+	require.NoErrorf(t, err, "Failed to convert StatefulSet to unstructured: %v", err)
+
+	matches, err := isStatefulSetChild(un)
+	require.NoError(t, err)
+
+	// the closure outlives the cached Resource, so it must not hold the manifest
+	un.Object = nil
+	assert.True(t, matches(kube.ResourceKey{Kind: kube.PersistentVolumeClaimKind, Name: "emqx-data-sw-broker-0"}))
+	assert.False(t, matches(kube.ResourceKey{Kind: kube.PersistentVolumeClaimKind, Name: "emqx-data-sw-broker-internal-0"}))
+}
+
+func Benchmark_isStatefulSetChild(b *testing.B) {
+	un, err := kube.ToUnstructured(&appsv1.StatefulSet{
+		APIVersion: "apps/v1", Kind: kube.StatefulSetKind,
+		Name: "sw-broker",
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{Name: "emqx-data"}},
+		},
+	})
+	require.NoError(b, err)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := isStatefulSetChild(un); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

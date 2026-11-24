@@ -5,10 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -32,10 +33,8 @@ func newTestService(t *testing.T, objects ...runtime.Object) (*argoCDService, *d
 func TestGetAppProject(t *testing.T) {
 	t.Parallel()
 	appProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-project",
-			Namespace: "default",
-		},
+		Name:      "my-project",
+		Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			Description: "test project",
 		},
@@ -44,7 +43,7 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("returns AppProject when found", func(t *testing.T) {
 		t.Parallel()
 		svc, _ := newTestService(t, appProject)
-		result, err := svc.GetAppProject(t.Context(), "my-project", "default")
+		result, err := svc.GetAppProject(t.Context(), "my-project")
 		require.NoError(t, err)
 		assert.Equal(t, "my-project", result.GetName())
 		assert.Equal(t, "default", result.GetNamespace())
@@ -53,13 +52,11 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("defaults to 'default' project when name is empty", func(t *testing.T) {
 		t.Parallel()
 		defaultProject := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "default",
-			},
+			Name:      "default",
+			Namespace: "default",
 		}
 		svc, _ := newTestService(t, defaultProject)
-		result, err := svc.GetAppProject(t.Context(), "", "default")
+		result, err := svc.GetAppProject(t.Context(), "")
 		require.NoError(t, err)
 		assert.Equal(t, "default", result.GetName())
 	})
@@ -67,8 +64,45 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("returns error when AppProject not found", func(t *testing.T) {
 		t.Parallel()
 		svc, _ := newTestService(t)
-		result, err := svc.GetAppProject(t.Context(), "nonexistent", "default")
+		result, err := svc.GetAppProject(t.Context(), "nonexistent")
 		require.Error(t, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("serves from informer cache without a live lookup", func(t *testing.T) {
+		t.Parallel()
+		// Empty dynamic client: a live lookup would fail and, more importantly,
+		// be recorded as an action we can assert against.
+		svc, dynamicClient := newTestService(t)
+
+		cached := &unstructured.Unstructured{}
+		cached.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+		cached.SetName("my-project")
+		cached.SetNamespace("default")
+
+		informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+		require.NoError(t, informer.GetIndexer().Add(cached))
+		svc.SetAppProjectInformer(informer)
+
+		result, err := svc.GetAppProject(t.Context(), "my-project")
+		require.NoError(t, err)
+		assert.Equal(t, "my-project", result.GetName())
+		assert.Empty(t, dynamicClient.Actions(), "expected no API calls when serving from cache")
+	})
+
+	t.Run("falls back to a live lookup on cache miss", func(t *testing.T) {
+		t.Parallel()
+		svc, dynamicClient := newTestService(t, appProject)
+
+		// Informer wired but empty, so the lookup misses the cache.
+		informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+		svc.SetAppProjectInformer(informer)
+
+		result, err := svc.GetAppProject(t.Context(), "my-project")
+		require.NoError(t, err)
+		assert.Equal(t, "my-project", result.GetName())
+		assert.NotEmpty(t, dynamicClient.Actions(), "expected a live lookup on cache miss")
 	})
 }

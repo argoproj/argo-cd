@@ -50,6 +50,34 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
+func TestGetAppName_AnnotationWithExistingInstallationID(t *testing.T) {
+	t.Parallel()
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	require.NoError(t, err)
+
+	// When no installationID filter is provided, the app name should still be returned
+	// even though the resource has an installation ID annotation.
+	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "")
+	assert.Equal(t, "my-app", app)
+
+	// When a different installationID is provided, it should not match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "different-id")
+	assert.Empty(t, app)
+
+	// When the correct installationID is provided, it should match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	assert.Equal(t, "my-app", app)
+}
+
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")

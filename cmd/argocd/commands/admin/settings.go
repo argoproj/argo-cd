@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -114,9 +113,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	default:
 		argocdSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: map[string][]byte{
 				"admin.password":   []byte("test"),
 				"server.secretkey": []byte("test"),
@@ -546,9 +543,6 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 
 				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
 				errors.CheckError(err)
-				sort.Slice(availableActions, func(i, j int) bool {
-					return availableActions[i].Name < availableActions[j].Name
-				})
 
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				_, _ = fmt.Fprint(w, "NAME\tDISABLED\n")

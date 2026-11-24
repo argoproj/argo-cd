@@ -18,7 +18,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -93,12 +92,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	t.Parallel()
 	kubeClientWithDexConfig := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"dex.config": "connectors: \n" +
@@ -112,12 +109,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -127,12 +122,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	)
 	kubeClientWithOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"oidc.config": "name: Okta \n" +
@@ -144,12 +137,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -159,12 +150,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	)
 	kubeClientWithOIDCConfigButNoURL := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"oidc.config": "name: Okta \n" +
@@ -176,12 +165,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -191,12 +178,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	)
 	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"oidc.config": "name: Okta \n" +
@@ -207,12 +192,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -222,12 +205,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	)
 	kubeClientWithoutOIDCAndMultipleURLs := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"url":            "http://localhost:4000",
@@ -235,12 +216,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -250,24 +229,20 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	)
 	kubeClientWithoutOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"url": "http://localhost:4000",
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -480,24 +455,20 @@ func TestHandlerRevokeToken(t *testing.T) {
 	t.Parallel()
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"url": "http://localhost:4000",
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,
@@ -708,4 +679,107 @@ func TestHandlerRevokeToken(t *testing.T) {
 
 		require.Equal(t, http.StatusSeeOther, rec.Code, "should still redirect even when revokeToken fails")
 	})
+}
+
+func TestHandlerSetsSSOAutoLoginPausedCookie(t *testing.T) {
+	t.Parallel()
+	newSettingsManager := func(t *testing.T, data map[string]string) *settings.SettingsManager {
+		t.Helper()
+		data["url"] = baseURL
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+				Data:      data,
+			},
+			&corev1.Secret{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+				Data:      map[string][]byte{"admin.password": nil, "server.secretkey": nil},
+			},
+		)
+		return settings.NewSettingsManager(t.Context(), kubeClient, "default")
+	}
+	oidcConfig := "name: Okta \n" +
+		"issuer: https://dev-5695098.okta.com \n" +
+		"logoutURL: https://dev-5695098.okta.com/oauth2/v1/logout?post_logout_redirect_uri={{logoutRedirectURL}}"
+
+	tests := []struct {
+		name         string
+		data         map[string]string
+		verifyErr    error
+		expectedURL  string
+		expectPaused bool
+	}{
+		{
+			name:         "auto-login on, redirect to the identity provider logout URL",
+			data:         map[string]string{"sso.autoLogin": "true", "oidc.config": oidcConfig},
+			expectedURL:  "https://dev-5695098.okta.com/oauth2/v1/logout?post_logout_redirect_uri=" + baseURL,
+			expectPaused: true,
+		},
+		{
+			name:         "auto-login on, redirect straight back to Argo CD",
+			data:         map[string]string{"sso.autoLogin": "true"},
+			expectedURL:  baseURL,
+			expectPaused: true,
+		},
+		{
+			name:         "auto-login on, token fails verification",
+			data:         map[string]string{"sso.autoLogin": "true", "oidc.config": oidcConfig},
+			verifyErr:    errors.New("invalid jwt"),
+			expectedURL:  baseURL,
+			expectPaused: true,
+		},
+		{
+			name:         "auto-login off",
+			data:         map[string]string{"oidc.config": oidcConfig},
+			expectedURL:  "https://dev-5695098.okta.com/oauth2/v1/logout?post_logout_redirect_uri=" + baseURL,
+			expectPaused: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			settingsMgr := newSettingsManager(t, tt.data)
+			redisClient, closer := test.NewInMemoryRedis()
+			t.Cleanup(closer)
+			sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
+
+			handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
+			handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
+				if tt.verifyErr != nil {
+					return nil, "", tt.verifyErr
+				}
+				return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
+			}
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/auth/logout", http.NoBody)
+			require.NoError(t, err)
+			req.Header.Set("Cookie", "argocd.token="+oidcToken)
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusSeeOther, rec.Code)
+			require.Equal(t, tt.expectedURL, rec.Header().Get("Location"))
+
+			var paused *http.Cookie
+			for _, c := range rec.Result().Cookies() {
+				if c.Name == common.SSOAutoLoginPausedCookieName {
+					paused = c
+				}
+			}
+			if !tt.expectPaused {
+				require.Nil(t, paused)
+				return
+			}
+			require.NotNil(t, paused)
+			require.Equal(t, "/"+baseHRef, paused.Value)
+			require.Equal(t, "/"+baseHRef, paused.Path)
+			require.False(t, paused.HttpOnly)
+			require.Equal(t, http.SameSiteLaxMode, paused.SameSite)
+		})
+	}
 }

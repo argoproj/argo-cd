@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,16 +16,21 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
+	"oras.land/oras-go/v2/errdef"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -52,9 +58,9 @@ func generateManifestWithConfig(t *testing.T, store *memory.Store, configMediaTy
 	}
 
 	manifestBlob, err := json.Marshal(imagev1.Manifest{
-		Config:    configDesc,
-		Layers:    layers,
-		Versioned: specs.Versioned{SchemaVersion: 2},
+		Config:        configDesc,
+		Layers:        layers,
+		SchemaVersion: 2,
 	})
 	require.NoError(t, err)
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -97,6 +103,86 @@ func addFileToDirectory(t *testing.T, dir, filename, content string) {
 	require.NoError(t, err)
 }
 
+type observingOCIKeyLock struct {
+	keysync.KeyLock
+	beforeLock func(string)
+	afterLock  func(string)
+}
+
+func (l observingOCIKeyLock) Lock(key string) {
+	if l.beforeLock != nil {
+		l.beforeLock(key)
+	}
+	l.KeyLock.Lock(key)
+	if l.afterLock != nil {
+		l.afterLock(key)
+	}
+}
+
+func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
+	store := memory.New()
+	layer := createGzippedTarWithContent(t, "deployment.yaml", "some content")
+	revision := generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layer), layer})
+	cachePaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	lock := keysync.NewKeyLock()
+	extractionLocked := make(chan string)
+	resumeExtraction := make(chan struct{})
+	releaseExtraction := sync.OnceFunc(func() { close(resumeExtraction) })
+	cleanupLockAttempt := make(chan string)
+	const repoURL = "oci://example.com/manifests"
+
+	reader := newClientWithLock(repoURL, observingOCIKeyLock{
+		KeyLock: lock,
+		afterLock: func(key string) {
+			extractionLocked <- key
+			<-resumeExtraction
+		},
+	}, store, nil, nil, nil, []string{imagev1.MediaTypeImageLayerGzip},
+		WithImagePaths(cachePaths), WithManifestMaxExtractedSize(1000), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+	cleaner := &nativeOCIClient{
+		repoURL: repoURL,
+		repoLock: observingOCIKeyLock{
+			KeyLock:    lock,
+			beforeLock: func(key string) { cleanupLockAttempt <- key },
+		},
+		repoCachePaths: cachePaths,
+	}
+	cachePath, err := cleaner.getCachedPath(revision)
+	require.NoError(t, err)
+	require.NoError(t, saveCompressedImageToPath(t.Context(), revision, store, cachePath))
+
+	extracted := make(chan error, 1)
+	go func() {
+		_, closer, err := reader.Extract(t.Context(), revision)
+		if err == nil {
+			err = closer.Close()
+		}
+		extracted <- err
+	}()
+	t.Cleanup(func() {
+		releaseExtraction()
+		assert.NoError(t, <-extracted)
+	})
+	require.Equal(t, cachePath, <-extractionLocked)
+
+	cleaned := make(chan error, 1)
+	go func() { cleaned <- cleaner.CleanCache(revision) }()
+	select {
+	case key := <-cleanupLockAttempt:
+		require.Equal(t, cachePath, key)
+		require.FileExists(t, cachePath)
+	case err := <-cleaned:
+		require.NoError(t, err)
+		t.Fatal("cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for cache cleanup to attempt the lock")
+	}
+
+	releaseExtraction()
+	require.NoError(t, <-cleaned)
+	require.NoFileExists(t, cachePath)
+}
+
 func Test_nativeOCIClient_Extract(t *testing.T) {
 	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
 
@@ -130,7 +216,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: failed to perform \"Push\" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
+			expectedError: errors.New(`cannot extract contents of oci image with revision {{digest}}: failed to perform "Push" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF`),
 		},
 		{
 			name: "extraction fails due to multiple content layers",
@@ -306,7 +392,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil
-					}, fields.allowedMediaTypes,
+					}, nil, fields.allowedMediaTypes,
 						WithImagePaths(cacheDir),
 						WithManifestMaxExtractedSize(args.manifestMaxExtractedSize),
 						WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize),
@@ -598,7 +684,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 			c := newClientWithLock(tt.fields.repoURL, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes,
+			}, nil, tt.fields.allowedMediaTypes,
 				WithImagePaths(cacheDir),
 				WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize),
 				WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize),
@@ -606,7 +692,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
-				require.EqualError(t, err, tt.expectedError.Error())
+				// The digest depends on the Go version's gzip output, so it is substituted rather than hardcoded.
+				require.EqualError(t, err, strings.ReplaceAll(tt.expectedError.Error(), "{{digest}}", sha))
 				return
 			}
 
@@ -752,7 +839,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes, WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
+			}, nil, tt.fields.allowedMediaTypes, WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
 			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
@@ -767,6 +854,41 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
+type fakeTagsCache struct {
+	data []byte
+}
+
+func (f *fakeTagsCache) SetOCITags(_ string, indexData []byte) error {
+	f.data = indexData
+	return nil
+}
+
+func (f *fakeTagsCache) GetOCITags(_ string, indexData *[]byte) error {
+	*indexData = f.data
+	return nil
+}
+
+// Regression test for https://github.com/argoproj/argo-cd/issues/30117:
+// GetTags must store the fetched tags, not the empty cache-read buffer.
+func Test_nativeOCIClient_GetTagsUsesCache(t *testing.T) {
+	calls := 0
+	tagsFunc := func(context.Context, string) ([]string, error) {
+		calls++
+		return []string{"1.0.0", "1.1.0_build.1"}, nil
+	}
+	repoURL := "example.com/myorg/myrepo"
+	c := newClientWithLock(repoURL, globalLock, memory.New(), tagsFunc, func(context.Context) error {
+		return nil
+	}, nil, nil, WithIndexCache(&fakeTagsCache{}), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+
+	for range 2 {
+		tags, err := c.GetTags(t.Context(), false)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0", "1.1.0+build.1"}, tags)
+	}
+	assert.Equal(t, 1, calls, "the second call should be served from the cache")
+}
+
 func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
 	// DigestMetadata must work on any replica without relying on a local tar
@@ -776,9 +898,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 		configBlob := []byte("config")
 		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
 		manifestBlob, err := json.Marshal(imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      configDesc,
-			Annotations: annotations,
+			SchemaVersion: 2,
+			Config:        configDesc,
+			Annotations:   annotations,
 		})
 		require.NoError(t, err)
 		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -798,7 +920,7 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 
 		// Note: no WithImagePaths — there is no local cache directory at all,
 		// mirroring a repo-server replica that never ran Extract for this digest.
-		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil, nil,
 			WithEventHandlers(fakeEventHandlers(t, "repo")))
 
 		manifest, err := c.DigestMetadata(t.Context(), sha)
@@ -809,7 +931,7 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 
 	t.Run("propagates not-found errors from the remote", func(t *testing.T) {
 		store := memory.New()
-		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil,
+		c := newClientWithLock("repo", globalLock, store, nil, func(_ context.Context) error { return nil }, nil, nil,
 			WithEventHandlers(fakeEventHandlers(t, "repo")))
 
 		_, err := c.DigestMetadata(t.Context(), "sha256:0000000000000000000000000000000000000000000000000000000000000000")
@@ -851,6 +973,113 @@ func TestNewClientUsesHTTP2(t *testing.T) {
 	})
 }
 
+func Test_nativeOCIClient_TestRepo(t *testing.T) {
+	t.Parallel()
+	unauthorized := &errcode.ErrorResponse{StatusCode: http.StatusUnauthorized}
+	forbidden := &errcode.ErrorResponse{StatusCode: http.StatusForbidden}
+	serverError := &errcode.ErrorResponse{StatusCode: http.StatusInternalServerError}
+	repoPingErr := errors.New("repository-scoped request failed")
+
+	tests := []struct {
+		name         string
+		pingErr      error
+		repoPingErr  error
+		noTagPage    bool
+		wantRepoPing bool
+		wantErrs     []error
+	}{
+		{name: "registry ping succeeds"},
+		{name: "network error does not fall back", pingErr: io.ErrUnexpectedEOF, wantErrs: []error{io.ErrUnexpectedEOF}},
+		{name: "server error does not fall back", pingErr: serverError, wantErrs: []error{serverError}},
+		{name: "401 falls back", pingErr: fmt.Errorf("wrapped: %w", unauthorized), wantRepoPing: true},
+		{name: "403 falls back", pingErr: forbidden, wantRepoPing: true},
+		{name: "400 falls back", pingErr: &errcode.ErrorResponse{StatusCode: http.StatusBadRequest}, wantRepoPing: true},
+		{name: "404 on the registry root falls back", pingErr: errdef.ErrNotFound, wantRepoPing: true},
+		{name: "fallback without a tag page succeeds", pingErr: unauthorized, noTagPage: true, wantRepoPing: true},
+		{name: "failed fallback reports both errors", pingErr: unauthorized, repoPingErr: repoPingErr, wantRepoPing: true, wantErrs: []error{unauthorized, repoPingErr}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repoPinged := false
+			c := newClientWithLock("repo", globalLock, memory.New(), nil,
+				func(context.Context) error { return tt.pingErr },
+				func(_ context.Context, _ string, fn func([]string) error) error {
+					repoPinged = true
+					if tt.repoPingErr != nil || tt.noTagPage {
+						return tt.repoPingErr
+					}
+					return fn([]string{"1.0.0"})
+				},
+				nil, WithEventHandlers(fakeEventHandlers(t, "repo")))
+
+			ok, err := c.TestRepo(t.Context())
+			assert.Equal(t, tt.wantRepoPing, repoPinged)
+			assert.Equal(t, len(tt.wantErrs) == 0, ok)
+			if len(tt.wantErrs) == 0 {
+				require.NoError(t, err)
+			}
+			for _, want := range tt.wantErrs {
+				require.ErrorIs(t, err, want)
+			}
+		})
+	}
+}
+
+// Test_NewClient_TestRepoScopedFallback runs TestRepo against a registry that, like quay.io,
+// only issues anonymous tokens that name a repository.
+func Test_NewClient_TestRepoScopedFallback(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var requests []string
+	var realm string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, r.URL.String())
+		mu.Unlock()
+		challenge := fmt.Sprintf(`Bearer realm=%q,service="registry"`, realm)
+		switch {
+		case r.URL.Path == "/token":
+			if r.URL.Query().Get("scope") == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"token":"anon"}`))
+		case r.Header.Get("Authorization") != "Bearer anon":
+			if r.URL.Path != "/v2/" {
+				challenge += `,scope="repository:myorg/myrepo:pull"`
+			}
+			w.Header().Set("WWW-Authenticate", challenge)
+			w.WriteHeader(http.StatusUnauthorized)
+		case r.URL.Path == "/v2/myorg/myrepo/tags/list":
+			if r.URL.Query().Get("last") == "" {
+				w.Header().Set("Link", `</v2/myorg/myrepo/tags/list?last=1.0.0>; rel="next"`)
+			}
+			_, _ = w.Write([]byte(`{"name":"myorg/myrepo","tags":["1.0.0"]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	realm = server.URL + "/token"
+	host := strings.TrimPrefix(server.URL, "http://")
+
+	client, err := NewClient("oci://"+host+"/myorg/myrepo", Creds{InsecureHTTPOnly: true}, "", "", nil,
+		WithEventHandlers(fakeEventHandlers(t, host+"/myorg/myrepo")))
+	require.NoError(t, err)
+	ok, err := client.TestRepo(t.Context())
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Contains(t, requests, "/v2/")
+	assert.Contains(t, requests, "/v2/myorg/myrepo/tags/list?n=1")
+	for _, r := range requests {
+		assert.NotContains(t, r, "last=", "expected only the first page of tags to be listed")
+	}
+}
+
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 	t.Helper()
 	return EventHandlers{
@@ -875,4 +1104,45 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 			return func(_ string) { require.Equal(t, repoURL, repo) }
 		},
 	}
+}
+
+func Test_getOCIManifest(t *testing.T) {
+	pushManifest := func(t *testing.T, store *memory.Store, m imagev1.Manifest) string {
+		t.Helper()
+		blob, err := json.Marshal(m)
+		require.NoError(t, err)
+		desc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, blob)
+		require.NoError(t, store.Push(t.Context(), desc, bytes.NewReader(blob)))
+		require.NoError(t, store.Tag(t.Context(), desc, desc.Digest.String()))
+		return desc.Digest.String()
+	}
+
+	t.Run("decodes a normal manifest", func(t *testing.T) {
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+		})
+
+		manifest, err := getOCIManifest(t.Context(), digest, store)
+		require.NoError(t, err)
+		assert.Equal(t, 2, manifest.SchemaVersion)
+	})
+
+	t.Run("rejects an oversized manifest", func(t *testing.T) {
+		// A malicious or misbehaving registry could return an arbitrarily large
+		// manifest to force the repo-server to buffer it entirely into memory.
+		// The io.LimitReader guard truncates the stream, so decoding must fail
+		// rather than reading the whole blob.
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+			Annotations:   map[string]string{"pad": strings.Repeat("a", maxOCIManifestSize)},
+		})
+
+		_, err := getOCIManifest(t.Context(), digest, store)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error decoding oci manifest")
+	})
 }

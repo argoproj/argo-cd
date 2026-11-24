@@ -79,6 +79,10 @@ The `argocd-server`, `argocd-application-controller`, and `argocd-applicationset
 > This is required for mTLS setups and gives you full control over which CA is trusted.
 > Use `--repo-server-ca-cert-path` in all new deployments.
 
+> [!NOTE]
+>
+> Client-side curve preferences are not required. During the TLS handshake, the server selects a mutually supported key exchange group from the groups advertised by the client. The default client configuration already includes the supported PQC groups, so clients do not need to explicitly configure curve preferences.
+
 ### argocd-cmd-params-cm ConfigMap keys
 
 These environment variables can also be set via the `argocd-cmd-params-cm` ConfigMap, which is the recommended approach for Kubernetes deployments:

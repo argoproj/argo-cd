@@ -1,4 +1,5 @@
 import {FormField} from 'argo-ui';
+import {useQueryClient} from '@tanstack/react-query';
 import * as React from 'react';
 import {useContext, useEffect, useState} from 'react';
 import {Form, Text} from 'argo-ui';
@@ -6,6 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
 import {Context} from '../../shared/context';
+import {hasSSOProvider, pauseAutoLogin, redirectToSSO, shouldAutoLogin} from '../../shared/sso-auto-login';
 
 require('./login.scss');
 
@@ -16,6 +18,7 @@ export interface LoginForm {
 
 export function Login(props: RouteComponentProps<{}>) {
     const appContext = useContext(Context);
+    const queryClient = useQueryClient();
 
     const search = new URLSearchParams(props.history.location.search);
     const returnUrl = search.get('return_url') || '';
@@ -32,6 +35,15 @@ export function Login(props: RouteComponentProps<{}>) {
         })();
     }, []);
 
+    const ssoLoginUrl = `auth/login?return_url=${encodeURIComponent(returnUrl)}`;
+    const autoLogin = shouldAutoLogin(authSettings, search);
+
+    useEffect(() => {
+        if (autoLogin) {
+            redirectToSSO(ssoLoginUrl);
+        }
+    }, [autoLogin, ssoLoginUrl]);
+
     const login = async (username: string, password: string, returnURL: string) => {
         try {
             setLoginError('');
@@ -39,6 +51,8 @@ export function Login(props: RouteComponentProps<{}>) {
             appContext.navigation.goto('.', {sso_error: null});
 
             await services.users.login(username, password);
+            pauseAutoLogin();
+            queryClient.clear();
 
             let redirectPath = '/applications';
 
@@ -68,7 +82,15 @@ export function Login(props: RouteComponentProps<{}>) {
         }
     };
 
-    const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
+    const ssoConfigured = hasSSOProvider(authSettings);
+
+    // When dex.auth.connectorId is configured, the backend redirects straight to that connector,
+    // so surface its name on the login button instead of a generic "SSO Login".
+    const forcedConnector =
+        authSettings &&
+        authSettings.dexConfig &&
+        authSettings.dexConfig.dexAuthConnectorID &&
+        (authSettings.dexConfig.connectors || []).find(connector => connector.id === authSettings.dexConfig.dexAuthConnectorID);
 
     return (
         <div className='login'>
@@ -82,11 +104,12 @@ export function Login(props: RouteComponentProps<{}>) {
                 </div>
                 {ssoConfigured && (
                     <div className='login__box_saml width-control'>
-                        <a href={`auth/login?return_url=${encodeURIComponent(returnUrl)}`}>
+                        <a href={ssoLoginUrl}>
                             <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                 {(authSettings.uiLoginButtonText && <span>{authSettings.uiLoginButtonText}</span>) ||
                                     (authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
-                                    (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                    (forcedConnector && <span>Log in via {forcedConnector.name}</span>) ||
+                                    ((authSettings.dexConfig.connectors || []).length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                         <span>SSO Login</span>
                                     )}
                             </button>

@@ -154,8 +154,7 @@ func TestNoReturnHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validNilHealthStatusStatus = `local healthStatus = {}
@@ -168,8 +167,7 @@ func TestNilHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
@@ -450,6 +448,32 @@ func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
 	}
 	for _, expectedAction := range expectedActions {
 		assert.Contains(t, actions, expectedAction)
+	}
+}
+
+const unsortedDiscoveryLua = `
+actions = {}
+actions["restart"] = {}
+actions["pause"] = {}
+actions["scale"] = {}
+actions["abort"] = {}
+actions["resume"] = {}
+return actions
+`
+
+func TestExecuteResourceActionDiscoverySortsActionsByName(t *testing.T) {
+	t.Parallel()
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	// The actions are collected in a map, so a single run could be sorted by chance.
+	for range 10 {
+		actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{unsortedDiscoveryLua, additionalValidDiscoveryLua})
+		require.NoError(t, err)
+		names := make([]string, 0, len(actions))
+		for _, action := range actions {
+			names = append(names, action.Name)
+		}
+		assert.Equal(t, []string{"abort", "pause", "prebuilt", "restart", "resume", "scale"}, names)
 	}
 }
 
@@ -1125,8 +1149,10 @@ func Test_getHealthScriptPaths(t *testing.T) {
 	assert.Equal(t, []string{
 		"_.cnrm.cloud.google.com/_",
 		"_.crossplane.io/_",
+		"_.services.k8s.aws/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
+		"kro.run/_",
 		"microgateway.airlock.com/_",
 		"operator.victoriametrics.com/_",
 	}, paths)

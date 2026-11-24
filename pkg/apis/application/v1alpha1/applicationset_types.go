@@ -208,6 +208,8 @@ type ApplicationSetGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -230,6 +232,8 @@ type ApplicationSetNestedGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -249,6 +253,8 @@ type ApplicationSetTerminalGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,9,name=oci"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -268,6 +274,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			PullRequest:             terminalGenerator.PullRequest,
 			Plugin:                  terminalGenerator.Plugin,
 			Selector:                terminalGenerator.Selector,
+			Oci:                     terminalGenerator.Oci,
 		}
 	}
 	return nestedGenerators
@@ -428,6 +435,29 @@ type GitDirectoryGeneratorItem struct {
 }
 
 type GitFileGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
+type OciGenerator struct {
+	RepoURL             string                      `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	Directories         []OciDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
+	Files               []OciFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
+	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
+	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+}
+
+type OciDirectoryGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
+type OciFileGeneratorItem struct {
 	Path    string `json:"path" protobuf:"bytes,1,name=path"`
 	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
 }
@@ -669,6 +699,8 @@ type PullRequestGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -685,6 +717,8 @@ type PullRequestGeneratorAzureDevOps struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.
@@ -701,6 +735,8 @@ type PullRequestGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,5,opt,name=appSecretName"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -713,6 +749,8 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
+	// ExcludedLabels is used to exclude MRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,8,rep,name=excludedLabels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
 	// Valid values: opened, closed, merged, locked".
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
@@ -890,9 +928,9 @@ const (
 type ProgressiveSyncStatusCode string
 
 const (
-	// Indicates that an Application sync is waiting to be trigerred
+	// Indicates that an Application sync is waiting to be triggered
 	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
-	// Indicates that a sync has been trigerred, but the application did not report any status
+	// Indicates that a sync has been triggered, but the application did not report any status
 	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
 	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
 	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"

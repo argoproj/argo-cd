@@ -13,13 +13,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/cmp")
 
 // StreamSender defines the contract to send App files over stream
 type StreamSender interface {
@@ -36,6 +38,9 @@ type StreamReceiver interface {
 // in destDir. Will return the stream metadata if no error. Metadata
 // will be nil in case of errors.
 func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir string, preserveFileMode bool) (*pluginclient.ManifestRequestMetadata, error) {
+	ctx, span := tracer.Start(ctx, "cmp.ReceiveRepoStream")
+	defer span.End()
+
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
@@ -45,17 +50,19 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	}
 	metadata := header.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir)
+	receiveCtx, receiveSpan := tracer.Start(ctx, "cmp.receiveFile")
+	tgzFile, err := receiveFile(receiveCtx, receiver, metadata.GetChecksum(), destDir)
+	receiveSpan.End()
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
+	defer tgzstream.CloseAndDelete(tgzFile)
+
+	_, untgzSpan := tracer.Start(ctx, "cmp.Untgz")
 	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode)
+	untgzSpan.End()
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
-	}
-	err = os.Remove(tgzFile.Name())
-	if err != nil {
-		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return metadata, nil
 }
@@ -87,9 +94,14 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 // SendRepoStream will compress the files under the given rootPath and send
 // them using the plugin stream sender.
 func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
+	ctx, span := tracer.Start(ctx, "cmp.SendRepoStream")
+	defer span.End()
+
 	opt := newSenderOption(opts...)
 
+	_, compressSpan := tracer.Start(ctx, "cmp.CompressFiles")
 	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, opt)
+	compressSpan.End()
 	if err != nil {
 		return err
 	}
@@ -104,7 +116,9 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	}
 
 	// send the compressed file
-	err = sendFile(ctx, sender, tgz, opt)
+	sendCtx, sendSpan := tracer.Start(ctx, "cmp.sendFile")
+	err = sendFile(sendCtx, sender, tgz, opt)
+	sendSpan.End()
 	if err != nil {
 		return fmt.Errorf("error sending tgz file to cmp-server: %w", err)
 	}
@@ -118,6 +132,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
 	if filesWritten == 0 {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
 	}
 	if opt != nil && opt.tarDoneChan != nil {
@@ -127,10 +142,12 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 
 	fi, err := tgz.Stat()
 	if err != nil {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
 	}
 	appRelPath, err := files.RelativePath(appPath, rootPath)
 	if err != nil {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
 	// send metadata first
@@ -169,12 +186,17 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File, opt *send
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (_ *os.File, retErr error) {
 	hasher := sha256.New()
 	file, err := os.CreateTemp(dst, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}
+	defer func() {
+		if retErr != nil {
+			tgzstream.CloseAndDelete(file)
+		}
+	}()
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
@@ -207,7 +229,6 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		tgzstream.CloseAndDelete(file)
 		return nil, fmt.Errorf("seek error: %w", err)
 	}
 	return file, nil

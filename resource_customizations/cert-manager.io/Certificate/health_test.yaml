@@ -24,3 +24,7 @@ tests:
     status: Healthy
     message: 'Certificate renewed successfully'
   inputPath: testdata/healthy_renewed.yaml
+- healthStatus:
+    status: Progressing
+    message: Issuing certificate as Secret was previously issued
+  inputPath: testdata/progressing_issuing_message_only.yaml

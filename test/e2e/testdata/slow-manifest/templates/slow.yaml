@@ -1,0 +1,16 @@
+{{- /*
+  Burn CPU at render time making `helm template` slow
+*/ -}}
+{{- $iterations := .Values.iterations | default 400 | int -}}
+{{- range $i := until $iterations }}
+{{- $_ := bcrypt (printf "pw-%d" $i) }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slow-render-marker
+  labels:
+    app.kubernetes.io/name: slow-render
+data:
+  iterations: {{ $iterations | quote }}
+  note: "it was sloooow"

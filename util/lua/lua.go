@@ -179,8 +179,7 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 
 	// Remove the default lua stack trace from execution errors since these
 	// errors will make it back to the user
-	var apiErr *lua.ApiError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*lua.ApiError](err); ok {
 		if apiErr.Type == lua.ApiErrorRun {
 			apiErr.StackTrace = ""
 			err = apiErr
@@ -241,7 +240,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 
 		return healthStatus, nil
 	} else if returnValue.Type() == lua.LTNil {
-		return &health.HealthStatus{}, nil
+		return nil, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
@@ -463,6 +462,10 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	for _, action := range availableActionsMap {
 		availableActions = append(availableActions, action)
 	}
+	// Sort by name, so that the actions are listed in the same order every time.
+	slices.SortFunc(availableActions, func(a, b appv1.ResourceAction) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	return availableActions, nil
 }

@@ -650,7 +650,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "diff APPNAME",
 		Short: shortDesc,
 		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found\nKubernetes Secrets are ignored from this diff.",
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -675,7 +675,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, appIf := clientset.NewApplicationClientOrDie()
+			conn, appIf := clientset.NewApplicationClientOrDieWithContext(ctx)
 			defer io.Close(conn)
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
@@ -699,7 +699,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			liveState, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
-			conn, settingsIf := clientset.NewSettingsClientOrDie()
+			conn, settingsIf := clientset.NewSettingsClientOrDieWithContext(ctx)
 			defer io.Close(conn)
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
@@ -754,7 +754,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					getTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 				} else {
 					fmt.Fprint(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
-					conn, clusterIf := clientset.NewClusterClientOrDie()
+					conn, clusterIf := clientset.NewClusterClientOrDieWithContext(ctx)
 					defer io.Close(conn)
 					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
 					// Local diff does not support to hide the configurable annotations in the secrets.
@@ -807,7 +807,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
-		},
+		}),
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
@@ -816,7 +816,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Send your manifests to the server for diffing. Used with --local")
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Specify patterns of filenames to send. Matching is based on filename and not path. Used with --server-side-generate")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json", "*.tpl", "Chart.lock"}, "Specify patterns of filenames to send. Patterns without a path separator match on the filename only (at any depth); patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. \"charts/**\" includes all files under charts/). NOTE: Kustomize apps that use configMapGenerator or secretGenerator with non-YAML source files (e.g. *.env, *.properties) must add those patterns explicitly via --local-include. Used with --server-side-generate")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in --source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1")
