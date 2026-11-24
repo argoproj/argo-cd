@@ -59,6 +59,8 @@ const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
 
+const bitbucketCloudAPIBaseURL = "https://api.bitbucket.org/2.0"
+
 const panicMsgServer = "panic while processing api-server webhook event"
 
 var (
@@ -323,7 +325,10 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				log.Debugf("no bitbucket repository configured for URL %s, initializing with empty bearer token", webURLs[0])
 				argoRepo = &v1alpha1.Repository{BearerToken: "", Repo: webURLs[0]}
 			}
-			apiBaseURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
+			// Bitbucket Cloud has a single API host. Don't derive it from the
+			// payload's self link: the payload is attacker-controlled, and the client
+			// carries the matching repository's stored credentials.
+			apiBaseURL := bitbucketCloudAPIBaseURL
 			bbClient, err := newBitbucketClient(ctx, argoRepo, apiBaseURL)
 			if err != nil {
 				log.Warnf("error creating Bitbucket client for repo %s: %v", payload.Repository.Name, err)
