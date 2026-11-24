@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp, ValidatedLink} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -438,14 +438,16 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         <div className='columns small-9'>
                                             {aSource.chart}&nbsp;
                                             {m.home && (
-                                                <a
+                                                <ValidatedLink
+                                                    url={m.home}
+                                                    target='_blank'
+                                                    rel='noopener noreferrer'
                                                     title={m.home}
                                                     onClick={e => {
                                                         e.stopPropagation();
-                                                        window.open(m.home);
                                                     }}>
                                                     <i className='fa fa-external-link-alt' />
-                                                </a>
+                                                </ValidatedLink>
                                             )}
                                         </div>
                                     </div>
