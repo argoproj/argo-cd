@@ -2574,3 +2574,11 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationNamesForRefreshLog(t *testing.T) {
+	apps := []v1alpha1.Application{
+		{ObjectMeta: metav1.ObjectMeta{Name: "app-b"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "app-a"}},
+	}
+	assert.Equal(t, []string{"app-b", "app-a"}, applicationNames(apps))
+}

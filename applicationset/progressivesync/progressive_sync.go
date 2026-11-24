@@ -757,6 +757,14 @@ func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, sinceTime *
 // It adds refresh annotations if needed and checks if all apps have been reconciled
 // previousWaitingTime is the transition time captured before updateApplicationSetApplicationStatus ran,
 // to avoid checking against the transition time that was just set in the current reconcile loop
+func applicationNames(applications []argov1alpha1.Application) []string {
+	names := make([]string, len(applications))
+	for i := range applications {
+		names[i] = applications[i].Name
+	}
+	return names
+}
+
 func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, refreshGracePeriodSeconds int) (bool, error) {
 	// Use the provided previous transition time to check reconciliation status
 	// This prevents the endless loop where apps can never catch up to a transition time
@@ -798,7 +806,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	if len(appsNeedReconcile) > 0 {
-		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", appsNeedReconcile))
+		logCtx.WithField("applications", applicationNames(appsNeedReconcile)).Info("Finished adding refresh annotations, waiting for application controller to reconcile them")
 	}
 	return false, nil
 }
