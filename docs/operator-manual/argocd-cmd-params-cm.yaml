@@ -385,6 +385,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
   reposerver.git.lsremote.optimized.enabled: "false"
+  # Git object filter for partial clones, such as "blob:none". Empty fetches all objects.
+  reposerver.git.partial.clone.filter: ""
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
   # Cache TTL for locks that prevent duplicate requests on the same revision. Set to "0" to disable. (default "10s")

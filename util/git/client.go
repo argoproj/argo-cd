@@ -233,6 +233,8 @@ type nativeGitClient struct {
 	tagPrefix string
 	// optimizedLsRemoteEnabled uses native git ls-remote with server-side ref narrowing when possible.
 	optimizedLsRemoteEnabled bool
+	// partialCloneFilter is passed to git fetch as --filter when set, for example blob:none.
+	partialCloneFilter string
 }
 
 type runOpts struct {
@@ -311,6 +313,13 @@ func WithTagPrefix(prefix string) ClientOpts {
 func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.optimizedLsRemoteEnabled = enabled
+	}
+}
+
+// WithPartialCloneFilter makes fetches create a partial clone with the given Git object filter, such as blob:none.
+func WithPartialCloneFilter(filter string) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.partialCloneFilter = filter
 	}
 }
 
@@ -617,6 +626,9 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 	} else {
 		args = append(args, "--tags")
 	}
+	if m.partialCloneFilter != "" {
+		args = append(args, "--filter="+m.partialCloneFilter)
+	}
 	args = append(args, "--force", "--prune")
 	return m.runCredentialedCmd(ctx, args...)
 }
@@ -810,7 +822,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
-	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
+	if out, err := m.runBlobReadingCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -1886,7 +1898,7 @@ func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, tar
 		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
-	out, err := m.runCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	out, err := m.runBlobReadingCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
 	}
@@ -2192,6 +2204,16 @@ func (m *nativeGitClient) cmdWithGPG(ctx context.Context, name string, args ...s
 func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	return m.runCmdOutput(cmd, runOpts{})
+}
+
+// runBlobReadingCmd runs a git command that may read file contents. A partial clone downloads missing
+// contents on demand, and that download needs the same credentials as fetch.
+func (m *nativeGitClient) runBlobReadingCmd(ctx context.Context, args ...string) (string, error) {
+	if m.partialCloneFilter == "" {
+		return m.runCmd(ctx, args...)
+	}
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{}, args...)
+	return out, humanizeAuthPromptError(m.repoURL, err)
 }
 
 func credentialedGitArgs(args []string, environ []string) []string {

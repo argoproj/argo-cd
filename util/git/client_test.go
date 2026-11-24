@@ -488,6 +488,105 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// createFilterableRepo creates a repository that allows object filters, with two commits to README.
+// It returns the repository path and the SHA of its last commit.
+func createFilterableRepo(t *testing.T) (string, string) {
+	t.Helper()
+	ctx := t.Context()
+	repo := t.TempDir()
+	require.NoError(t, runCmd(ctx, repo, "git", "init"))
+	require.NoError(t, runCmd(ctx, repo, "git", "config", "uploadpack.allowFilter", "true"))
+	for _, content := range []string{"first", "second"} {
+		require.NoError(t, os.WriteFile(filepath.Join(repo, "README"), []byte(content), 0o644))
+		require.NoError(t, runCmd(ctx, repo, "git", "add", "README"))
+		require.NoError(t, runCmd(ctx, repo, "git", "commit", "-m", content))
+	}
+	sha, err := outputCmd(ctx, repo, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	return repo, strings.TrimSpace(string(sha))
+}
+
+func countMissingObjects(t *testing.T, root string) int {
+	t.Helper()
+	out, err := outputCmd(t.Context(), root, "git", "rev-list", "--objects", "--missing=print", "--all")
+	require.NoError(t, err)
+	missing := 0
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if strings.HasPrefix(line, "?") {
+			missing++
+		}
+	}
+	return missing
+}
+
+// environCountingCreds counts how often a git command asks for credentials.
+type environCountingCreds struct {
+	NopCreds
+	calls int
+}
+
+func (c *environCountingCreds) Environ() (io.Closer, []string, error) {
+	c.calls++
+	return NopCloser{}, nil, nil
+}
+
+func Test_nativeGitClient_PartialCloneFilter(t *testing.T) {
+	t.Run("fetch leaves blobs out and checkout downloads them", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		client, err := NewClientExt("file://"+repo, t.TempDir(), NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		promisor, err := outputCmd(ctx, client.Root(), "git", "config", "--get", "remote.origin.promisor")
+		require.NoError(t, err)
+		assert.Equal(t, "true", strings.TrimSpace(string(promisor)))
+		assert.Equal(t, 2, countMissingObjects(t, client.Root()))
+
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(client.Root(), "README"))
+		require.NoError(t, err)
+		assert.Equal(t, "second", string(content))
+		assert.Equal(t, 1, countMissingObjects(t, client.Root()))
+	})
+
+	t.Run("checkout runs with credentials when a filter is set", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		creds := &environCountingCreds{}
+		client, err := NewClientExt("file://"+repo, t.TempDir(), creds, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		creds.calls = 0
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		assert.Equal(t, 1, creds.calls)
+	})
+
+	t.Run("no filter fetches every object and checks out without credentials", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		creds := &environCountingCreds{}
+		client, err := NewClientExt("file://"+repo, t.TempDir(), creds, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		_, err = outputCmd(ctx, client.Root(), "git", "config", "--get", "remote.origin.promisor")
+		require.Error(t, err)
+		assert.Equal(t, 0, countMissingObjects(t, client.Root()))
+
+		creds.calls = 0
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		assert.Equal(t, 0, creds.calls)
+	})
+}
+
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()
