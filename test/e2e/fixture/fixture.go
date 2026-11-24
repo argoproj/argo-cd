@@ -879,11 +879,13 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			if oldLoginTarget != "" && IsLocal() {
 				// Removing the SSO config makes the API server restart itself. Wait for
 				// that before any request, or it fails with "connection refused".
+				// Only in local mode, which is what CI runs; remote mode is unchanged.
 				if err := WaitForAPIServerLoginIssuer(t, oldLoginTarget, false); err != nil {
 					return err
 				}
 			}
-			// The admin login runs here, after the wait, and not in parallel with it.
+			// The previous test may have switched to a non-admin user, so log in as admin again.
+			// The login runs here, after the wait, and not in parallel with it.
 			// A restart with no SSO redirect to watch (for example, only url changed)
 			// can still be underway, so retry the login until it gets through.
 			loginTimeout := time.Duration(0)
@@ -1460,6 +1462,7 @@ func oidcIssuer(oidcConfig string) string {
 
 // ssoLoginTarget returns where /auth/login redirects for the given argocd-cm data: the
 // OIDC issuer, or the url for Dex (which is served under it). "" means no redirect.
+// A dex.config change restarts the API server the same way an oidc.config change does.
 func ssoLoginTarget(data map[string]string) string {
 	if issuer := oidcIssuer(data["oidc.config"]); issuer != "" {
 		return issuer
@@ -1497,6 +1500,7 @@ func WaitForAPIServerLoginIssuer(t *testing.T, loginTarget string, want bool) er
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // e2e API server uses a self-signed certificate
 		},
 	}
+	defer client.CloseIdleConnections()
 	loginURL := scheme + "://" + GetApiServerAddress() + common.LoginEndpoint
 	// A poll loop that returns an error, not require.Eventually: this also runs inside
 	// RunFunctionsInParallelAndCheckErrors goroutines, where t.FailNow must not be called.
@@ -1510,6 +1514,8 @@ func WaitForAPIServerLoginIssuer(t *testing.T, loginTarget string, want bool) er
 			return false, nil
 		}
 		_ = resp.Body.Close()
+		// Any reply counts, including an error status. Without SSO the server doesn't
+		// register /auth/login at all, so only the redirect tells the two servers apart.
 		return strings.HasPrefix(resp.Header.Get("Location"), loginTarget) == want, nil
 	}, "API server did not restart with the new SSO config")
 }

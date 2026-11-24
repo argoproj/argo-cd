@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,14 +49,26 @@ func DeleteGPGPublicKey(t *testing.T) {
 // waitForKeyring waits until the repo-server has synced its keyring with the
 // key source directory. The repo-server watches that directory and imports or
 // removes keys asynchronously, so a sync started right after the file changes
-// can still verify against the old keyring. The gpg call is read-only: it takes no
-// locks, skips the trustdb check and starts no agent, so it cannot block the
-// repo-server's own import or delete.
+// can still verify against the old keyring. The gpg call takes no locks, skips the
+// trustdb check and starts no agent, so it cannot block the repo-server's own
+// import or delete.
 func waitForKeyring(t *testing.T, present bool) {
 	t.Helper()
 	home := fixture.TmpDir() + "/app/config/gpg/keys"
 	require.Eventually(t, func() bool {
-		err := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--lock-never", "--no-auto-check-trustdb", "--no-autostart", "--list-keys", fixture.GpgGoodKeyID).Run()
-		return (err == nil) == present
+		// EnsureCleanState leaves this directory empty, and gpg creates a keyring in an
+		// empty directory. Wait for the repo-server to create it, so this check never
+		// writes into the repo-server's keyring.
+		if _, err := os.Stat(filepath.Join(home, "pubring.kbx")); err != nil {
+			return !present
+		}
+		cmd := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--lock-never", "--no-auto-check-trustdb", "--no-autostart", "--list-keys", fixture.GpgGoodKeyID)
+		cmd.Env = append(os.Environ(), "LC_ALL=C")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			return present
+		}
+		// Any other error, such as a read during the repo-server's rewrite, proves nothing.
+		return !present && strings.Contains(string(out), "No public key")
 	}, 30*time.Second, 100*time.Millisecond, "repo-server keyring did not sync key %s (want present=%v)", fixture.GpgGoodKeyID, present)
 }
