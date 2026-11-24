@@ -28,6 +28,7 @@ specific types of Kubernetes resources:
 ### Job
 
 - If job `.spec.suspend` is set to `true`, the Job health is `Suspended`. The Job aggregates as `Healthy`, so it does not make the Application `Suspended`.
+- A job that was suspended and then resumed is marked as progressing until it completes or fails.
 
 ### PersistentVolumeClaim
 
@@ -394,6 +395,10 @@ metadata:
 ```
 
 By doing this, the health status of the Deployment will not affect the health of its parent Application.
+
+This annotation only affects the health of the Application. It does not change how [sync waves](../user-guide/sync-waves.md)
+wait for the resource to become healthy. To let later waves proceed without waiting for the resource, use the
+[`SkipHealthCheck=true` sync option](../user-guide/sync-options.md#skip-health-check-during-sync).
 
 ## Customizing Child Resource Health Check in Applications
 

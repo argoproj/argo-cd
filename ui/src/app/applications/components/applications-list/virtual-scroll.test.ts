@@ -1,4 +1,4 @@
-import {renderHook} from '@testing-library/react';
+import {act, renderHook} from '@testing-library/react';
 import {
     appsLayoutKey,
     bidirectionalOverscanIndicesGetter,
@@ -9,6 +9,7 @@ import {
     getTableRowHeight,
     hasActiveHydrator,
     OVERSCAN_VIEWPORT_SCREENS,
+    resourcesLayoutKey,
     shouldUseVirtualScroll,
     TABLE_OVERSCAN_ROW_COUNT,
     TABLE_ROW_HEIGHT,
@@ -17,6 +18,7 @@ import {
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
     TILE_ROW_STRIDE,
+    useItemsPerContainer,
     useWindowScrollerPosition,
     VIRTUAL_THRESHOLD
 } from './virtual-scroll';
@@ -221,14 +223,35 @@ describe('virtual-scroll', () => {
         });
     });
 
+    describe('resourcesLayoutKey', () => {
+        const resource = (name: string) => ({
+            name,
+            namespace: 'default',
+            kind: 'ConfigMap',
+            group: '',
+            appName: 'demo',
+            appNamespace: 'argocd'
+        });
+
+        it('is stable for the same order', () => {
+            const resources = [resource('a'), resource('b')];
+            expect(resourcesLayoutKey(resources)).toBe(resourcesLayoutKey([...resources]));
+        });
+
+        it('changes when resources are reordered', () => {
+            const a = resource('a');
+            const b = resource('b');
+            expect(resourcesLayoutKey([a, b])).not.toBe(resourcesLayoutKey([b, a]));
+        });
+    });
+
     describe('useWindowScrollerPosition', () => {
         it('updates an enabled scroller when the surrounding layout changes', () => {
             const updatePosition = jest.fn();
             const scrollerRef = {current: {updatePosition}};
-            const {rerender} = renderHook(
-                ({enabled, layoutKey}: {enabled: boolean; layoutKey: string}) => useWindowScrollerPosition(scrollerRef, enabled, layoutKey),
-                {initialProps: {enabled: true, layoutKey: 'header-hidden'}}
-            );
+            const {rerender} = renderHook(({enabled, layoutKey}: {enabled: boolean; layoutKey: string}) => useWindowScrollerPosition(scrollerRef, enabled, layoutKey), {
+                initialProps: {enabled: true, layoutKey: 'header-hidden'}
+            });
 
             expect(updatePosition).toHaveBeenCalledTimes(1);
 
@@ -243,4 +266,67 @@ describe('virtual-scroll', () => {
         });
     });
 
+    describe('useItemsPerContainer', () => {
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('returns 1 while disabled and remeasures on the next tick when re-enabled', () => {
+            const itemRef = {current: {offsetWidth: 100} as HTMLDivElement};
+            const containerRef = {current: {offsetWidth: 400} as HTMLElement};
+            const {result, rerender} = renderHook(({enabled}: {enabled: boolean}) => useItemsPerContainer(itemRef, containerRef, enabled), {
+                initialProps: {enabled: true}
+            });
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+            expect(result.current).toBe(4);
+
+            itemRef.current = {offsetWidth: 200} as HTMLDivElement;
+            containerRef.current = {offsetWidth: 1000} as HTMLElement;
+
+            rerender({enabled: false});
+            expect(result.current).toBe(1);
+
+            rerender({enabled: true});
+            // Must not wait for the 1s resize debounce after leaving virtualized mode.
+            act(() => {
+                jest.advanceTimersByTime(0);
+            });
+            expect(result.current).toBe(5);
+        });
+
+        it('debounces resize measurements at 1s', () => {
+            const itemRef = {current: {offsetWidth: 100} as HTMLDivElement};
+            const containerRef = {current: {offsetWidth: 400} as HTMLElement};
+            const {result} = renderHook(() => useItemsPerContainer(itemRef, containerRef, true));
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+            expect(result.current).toBe(4);
+
+            itemRef.current = {offsetWidth: 200} as HTMLDivElement;
+            containerRef.current = {offsetWidth: 1000} as HTMLElement;
+            act(() => {
+                window.dispatchEvent(new Event('resize'));
+            });
+            expect(result.current).toBe(4);
+
+            act(() => {
+                jest.advanceTimersByTime(999);
+            });
+            expect(result.current).toBe(4);
+
+            act(() => {
+                jest.advanceTimersByTime(1);
+            });
+            expect(result.current).toBe(5);
+        });
+    });
 });

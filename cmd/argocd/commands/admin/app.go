@@ -379,6 +379,9 @@ func reconcileApplications(
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
+	if err := appInformer.AddIndexers(kubecache.Indexers{cache.ManagedCRDIndex: cache.ManagedCRDIndexFunc}); err != nil {
+		return nil, fmt.Errorf("error adding indexers to application informer: %w", err)
+	}
 	projInformer := appInformerFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
@@ -480,5 +483,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking(), cache.ClusterCacheConfigFromEnv())
 }

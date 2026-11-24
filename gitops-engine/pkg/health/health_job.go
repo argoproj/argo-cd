@@ -43,9 +43,10 @@ func getBatchv1JobHealth(job *batchv1.Job) (*HealthStatus, error) {
 			complete = true
 			message = condition.Message
 		case batchv1.JobSuspended:
-			complete = true
-			message = condition.Message
+			// A resumed Job keeps this condition with status False while it runs.
 			if condition.Status == corev1.ConditionTrue {
+				complete = true
+				message = condition.Message
 				isSuspended = true
 			}
 		}

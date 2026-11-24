@@ -21,6 +21,7 @@ linters:
     - gomodguard_v2
     - govet
     - importas
+    - intrange
     - misspell
     - modernize
     - noctx
@@ -30,6 +31,7 @@ linters:
     - testifylint
     - thelper
     - tparallel
+    - unconvert
     - unparam
     - usestdlibvars
     - usetesting
@@ -183,6 +185,10 @@ linters:
 
         - name: identical-branches
 
+        - name: identical-ifelseif-branches
+
+        - name: identical-switch-branches
+
         - name: if-return
 
         - name: increment-decrement
@@ -190,6 +196,8 @@ linters:
         - name: indent-error-flow
           arguments:
             - preserve-scope
+
+        - name: inefficient-map-lookup
 
         - name: modifies-parameter
 
@@ -213,6 +221,8 @@ linters:
         - name: time-naming
           disabled: true
 
+        - name: unconditional-recursion
+
         - name: unexported-return
           disabled: true
 
@@ -225,6 +235,8 @@ linters:
         - name: unused-parameter
 
         - name: use-any
+
+        - name: use-fmt-print
 
         - name: useless-break
 

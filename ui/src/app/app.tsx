@@ -1,3 +1,4 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {AppContext, AppContextReact, DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
@@ -6,13 +7,16 @@ import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router
 import {Subscription} from 'rxjs';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {ErrorBoundary} from './shared/components/error-boundary/error-boundary';
+import {PageSuspense} from './shared/components/page-suspense';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
+import {newQueryClient} from './shared/query-client';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
+import {resumeAutoLoginForSession} from './shared/sso-auto-login';
 import {Banner} from './ui-banner/ui-banner';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
@@ -146,6 +150,7 @@ export class App extends React.Component<
     private popupManager: PopupManager;
     private notificationsManager: NotificationsManager;
     private navigationManager: NavigationManager;
+    private queryClient: QueryClient;
     private navItems: NavItem[];
     private routes: Routes;
     private popupPropsSubscription: Subscription;
@@ -165,6 +170,7 @@ export class App extends React.Component<
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
+        this.queryClient = newQueryClient(this.notificationsManager);
         this.navItems = navItems;
         this.routes = routes;
         this.popupPropsSubscription = null;
@@ -189,9 +195,11 @@ export class App extends React.Component<
     }
 
     private async bootstrapAppSession(): Promise<void> {
+        const sessionCheckStartedAt = Date.now();
         const [authSettings, userInfoResult, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
 
         const {loggedIn, isSSO} = sessionFromBootstrap(userInfoResult, authSettings, versionInfo);
+        resumeAutoLoginForSession(userInfoResult, sessionCheckStartedAt);
 
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
@@ -300,25 +308,20 @@ export class App extends React.Component<
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={contextApis}>
-                        {/*
+                        <QueryClientProvider client={this.queryClient}>
+                            {/*
                           argo-ui's class components (e.g. DataLoader) read context via the modern
                           `static contextType = AppContextReact`. Without this provider, their `this.context`
                           is undefined and any error path (e.g. DataLoader.handleError after a failed
                           save/update/delete) throws "this.appContext is undefined".
                         */}
-                        <AppContextReact.Provider value={appContext}>
-                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
-                            </DataLoader>
-                            <AuthSettingsCtx.Provider value={this.state.authSettings}>
-                                <Router history={history}>
-                                    <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
-                                        <React.Suspense
-                                            fallback={
-                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
-                                                    <Spinner show={true} />
-                                                </div>
-                                            }>
+                            <AppContextReact.Provider value={appContext}>
+                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                    {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
+                                </DataLoader>
+                                <AuthSettingsCtx.Provider value={this.state.authSettings}>
+                                    <Router history={history}>
+                                        <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
                                             <Switch>
                                                 <Redirect exact={true} path='/' to='/applications' />
                                                 {Object.keys(this.routes).map(path => {
@@ -330,7 +333,9 @@ export class App extends React.Component<
                                                             render={routeProps =>
                                                                 route.noLayout ? (
                                                                     <div>
-                                                                        <route.component {...routeProps} />
+                                                                        <PageSuspense>
+                                                                            <route.component {...routeProps} />
+                                                                        </PageSuspense>
                                                                     </div>
                                                                 ) : (
                                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -340,7 +345,9 @@ export class App extends React.Component<
                                                                                 navItems={this.navItems}
                                                                                 pref={pref}>
                                                                                 <Banner>
-                                                                                    <route.component {...routeProps} />
+                                                                                    <PageSuspense>
+                                                                                        <route.component {...routeProps} />
+                                                                                    </PageSuspense>
                                                                                 </Banner>
                                                                             </Layout>
                                                                         )}
@@ -351,15 +358,15 @@ export class App extends React.Component<
                                                     );
                                                 })}
                                             </Switch>
-                                        </React.Suspense>
-                                    </ErrorBoundary>
-                                </Router>
-                            </AuthSettingsCtx.Provider>
-                        </AppContextReact.Provider>
+                                        </ErrorBoundary>
+                                    </Router>
+                                </AuthSettingsCtx.Provider>
+                            </AppContextReact.Provider>
+                            <VersionPanel isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
+                        </QueryClientProvider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
-                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
     }

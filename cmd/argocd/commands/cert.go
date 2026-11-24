@@ -319,8 +319,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			if certType != "" {
 				switch certType {
-				case "ssh":
-				case "https":
+				case "ssh", "https":
 				default:
 					fmt.Println("cert-type must be either ssh or https")
 					os.Exit(1)

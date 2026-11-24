@@ -84,6 +84,9 @@ func TestJob(t *testing.T) {
 	// A suspended Job keeps its Suspended status but aggregates as Healthy so it does not
 	// make the parent Application Suspended.
 	assert.Equal(t, HealthStatusHealthy, getHealthStatus(t, "./testdata/job-suspended.yaml").AggregateAs)
+	// A resumed Job keeps its Suspended condition with status False while it runs.
+	assertAppHealth(t, "./testdata/job-resumed.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/job-resumed-succeeded.yaml", HealthStatusHealthy)
 }
 
 func TestIsValidHealthStatusCode(t *testing.T) {

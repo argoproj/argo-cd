@@ -1,6 +1,7 @@
 import {useCallback, useSyncExternalStore} from 'react';
 import type {CSSProperties} from 'react';
 import {AuthSettings, Cluster, UserInfo} from './models';
+import {hasSSOProvider, isExternalIssuer} from './sso-auto-login';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -204,30 +205,5 @@ export const isInvalidRegex = (pattern: string): boolean => {
  * @returns true if SSO should be used, otherwise false
  */
 export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSettings: AuthSettings): boolean {
-    const isExternalIssuer = userInfo?.iss && userInfo.iss !== 'argocd';
-    const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
-    const hasOidcConfig = !!authSettings.oidcConfig;
-    return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
-}
-
-/**
- * Checks whether merging the given query parameters into a search string would change it. Mirrors
- * how NavigationApi.goto merges them: null or undefined removes a parameter, any other value sets it.
- * @param search - The current query string, including the leading '?'
- * @param params - The parameters that would be merged in
- * @returns true if the query string would change, otherwise false
- */
-export function queryParamsChanged(search: string, params: {[name: string]: string | null}): boolean {
-    const current = new URLSearchParams(search);
-    const next = new URLSearchParams(search);
-    for (const [name, value] of Object.entries(params)) {
-        next.delete(name);
-        if (value !== undefined && value !== null) {
-            next.set(name, value);
-        }
-    }
-    // Sort before comparing: goto reorders the parameters it sets, which is not a real change.
-    current.sort();
-    next.sort();
-    return next.toString() !== current.toString();
+    return isExternalIssuer(userInfo) && hasSSOProvider(authSettings);
 }
