@@ -23,6 +23,6 @@ if obj.status ~= nil then
   end
 end
 
-hs.status = "Progressing"
-hs.message = "Waiting for Backend status"
+hs.status = "Healthy"
+hs.message = "Backend is not referenced by any route"
 return hs

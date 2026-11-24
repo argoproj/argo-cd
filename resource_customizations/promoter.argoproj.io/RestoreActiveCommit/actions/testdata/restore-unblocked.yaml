@@ -1,0 +1,17 @@
+- k8sOperation: patch
+  unstructuredObj:
+    apiVersion: promoter.argoproj.io/v1alpha1
+    kind: RestoreActiveCommit
+    metadata:
+      name: restore-abcdef1234567890abcdef1234567890abcdef12
+      namespace: gitops-promoter
+    spec:
+      promotionStrategyRef:
+        name: example-promotion-strategy
+      branch: environment/production
+      sha: abcdef1234567890abcdef1234567890abcdef12
+      blockEnvironment: false
+    status:
+      activeSha: "1111111111111111111111111111111111111111"
+      blockedDrySha: "3333333333333333333333333333333333333333"
+      restoredFrom: abcdef1234567890abcdef1234567890abcdef12
