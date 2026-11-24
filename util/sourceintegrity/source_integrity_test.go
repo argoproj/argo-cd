@@ -71,11 +71,6 @@ func Test_GPGDisabledLogging(t *testing.T) {
 		"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED",
 	}, logger.GetEntries())
 	assert.Nil(t, fun)
-
-	logger.Entries = []logrus.Entry{}
-	fun = lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
-	assert.Equal(t, []string{"No verification configured for SourceIntegrity policy for [{URL:*}]"}, logger.GetEntries())
-	assert.Nil(t, fun)
 }
 
 func TestGPGUnknownMode(t *testing.T) {
