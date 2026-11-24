@@ -130,6 +130,8 @@ const (
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
 	StateCookieName = "argocd.oauthstate"
+	// SSOAutoLoginPausedCookieName is the HTTP cookie name that tells the UI not to redirect to SSO after a logout
+	SSOAutoLoginPausedCookieName = "argocd.sso.autoLoginPaused"
 	// StateCookieMaxAge is the maximum age of the oauth state cookie
 	StateCookieMaxAge = time.Minute * 5
 
