@@ -20,7 +20,7 @@ func (r *ApplicationSetReconciler) SetAppSetApplicationStatus(
 	logCtx *log.Entry,
 	applicationSet *argov1alpha1.ApplicationSet,
 	applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus,
-	w progressivesync.StatusWriter,
+	w progressivesync.ApplicationSetWriter,
 ) {
 	// Delegate to existing controller method
 	r.setAppSetApplicationStatus(logCtx, applicationSet, applicationStatuses, w)
@@ -38,7 +38,7 @@ func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 	conditions []argov1alpha1.ApplicationSetCondition,
 	parametersGenerated bool,
 	observedGeneration int64,
-	w progressivesync.StatusWriter,
+	w progressivesync.ApplicationSetWriter,
 ) {
 	// Delegate to existing controller method
 	r.setApplicationSetStatusCondition(applicationSet, conditions, parametersGenerated, observedGeneration, w)

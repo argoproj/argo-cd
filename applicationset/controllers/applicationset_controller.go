@@ -131,10 +131,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}()
 
-	var applicationSet argov1alpha1.ApplicationSet
+	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
 	startTime := time.Now()
-	if err := r.Get(ctx, req.NamespacedName, &applicationSet); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, &applicationSetInfo); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			logCtx.WithError(err).Infof("unable to get ApplicationSet: '%v' ", err)
 		}
@@ -145,11 +145,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// on the way out. Registering the flush before the metrics defer means it runs first, so the
 	// reconcile duration covers the write. Reconcile has many early returns, and the status must
 	// be persisted on all of them, including the error paths.
-	statusWriter := &statusWriter{}
+	statusWriter := &applicationsetWriter{}
 	observedGeneration := applicationSetInfo.Generation
 
 	defer func() {
-		if flushErr := statusWriter.Flush(ctx, r.Client, &applicationSet); flushErr != nil {
+		if flushErr := statusWriter.Flush(ctx, r.Client, &applicationSetInfo); flushErr != nil {
 			logCtx.Errorf("unable to write application set status: %v", flushErr)
 			if err == nil {
 				// Surface the failure so the request is retried; a reconciliation whose status
@@ -162,64 +162,64 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}()
 
 	defer func() {
-		r.Metrics.ObserveReconcile(&applicationSet, time.Since(startTime))
+		r.Metrics.ObserveReconcile(&applicationSetInfo, time.Since(startTime))
 	}()
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
-	if applicationSet.DeletionTimestamp != nil {
-		appsetName := applicationSet.Name
+	if applicationSetInfo.DeletionTimestamp != nil {
+		appsetName := applicationSetInfo.Name
 		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
-		deleteAllowed := utils.DefaultPolicy(applicationSet.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
+		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
 			logCtx.Debugf("ApplicationSet policy does not allow to delete")
-			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSet); err != nil {
+			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
 				return ctrl.Result{}, err
 			}
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
 		}
-		if progressivesync.IsDeletionOrderReversed(&applicationSet) {
+		if progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 			logCtx.Debugf("DeletionOrder is set as Reverse on %s", appsetName)
-			currentApplications, err := r.getCurrentApplications(ctx, applicationSet)
+			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			requeueTime, err := r.ProgressiveSyncManager.PerformReverseDeletion(ctx, logCtx, applicationSet, currentApplications)
+			requeueTime, err := r.ProgressiveSyncManager.PerformReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
 			if err != nil {
 				return ctrl.Result{}, err
 			} else if requeueTime > 0 {
 				return ctrl.Result{RequeueAfter: requeueTime}, err
 			}
 		}
-		controllerutil.RemoveFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName)
-		if err := r.Update(ctx, &applicationSet); err != nil {
+		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+		if err := r.Update(ctx, &applicationSetInfo); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
-	r.migrateStatus(&applicationSet, statusWriter)
+	r.migrateStatus(&applicationSetInfo, statusWriter)
 
 	// ensure finalizer exists if deletionOrder is set as Reverse
-	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSet) {
-		if !controllerutil.ContainsFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName) {
+	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
+		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
 			// Patch rather than Update to avoid rewriting the spec (see the refresh annotation below). A merge
 			// patch replaces the whole finalizers list, so the optimistic lock guards concurrent writers.
-			original := applicationSet.DeepCopy()
-			controllerutil.AddFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Patch(ctx, &applicationSet, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
+			original := applicationSetInfo.DeepCopy()
+			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+			if err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 	}
 
 	// Log a warning if there are unrecognized generators
-	_ = utils.CheckInvalidGenerators(&applicationSet)
+	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	generatedApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSet, r.Generators, r.Renderer, r.Client)
+	generatedApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
 	if err != nil {
 		logCtx.Errorf("unable to generate applications: %v", err)
 		r.setApplicationSetStatusCondition(
-			&applicationSet,
+			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
 					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -236,7 +236,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	parametersGenerated = true
 
-	validateErrors, err := r.validateGeneratedApplications(ctx, generatedApplications, applicationSet)
+	validateErrors, err := r.validateGeneratedApplications(ctx, generatedApplications, applicationSetInfo)
 	if err != nil {
 		// While some generators may return an error that requires user intervention,
 		// other generators reference external resources that may change to cause
@@ -248,7 +248,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logCtx.Errorf("error occurred during application validation: %s", err.Error())
 
 		r.setApplicationSetStatusCondition(
-			&applicationSet,
+			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
 					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -262,7 +262,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
 
-	currentApplications, err := r.getCurrentApplications(ctx, applicationSet)
+	currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
@@ -271,16 +271,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	appSyncMap := map[string]bool{}
 	var timeBeforePerformProgressiveSync time.Time
 	if r.EnableProgressiveSyncs {
-		if !progressivesync.IsRollingSyncStrategy(&applicationSet) && len(applicationSet.Status.ApplicationStatus) > 0 {
+		if !progressivesync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
-			logCtx.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSet.Status.ApplicationStatus), applicationSet.Name)
+			logCtx.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
-			r.SetAppSetApplicationStatus(logCtx, &applicationSet, []argov1alpha1.ApplicationSetApplicationStatus{}, statusWriter)
-		} else if progressivesync.IsRollingSyncStrategy(&applicationSet) {
+			r.SetAppSetApplicationStatus(logCtx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{}, statusWriter)
+		} else if progressivesync.IsRollingSyncStrategy(&applicationSetInfo) {
 			// before starting progressive sync, checks if steps
-			if progressivesync.IsStepsEmpty(&applicationSet) {
+			if progressivesync.IsStepsEmpty(&applicationSetInfo) {
 				r.setApplicationSetStatusCondition(
-					&applicationSet,
+					&applicationSetInfo,
 					[]argov1alpha1.ApplicationSetCondition{
 						{
 							Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -294,17 +294,17 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 
 			timeBeforePerformProgressiveSync = time.Now()
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(logCtx, applicationSet, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds, observedGeneration, statusWriter)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds, observedGeneration, statusWriter)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
 		}
 	} else {
 		// Progressive Sync is disabled, clear any existing applicationStatus to prevent stale data
-		if len(applicationSet.Status.ApplicationStatus) > 0 {
-			logCtx.Infof("Progressive Sync disabled, removing %v AppStatus entries from ApplicationSet %v", len(applicationSet.Status.ApplicationStatus), applicationSet.Name)
+		if len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			logCtx.Infof("Progressive Sync disabled, removing %v AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
-			r.SetAppSetApplicationStatus(logCtx, &applicationSet, []argov1alpha1.ApplicationSetApplicationStatus{}, statusWriter)
+			r.SetAppSetApplicationStatus(logCtx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{}, statusWriter)
 		}
 	}
 
@@ -325,7 +325,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			message = fmt.Sprintf("%s (and %d more)", message, len(validateErrors)-1)
 		}
 		r.setApplicationSetStatusCondition(
-			&applicationSet,
+			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
 					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -346,18 +346,18 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
-		if progressivesync.RollingSyncStrategyEnabled(&applicationSet) {
+		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
 			if len(appSyncMap) > 0 {
-				r.Metrics.ObserveTimeToStartSyncAfterDetection(&applicationSet, time.Since(timeBeforePerformProgressiveSync))
+				r.Metrics.ObserveTimeToStartSyncAfterDetection(&applicationSetInfo, time.Since(timeBeforePerformProgressiveSync))
 			}
 			// The rollout state recorded above is the progressive sync state machine's memory of
 			// which Applications it is about to sync. Persist it before the syncs are triggered:
 			// if the controller stops between the two, the next reconciliation must see that this
 			// step was already started rather than starting it again.
-			if err := statusWriter.Flush(ctx, r.Client, &applicationSet); err != nil {
+			if err := statusWriter.Flush(ctx, r.Client, &applicationSetInfo); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to write progressive sync status before syncing applications: %w", err)
 			}
-			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSet, appSyncMap, validApps)
+			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
 		}
 	}
 
@@ -366,11 +366,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return validApps[i].Name < validApps[j].Name
 	})
 
-	if utils.DefaultPolicy(applicationSet.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
-		err = r.createOrUpdateInCluster(ctx, logCtx, applicationSet, validApps)
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
+		err = r.createOrUpdateInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
 			r.setApplicationSetStatusCondition(
-				&applicationSet,
+				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
 						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -383,10 +383,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 	} else {
-		err = r.createInCluster(ctx, logCtx, applicationSet, validApps)
+		err = r.createInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
 			r.setApplicationSetStatusCondition(
-				&applicationSet,
+				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
 						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -400,12 +400,12 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSet.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
 		// Delete the generatedApplications instead of the validApps because we want to be able to delete applications in error/invalid state
-		err = r.deleteInCluster(ctx, logCtx, applicationSet, generatedApplications)
+		err = r.deleteInCluster(ctx, logCtx, applicationSetInfo, generatedApplications)
 		if err != nil {
 			r.setApplicationSetStatusCondition(
-				&applicationSet,
+				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
 						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -420,24 +420,24 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Update resources status after create/update/delete so it reflects the actual cluster state.
-	currentApplications, err = r.getCurrentApplications(ctx, applicationSet)
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
-	r.updateResourcesStatus(logCtx, &applicationSet, currentApplications, statusWriter)
+	r.updateResourcesStatus(logCtx, &applicationSetInfo, currentApplications, statusWriter)
 
-	if applicationSet.RefreshRequired() {
+	if applicationSetInfo.RefreshRequired() {
 		// Patch only the annotation: a full Update re-serializes the spec through the Go types, which
 		// drops explicit zero values on omitempty fields and adds empty generator templates, so tools
 		// that manage the ApplicationSet see drift. The optimistic lock is needed because when the
 		// refresh key is the only annotation, the computed patch sets annotations to null.
-		original := applicationSet.DeepCopy()
-		delete(applicationSet.Annotations, common.AnnotationApplicationSetRefresh)
-		err := r.Patch(ctx, &applicationSet, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
+		original := applicationSetInfo.DeepCopy()
+		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
+		err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			r.setApplicationSetStatusCondition(
-				&applicationSet,
+				&applicationSetInfo,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
 						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
@@ -451,11 +451,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	requeueAfter := r.getMinRequeueAfter(&applicationSet)
+	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
 	if len(validateErrors) == 0 {
 		r.setApplicationSetStatusCondition(
-			&applicationSet,
+			&applicationSetInfo,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
 					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
@@ -501,7 +501,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 // observedGeneration is the generation the caller reconciled against and is recorded on every
 // condition this call derives. The change is written to the API server when the reconciliation
 // flushes w.
-func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool, observedGeneration int64, w progressivesync.StatusWriter) {
+func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool, observedGeneration int64, w progressivesync.ApplicationSetWriter) {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
 		argov1alpha1.ApplicationSetConditionParametersGenerated:  true,
@@ -575,29 +575,9 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationS
 		newConditions[i].ObservedGeneration = observedGeneration
 	}
 
-	// Update the applicationSet conditions
-	previousConditions := applicationSet.Status.Conditions
-
-	applicationSet.Status.SetConditions(newConditions, evaluatedTypes)
-
-	// Try to not call get/update if nothing has changed
-	needToUpdateConditions := len(applicationSet.Status.Conditions) != len(previousConditions)
-	if !needToUpdateConditions {
-		for i, c := range applicationSet.Status.Conditions {
-			previous := previousConditions[i]
-			if c.Type != previous.Type ||
-				c.Reason != previous.Reason ||
-				c.Status != previous.Status ||
-				c.Message != previous.Message ||
-				c.ObservedGeneration != previous.ObservedGeneration {
-				needToUpdateConditions = true
-				break
-			}
-		}
-	}
-
 	// SetConditions merges newConditions into whichever ApplicationSet it is given, so it is safe
-	// to replay against the object the reconciliation finally writes.
+	// to replay against the object the reconciliation finally writes. The writer's flush skips the
+	// API call when the replay leaves the status unchanged, so no check for changes is needed here.
 	w.Apply(applicationSet, func(target *argov1alpha1.ApplicationSet) {
 		target.Status.SetConditions(newConditions, evaluatedTypes)
 	})
@@ -1079,7 +1059,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 // migrateStatus runs migrations on the status subresource of ApplicationSet early during the run of
 // ApplicationSetReconciler.Reconcile. This handles any defaulting of values - which would otherwise
 // cause the status write at the end of the reconciliation to fail given missing required fields.
-func (r *ApplicationSetReconciler) migrateStatus(appset *argov1alpha1.ApplicationSet, w *statusWriter) {
+func (r *ApplicationSetReconciler) migrateStatus(appset *argov1alpha1.ApplicationSet, w *applicationsetWriter) {
 	needsDefaulting := false
 	for idx := range appset.Status.ApplicationStatus {
 		if appset.Status.ApplicationStatus[idx].TargetRevisions == nil {
@@ -1100,7 +1080,7 @@ func (r *ApplicationSetReconciler) migrateStatus(appset *argov1alpha1.Applicatio
 	})
 }
 
-func (r *ApplicationSetReconciler) updateResourcesStatus(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application, w *statusWriter) {
+func (r *ApplicationSetReconciler) updateResourcesStatus(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application, w *applicationsetWriter) {
 	statusMap := status.GetResourceStatusMap(appset)
 	statusMap = status.BuildResourceStatus(statusMap, apps)
 
@@ -1125,7 +1105,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(logCtx *log.Entry, apps
 
 // setAppSetApplicationStatus records any new/changed Application statuses on the ApplicationSet's
 // status field. The change is written to the API server when the reconciliation flushes w.
-func (r *ApplicationSetReconciler) setAppSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus, w progressivesync.StatusWriter) {
+func (r *ApplicationSetReconciler) setAppSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus, w progressivesync.ApplicationSetWriter) {
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {

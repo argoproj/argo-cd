@@ -14,7 +14,7 @@ import (
 )
 
 /**
-  statusWriter consolidates every write to the ApplicationSet status subresource onto a single
+  applicationsetWriter consolidates every write to the ApplicationSet status subresource onto a single
   code path.
 
   Reconcile builds up the desired status in memory over the course of a reconciliation and the
@@ -27,13 +27,13 @@ import (
        copy, so the result is correct rather than merely overwritten.
 */
 
-// statusWriter records the status changes made during one reconciliation and writes them once.
-// A statusWriter is scoped to a single Reconcile call and is not safe for concurrent use.
-type statusWriter struct {
+// applicationsetWriter records the status changes made during one reconciliation and writes them once.
+// A applicationsetWriter is scoped to a single Reconcile call and is not safe for concurrent use.
+type applicationsetWriter struct {
 	mutators []func(*argov1alpha1.ApplicationSet)
 }
 
-var _ progressivesync.StatusWriter = (*statusWriter)(nil)
+var _ progressivesync.ApplicationSetWriter = (*applicationsetWriter)(nil)
 
 // Apply changes the in-memory ApplicationSet immediately so that later stages of the
 // reconciliation observe the new status, and records the change so that Flush replays it against
@@ -41,7 +41,7 @@ var _ progressivesync.StatusWriter = (*statusWriter)(nil)
 //
 // mutate must be safe to run more than once and against a different copy of the ApplicationSet
 // than the one passed here.
-func (w *statusWriter) Apply(appset *argov1alpha1.ApplicationSet, mutate func(*argov1alpha1.ApplicationSet)) {
+func (w *applicationsetWriter) Apply(appset *argov1alpha1.ApplicationSet, mutate func(*argov1alpha1.ApplicationSet)) {
 	mutate(appset)
 	w.mutators = append(w.mutators, mutate)
 }
@@ -53,7 +53,7 @@ func (w *statusWriter) Apply(appset *argov1alpha1.ApplicationSet, mutate func(*a
 // Flush may be called more than once per reconciliation. Changes recorded before an earlier call
 // are replayed again, which is harmless because they are idempotent, and which keeps the server
 // copy correct if another writer has touched the object in between.
-func (w *statusWriter) Flush(ctx context.Context, c client.Client, appset *argov1alpha1.ApplicationSet) error {
+func (w *applicationsetWriter) Flush(ctx context.Context, c client.Client, appset *argov1alpha1.ApplicationSet) error {
 	if len(w.mutators) == 0 {
 		return nil
 	}

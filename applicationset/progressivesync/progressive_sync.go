@@ -41,10 +41,10 @@ type deleteInOrder struct {
 	Step    int
 }
 
-// StatusWriter records changes to the ApplicationSet status. The ApplicationSet controller owns
+// ApplicationSetWriter records changes to the ApplicationSet status. The ApplicationSet controller owns
 // the implementation and performs the single write at the end of the reconciliation, so progressive
 // sync records what it wants the status to say without issuing an API call of its own.
-type StatusWriter interface {
+type ApplicationSetWriter interface {
 	// Apply changes the in-memory ApplicationSet immediately and records the change so it is
 	// replayed against the object the controller finally writes. mutate must be safe to run more
 	// than once and against a different copy of the ApplicationSet than the one passed here.
@@ -60,7 +60,7 @@ type Dependencies interface {
 		logCtx *log.Entry,
 		applicationSet *argov1alpha1.ApplicationSet,
 		applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus,
-		w StatusWriter,
+		w ApplicationSetWriter,
 	)
 
 	// SetApplicationSetStatusCondition records ApplicationSet conditions on w. observedGeneration
@@ -71,8 +71,8 @@ type Dependencies interface {
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
 		observedGeneration int64,
-		w StatusWriter,
-	) error
+		w ApplicationSetWriter,
+	)
 
 	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
 	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
@@ -127,7 +127,7 @@ func (m *Manager) applicationGoneFromAPIServer(ctx context.Context, namespace, n
 	}
 }
 
-func (m *Manager) PerformProgressiveSyncs(logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int, observedGeneration int64, w StatusWriter) (map[string]bool, error) {
+func (m *Manager) PerformProgressiveSyncs(logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int, observedGeneration int64, w ApplicationSetWriter) (map[string]bool, error) {
 	// Initialize validation tracking
 	m.validationIssues = &ValidationIssues{}
 
@@ -433,7 +433,7 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
-func (m *Manager) UpdateApplicationSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int, w StatusWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int, w ApplicationSetWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
@@ -814,7 +814,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *Manager) UpdateApplicationSetApplicationStatusProgress(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, w StatusWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, w ApplicationSetWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
@@ -978,7 +978,7 @@ func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.Applicati
 	}
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition, observedGeneration int64, w StatusWriter) []argov1alpha1.ApplicationSetCondition {
+func (m *Manager) updateApplicationSetApplicationStatusConditions(applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition, observedGeneration int64, w ApplicationSetWriter) []argov1alpha1.ApplicationSetCondition {
 	// filter out nil conditions
 	var filteredConditions []argov1alpha1.ApplicationSetCondition
 	for _, condition := range conditions {

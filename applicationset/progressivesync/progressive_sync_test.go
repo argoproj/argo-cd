@@ -26,10 +26,10 @@ import (
 // UpdateApplicationSetApplicationStatus, not on their persistence.
 type testDeps struct{}
 
-func (testDeps) SetAppSetApplicationStatus(_ *log.Entry, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetApplicationStatus, _ StatusWriter) {
+func (testDeps) SetAppSetApplicationStatus(_ *log.Entry, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetApplicationStatus, _ ApplicationSetWriter) {
 }
 
-func (testDeps) SetApplicationSetStatusCondition(_ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool, _ int64, _ StatusWriter) {
+func (testDeps) SetApplicationSetStatusCondition(_ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool, _ int64, _ ApplicationSetWriter) {
 }
 
 // testStatusWriter applies status changes in memory only.
