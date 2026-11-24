@@ -28,7 +28,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otel_codes "go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -690,11 +689,13 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
 	setAppTraceAttrs(span, app)
 	defer func() {
+		defer span.End()
 		setComparisonResultTraceAttrs(span, result)
-		if result != nil && result.hasComparisonErrors {
-			span.SetStatus(otel_codes.Error, "application comparison failed")
+		if retErr != nil {
+			recordControllerSpanError(span, errorTypeComparisonFailed, retErr)
+		} else if result != nil && result.hasComparisonErrors {
+			setControllerSpanError(span, errorTypeComparisonFailed, "application comparison failed")
 		}
-		traceutil.EndSpan(span, retErr)
 	}()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))

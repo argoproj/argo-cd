@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -37,12 +38,16 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 )
 
-type panicCompareAppStateManager struct {
+type panicAppStateManager struct {
 	AppStateManager
 	panicValue any
 }
 
-func (m *panicCompareAppStateManager) CompareAppState(context.Context, *v1alpha1.Application, *v1alpha1.AppProject, []string, []v1alpha1.ApplicationSource, bool, bool, []string, bool) (*comparisonResult, error) {
+func (m *panicAppStateManager) CompareAppState(context.Context, *v1alpha1.Application, *v1alpha1.AppProject, []string, []v1alpha1.ApplicationSource, bool, bool, []string, bool) (*comparisonResult, error) {
+	panic(m.panicValue)
+}
+
+func (m *panicAppStateManager) SyncAppState(context.Context, *v1alpha1.Application, *v1alpha1.AppProject, *v1alpha1.OperationState) {
 	panic(m.panicValue)
 }
 
@@ -213,11 +218,11 @@ func TestCalculateOperationTraceResult(t *testing.T) {
 		},
 		{
 			name: "failed attempt", attempted: failed, persisted: failed, attemptPhase: new(synccommon.OperationFailed),
-			want: operationTraceResult{phase: synccommon.OperationFailed, outcome: "error", hasError: true, errorMessage: "attempt message"},
+			want: operationTraceResult{phase: synccommon.OperationFailed, outcome: "error", errorType: "sync_failed", errorMessage: "attempt message"},
 		},
 		{
 			name: "failed attempt reset for retry", attempted: running, persisted: running, attemptPhase: new(synccommon.OperationFailed),
-			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "error", hasError: true, errorMessage: "attempt message"},
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "error", errorType: "sync_failed", errorMessage: "attempt message"},
 		},
 		{
 			name: "retry wait uses a separate state copy", attempted: running, persisted: fallbackRunning, retryWait: true,
@@ -229,23 +234,23 @@ func TestCalculateOperationTraceResult(t *testing.T) {
 		},
 		{
 			name: "successful attempt requires terminating fallback", attempted: succeeded, persisted: fallbackTerminating, attemptPhase: new(synccommon.OperationSucceeded),
-			want: operationTraceResult{phase: synccommon.OperationTerminating, outcome: "terminating", hasError: true, errorMessage: "fallback message"},
+			want: operationTraceResult{phase: synccommon.OperationTerminating, outcome: "terminating", errorType: "operation_state_persistence_failed", errorMessage: "fallback message"},
 		},
 		{
 			name: "fallback retains the same phase", attempted: running, persisted: fallbackRunning, attemptPhase: new(synccommon.OperationRunning),
-			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "progressing", hasError: true, errorMessage: "fallback message"},
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "progressing", errorType: "operation_state_persistence_failed", errorMessage: "fallback message"},
 		},
 		{
 			name: "fallback error message wins over failed attempt", attempted: failed, persisted: fallbackError, attemptPhase: new(synccommon.OperationFailed),
-			want: operationTraceResult{phase: synccommon.OperationError, outcome: "error", hasError: true, errorMessage: "fallback message"},
+			want: operationTraceResult{phase: synccommon.OperationError, outcome: "error", errorType: "operation_state_persistence_failed", errorMessage: "fallback message"},
 		},
 		{
 			name: "retained state is unknown", attempted: succeeded, attemptPhase: new(synccommon.OperationSucceeded),
-			want: operationTraceResult{outcome: "unknown", hasError: true, errorMessage: "operation state was not persisted"},
+			want: operationTraceResult{outcome: "unknown", errorType: "operation_state_persistence_failed", errorMessage: "operation state was not persisted"},
 		},
 		{
-			name: "failed attempt message wins when persistence also fails", attempted: running, attemptPhase: new(synccommon.OperationFailed),
-			want: operationTraceResult{outcome: "unknown", hasError: true, errorMessage: "attempt message"},
+			name: "persistence failure takes precedence over failed attempt", attempted: running, attemptPhase: new(synccommon.OperationFailed),
+			want: operationTraceResult{outcome: "unknown", errorType: "operation_state_persistence_failed", errorMessage: "operation state was not persisted"},
 		},
 	}
 	for _, tc := range cases {
@@ -304,7 +309,26 @@ func TestProcessRequestedAppOperationTracePreservesFailedAttemptBeforeRetry(t *t
 	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
 	assert.Equal(t, "Running", attrs["argocd.operation.phase"].AsString())
 	assert.Equal(t, "Error", attrs["argocd.operation.attempt.phase"].AsString())
-	assert.Equal(t, codes.Error, span.Status().Code)
+	assertTraceError(t, span, "sync_failed")
+}
+
+func TestProcessRequestedAppOperationTracePreservesPanicClassification(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+	ctrl.appStateManager = &panicAppStateManager{AppStateManager: ctrl.appStateManager, panicValue: "sync panicked"}
+
+	ctrl.processRequestedAppOperation(app)
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Equal(t, synccommon.OperationError, stored.Status.OperationState.Phase)
+	assert.Equal(t, "sync panicked", stored.Status.OperationState.Message)
+	span := findRecordedSpan(t, recorder.Ended(), "controller.Operation")
+	assertTraceError(t, span, "panic")
+	assert.Equal(t, "sync panicked", traceExceptionAttrs(t, span)["exception.message"].AsString())
 }
 
 func TestProcessRequestedAppOperationTraceUsesResolvedRevision(t *testing.T) {
@@ -366,6 +390,7 @@ func TestProcessAppRefreshQueueItemTraceIncludesResult(t *testing.T) {
 	assert.Equal(t, "Synced", attrs["argocd.app.sync.status"].AsString())
 	assert.Equal(t, "Healthy", attrs["argocd.app.health.status"].AsString())
 	assert.NotContains(t, attrs, "argocd.resolved_revisions")
+	assertTraceError(t, span, "")
 }
 
 func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
@@ -373,11 +398,13 @@ func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
 		name        string
 		level       CompareWith
 		patchErr    error
+		fallbackErr error
 		wantPatches int
 	}{
 		{name: "successful status write", level: CompareWithLatest, wantPatches: 1},
-		{name: "failed status write", level: CompareWithLatest, patchErr: errors.New("status write failed"), wantPatches: 1},
+		{name: "failed status write", level: CompareWithLatest, patchErr: errors.New("status write failed: " + strings.Repeat("界", 1024)), wantPatches: 1},
 		{name: "successful size-limit fallback", level: CompareWithLatest, patchErr: apierrors.NewRequestEntityTooLargeError("status too large"), wantPatches: 2},
+		{name: "failed size-limit fallback", level: CompareWithLatest, patchErr: apierrors.NewRequestEntityTooLargeError("status too large"), fallbackErr: errors.New("fallback write denied"), wantPatches: 2},
 		{name: "failed tree-only status write", level: ComparisonWithNothing, patchErr: errors.New("status write failed"), wantPatches: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -418,6 +445,9 @@ func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
 						if statusPatches == 1 && tc.patchErr != nil {
 							return true, nil, tc.patchErr
 						}
+						if statusPatches == 2 && tc.fallbackErr != nil {
+							return true, nil, tc.fallbackErr
+						}
 						return false, nil, nil
 					})
 				},
@@ -433,13 +463,27 @@ func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
 			if tc.patchErr != nil {
 				assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
 				assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-				assert.Equal(t, codes.Error, span.Status().Code)
-				assert.Equal(t, codes.Error, persistSpan.Status().Code)
+				assertTraceError(t, span, "status_persistence_failed")
+				assertTraceError(t, persistSpan, "status_persistence_failed")
+				assert.Equal(t, "failed to persist application status", span.Status().Description)
+				message := persistSpan.Status().Description
+				switch {
+				case tc.fallbackErr != nil:
+					assert.Contains(t, message, tc.patchErr.Error())
+					assert.Contains(t, message, tc.fallbackErr.Error())
+				case len(tc.patchErr.Error()) > 1024:
+					assertBoundedTraceMessage(t, message, "status write failed: ")
+					assert.True(t, strings.HasSuffix(message, "..."))
+				default:
+					assert.Equal(t, tc.patchErr.Error(), message)
+				}
+				exception := traceExceptionAttrs(t, persistSpan)
+				assert.Equal(t, message, exception["exception.message"].AsString())
 			} else {
 				assert.Equal(t, "state_changed", attrs["argocd.reconciliation.outcome"].AsString())
 				assert.True(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-				assert.Equal(t, codes.Unset, span.Status().Code)
-				assert.Equal(t, codes.Unset, persistSpan.Status().Code)
+				assertTraceError(t, span, "")
+				assertTraceError(t, persistSpan, "")
 			}
 			assert.Equal(t, tc.level != ComparisonWithNothing, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
 			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
@@ -454,7 +498,7 @@ func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
 				assert.Equal(t, v1alpha1.SyncStatusCodeSynced, stored.Status.Sync.Status)
 				assert.Equal(t, health.HealthStatusHealthy, stored.Status.Health.Status)
 			}
-			if apierrors.IsRequestEntityTooLargeError(tc.patchErr) {
+			if apierrors.IsRequestEntityTooLargeError(tc.patchErr) && tc.fallbackErr == nil {
 				require.Len(t, stored.Status.Conditions, 1)
 				assert.Equal(t, v1alpha1.ApplicationConditionUnknownError, stored.Status.Conditions[0].Type)
 			}
@@ -482,7 +526,7 @@ func TestProcessAppRefreshQueueItemTraceIncludesStatusOnPreComparisonReturn(t *t
 	assert.False(t, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
 	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
 	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-	assert.Equal(t, codes.Error, span.Status().Code)
+	assertTraceError(t, span, "application_validation_failed")
 }
 
 func TestProcessAppRefreshQueueItemTraceDoesNotReportStaleStatusOnComparisonError(t *testing.T) {
@@ -512,7 +556,7 @@ func TestProcessAppRefreshQueueItemTraceDoesNotReportStaleStatusOnComparisonErro
 	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
 	attrs := traceAttrs(span)
 	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
-	assert.Equal(t, codes.Error, span.Status().Code)
+	assertTraceError(t, span, "comparison_failed")
 	assert.NotContains(t, attrs, "argocd.app.sync.status")
 	assert.NotContains(t, attrs, "argocd.app.health.status")
 	assert.NotContains(t, attrs, "argocd.resolved_revision")
@@ -520,35 +564,50 @@ func TestProcessAppRefreshQueueItemTraceDoesNotReportStaleStatusOnComparisonErro
 }
 
 func TestProcessAppRefreshQueueItemTraceRecordsPanic(t *testing.T) {
-	recorder := installRecordingTracer(t)
-	app := newFakeApp()
-	reconciledAt := metav1.NewTime(time.Now().Add(-time.Second))
-	app.Status = v1alpha1.ApplicationStatus{
-		ReconciledAt: &reconciledAt,
-		Sync: v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
-			Source:      app.Spec.GetSource(),
-			Destination: app.Spec.Destination,
-		}},
-	}
-	ctrl := newFakeController(t.Context(), &fakeData{
-		apps:            []runtime.Object{app, &defaultProj},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}, nil)
-	ctrl.appStateManager = &panicCompareAppStateManager{
-		AppStateManager: ctrl.appStateManager,
-		panicValue:      errors.New("comparison panic"),
-	}
-	enqueueRefresh(t, ctrl, app, CompareWithLatest)
+	longMessage := "comparison panic: " + strings.Repeat("界", 1024)
+	for _, tc := range []struct {
+		name     string
+		value    any
+		wantType string
+	}{
+		{name: "error", value: errors.New(longMessage), wantType: "*errors.errorString"},
+		{name: "string", value: longMessage, wantType: "string"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			reconciledAt := metav1.NewTime(time.Now().Add(-time.Second))
+			app.Status = v1alpha1.ApplicationStatus{
+				ReconciledAt: &reconciledAt,
+				Sync: v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+					Source:      app.Spec.GetSource(),
+					Destination: app.Spec.Destination,
+				}},
+			}
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps:            []runtime.Object{app, &defaultProj},
+				managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			}, nil)
+			ctrl.appStateManager = &panicAppStateManager{
+				AppStateManager: ctrl.appStateManager,
+				panicValue:      tc.value,
+			}
+			enqueueRefresh(t, ctrl, app, CompareWithLatest)
 
-	ctrl.processAppRefreshQueueItem()
+			ctrl.processAppRefreshQueueItem()
 
-	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
-	attrs := traceAttrs(span)
-	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
-	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-	assert.Equal(t, codes.Error, span.Status().Code)
-	assert.Equal(t, "comparison panic", span.Status().Description)
-	assert.NotEmpty(t, span.Events())
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+			attrs := traceAttrs(span)
+			assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+			assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+			assertTraceError(t, span, "panic")
+			assertBoundedTraceMessage(t, span.Status().Description, "comparison panic: ")
+			exception := traceExceptionAttrs(t, span)
+			assert.Equal(t, tc.wantType, exception["exception.type"].AsString())
+			assert.Equal(t, span.Status().Description, exception["exception.message"].AsString())
+			assert.NotEmpty(t, exception["exception.stacktrace"].AsString())
+		})
+	}
 }
 
 func TestProcessAppRefreshQueueItemTraceRecordsCacheFailures(t *testing.T) {
@@ -596,7 +655,7 @@ func TestProcessAppRefreshQueueItemTraceRecordsCacheFailures(t *testing.T) {
 			assert.Equal(t, tc.level != ComparisonWithNothing, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
 			assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
 			assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-			assert.Equal(t, codes.Error, span.Status().Code)
+			assertTraceError(t, span, "cache_failed")
 		})
 	}
 }
@@ -614,8 +673,22 @@ func TestSyncAppStateTraceRecordsAndPropagatesPanic(t *testing.T) {
 
 	require.NotNil(t, recovered)
 	span := findRecordedSpan(t, recorder.Ended(), "controller.SyncAppState")
-	assert.Equal(t, codes.Error, span.Status().Code)
-	assert.NotEmpty(t, span.Events())
+	assertTraceError(t, span, "panic")
+	exception := traceExceptionAttrs(t, span)
+	assert.Equal(t, span.Status().Description, exception["exception.message"].AsString())
+	assert.NotEmpty(t, exception["exception.stacktrace"].AsString())
+}
+
+func TestSyncAppStateTraceRecordsFailedPhase(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	manager := &appStateManager{}
+	state := &v1alpha1.OperationState{}
+
+	manager.SyncAppState(t.Context(), newFakeApp(), &defaultProj, state)
+
+	assert.Equal(t, synccommon.OperationError, state.Phase)
+	span := findRecordedSpan(t, recorder.Ended(), "controller.SyncAppState")
+	assertTraceError(t, span, "sync_failed")
 }
 
 func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
@@ -695,11 +768,11 @@ func TestCompareAppStateTraceRecordsMultiSourceResolution(t *testing.T) {
 					v1alpha1.ApplicationConditionComparisonError: true,
 				}))
 				assert.NotContains(t, attrs, "argocd.resolved_revisions")
-				assert.Equal(t, codes.Error, span.Status().Code)
+				assertTraceError(t, span, "comparison_failed")
 			} else {
 				assert.True(t, result.hasResolvedRevisions)
 				assert.Equal(t, []string{"first-resolved-sha", "second-resolved-sha"}, attrs["argocd.resolved_revisions"].AsStringSlice())
-				assert.Equal(t, codes.Unset, span.Status().Code)
+				assertTraceError(t, span, "")
 			}
 		})
 	}
@@ -718,12 +791,12 @@ func TestProcessAppRefreshQueueItemTraceRecordsComparisonConditionFailure(t *tes
 	ctrl.processAppRefreshQueueItem()
 
 	comparison := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
-	assert.Equal(t, codes.Error, comparison.Status().Code)
+	assertTraceError(t, comparison, "comparison_failed")
 	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
 	attrs := traceAttrs(span)
 	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
 	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-	assert.Equal(t, codes.Error, span.Status().Code)
+	assertTraceError(t, span, "comparison_failed")
 	assert.NotContains(t, attrs, "argocd.resolved_revision")
 }
 
@@ -733,17 +806,17 @@ func TestProcessAppRefreshQueueItemTraceDistinguishesAutoSyncFailures(t *testing
 		previousFailure   bool
 		wantUpdates       int
 		wantOutcome       string
-		wantStatus        codes.Code
+		wantErrorType     string
 		wantSyncCondition string
 	}{
 		{
 			name: "current operation update fails", wantUpdates: 1,
-			wantOutcome: "error", wantStatus: codes.Error,
+			wantOutcome: "error", wantErrorType: "auto_sync_initiation_failed",
 			wantSyncCondition: "auto-sync update denied",
 		},
 		{
 			name: "previous sync failed at the same revision", previousFailure: true,
-			wantOutcome: "state_changed", wantStatus: codes.Unset,
+			wantOutcome:       "state_changed",
 			wantSyncCondition: "Failed last sync attempt",
 		},
 	} {
@@ -791,14 +864,14 @@ func TestProcessAppRefreshQueueItemTraceDistinguishesAutoSyncFailures(t *testing
 			require.Len(t, conditions, 1)
 			assert.Contains(t, conditions[0].Message, tc.wantSyncCondition)
 			comparison := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
-			assert.Equal(t, codes.Unset, comparison.Status().Code)
+			assertTraceError(t, comparison, "")
 			autoSync := findRecordedSpan(t, recorder.Ended(), "controller.autoSync")
-			assert.Equal(t, tc.wantStatus, autoSync.Status().Code)
+			assertTraceError(t, autoSync, tc.wantErrorType)
 			span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
 			attrs := traceAttrs(span)
 			assert.Equal(t, tc.wantOutcome, attrs["argocd.reconciliation.outcome"].AsString())
 			assert.Equal(t, tc.previousFailure, attrs["argocd.reconciliation.status_changed"].AsBool())
-			assert.Equal(t, tc.wantStatus, span.Status().Code)
+			assertTraceError(t, span, tc.wantErrorType)
 			assert.Equal(t, span.SpanContext().SpanID(), comparison.Parent().SpanID())
 			assert.Equal(t, span.SpanContext().SpanID(), autoSync.Parent().SpanID())
 		})
@@ -858,7 +931,7 @@ func TestAutoSyncTraceDoesNotReportBenignSkipsAsErrors(t *testing.T) {
 			assert.Equal(t, tc.wantApplicationGet, gets)
 			assert.Zero(t, updates)
 			span := findRecordedSpan(t, recorder.Ended(), "controller.autoSync")
-			assert.Equal(t, codes.Unset, span.Status().Code)
+			assertTraceError(t, span, "")
 		})
 	}
 }
@@ -912,7 +985,7 @@ func TestProcessRequestedAppOperationTraceRetryBackoffAndDisabledTracing(t *test
 			assert.Equal(t, "Running", attrs["argocd.operation.phase"].AsString())
 			assert.EqualValues(t, 1, attrs["argocd.operation.retry_count"].AsInt64())
 			assert.NotContains(t, attrs, "argocd.operation.attempt.phase")
-			assert.Equal(t, codes.Unset, span.Status().Code)
+			assertTraceError(t, span, "")
 		})
 	}
 }
@@ -942,7 +1015,7 @@ func TestProcessRequestedAppOperationTraceRecordsConcurrentTermination(t *testin
 	assert.Equal(t, "Running", attrs["argocd.operation.attempt.phase"].AsString())
 	assert.Equal(t, "Terminating", attrs["argocd.operation.phase"].AsString())
 	assert.Equal(t, "terminating", attrs["argocd.reconciliation.outcome"].AsString())
-	assert.Equal(t, codes.Unset, span.Status().Code)
+	assertTraceError(t, span, "")
 	require.Len(t, queue.calls, 1)
 	assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), queue.calls[0].item)
 	assert.Equal(t, appOperationMaxRequeueInterval, queue.calls[0].delay)
@@ -991,6 +1064,7 @@ func TestProcessRequestedAppOperationTraceReportsPersistedFallback(t *testing.T)
 			require.Equal(t, tc.finalPhase, stored.Status.OperationState.Phase)
 			span := findRecordedSpan(t, recorder.Ended(), "controller.Operation")
 			attrs := traceAttrs(span)
+			assertTraceError(t, span, "operation_state_persistence_failed")
 			assert.Equal(t, string(tc.attemptPhase), attrs["argocd.operation.attempt.phase"].AsString())
 			assert.Equal(t, string(stored.Status.OperationState.Phase), attrs["argocd.operation.phase"].AsString())
 			assert.Equal(t, tc.outcome, attrs["argocd.reconciliation.outcome"].AsString())
@@ -1061,6 +1135,37 @@ func hasRecordedSpan(spans []sdktrace.ReadOnlySpan, name string) bool {
 func traceAttrs(span sdktrace.ReadOnlySpan) map[string]attribute.Value {
 	attrs := make(map[string]attribute.Value, len(span.Attributes()))
 	for _, attr := range span.Attributes() {
+		attrs[string(attr.Key)] = attr.Value
+	}
+	return attrs
+}
+
+func assertTraceError(t *testing.T, span sdktrace.ReadOnlySpan, errorType string) {
+	t.Helper()
+	attrs := traceAttrs(span)
+	if errorType == "" {
+		assert.Equal(t, codes.Unset, span.Status().Code)
+		assert.NotContains(t, attrs, "error.type")
+		return
+	}
+	assert.Equal(t, codes.Error, span.Status().Code)
+	assert.Equal(t, errorType, attrs["error.type"].AsString())
+}
+
+func assertBoundedTraceMessage(t *testing.T, message, prefix string) {
+	t.Helper()
+	assert.True(t, strings.HasPrefix(message, prefix), "unexpected message: %q", message)
+	assert.LessOrEqual(t, len(message), 1024)
+	assert.True(t, utf8.ValidString(message))
+}
+
+func traceExceptionAttrs(t *testing.T, span sdktrace.ReadOnlySpan) map[string]attribute.Value {
+	t.Helper()
+	events := span.Events()
+	require.Len(t, events, 1)
+	require.Equal(t, "exception", events[0].Name)
+	attrs := make(map[string]attribute.Value, len(events[0].Attributes))
+	for _, attr := range events[0].Attributes {
 		attrs[string(attr.Key)] = attr.Value
 	}
 	return attrs

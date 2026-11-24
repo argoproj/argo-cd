@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -160,20 +159,16 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
 	setAppTraceAttrs(span, app)
-	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
-	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
+	// SyncAppState reports failures through state.Phase, so read it when the attempt ends.
 	defer func() {
 		setSyncOperationTraceAttrs(span, state)
 		if recovered := recover(); recovered != nil {
-			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", recovered))
-			if recoveredErr, ok := recovered.(error); ok {
-				span.RecordError(recoveredErr)
-			}
+			recordControllerPanic(span, recovered)
 			span.End()
 			panic(recovered)
 		}
 		if state != nil && isFailedOperationPhase(state.Phase) {
-			span.SetStatus(otel_codes.Error, state.Message)
+			setControllerSpanError(span, errorTypeSyncFailed, state.Message)
 		}
 		span.End()
 	}()

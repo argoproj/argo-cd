@@ -1,15 +1,96 @@
 package controller
 
 import (
+	"fmt"
 	"reflect"
+	"runtime"
+	"strings"
+	"unicode/utf8"
 
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"go.opentelemetry.io/otel/attribute"
 	otel_codes "go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+// These error classes are chosen at the failure site and documented in the observability guide.
+const (
+	errorTypeApplicationValidationFailed     = "application_validation_failed"
+	errorTypeAutoSyncInitiationFailed        = "auto_sync_initiation_failed"
+	errorTypeCacheFailed                     = "cache_failed"
+	errorTypeComparisonFailed                = "comparison_failed"
+	errorTypeDestinationLookupFailed         = "destination_lookup_failed"
+	errorTypeOperationStatePersistenceFailed = "operation_state_persistence_failed"
+	errorTypePanic                           = "panic"
+	errorTypeResourceTreeFailed              = "resource_tree_failed"
+	errorTypeStatusPersistenceFailed         = "status_persistence_failed"
+	errorTypeSyncFailed                      = "sync_failed"
+
+	controllerSpanErrorMessageLimit = 1024
+	controllerPanicStackTraceLimit  = 2048
+)
+
+func boundedControllerErrorMessage(message string) string {
+	const suffix = "..."
+	if len(message) > controllerSpanErrorMessageLimit {
+		end := controllerSpanErrorMessageLimit - len(suffix)
+		for end > 0 && !utf8.RuneStart(message[end]) {
+			end--
+		}
+		message = message[:end] + suffix
+	}
+	return strings.ToValidUTF8(message, "?")
+}
+
+func setControllerSpanError(span oteltrace.Span, errorType, message string) {
+	if !span.IsRecording() {
+		return
+	}
+	if errorType == "" {
+		span.SetAttributes(semconv.ErrorTypeOther)
+	} else {
+		span.SetAttributes(semconv.ErrorTypeKey.String(errorType))
+	}
+	span.SetStatus(otel_codes.Error, boundedControllerErrorMessage(message))
+}
+
+func recordControllerSpanError(span oteltrace.Span, errorType string, err error) {
+	if err == nil || !span.IsRecording() {
+		return
+	}
+	message := boundedControllerErrorMessage(err.Error())
+	setControllerSpanError(span, errorType, message)
+	addControllerExceptionEvent(span, err, message, "")
+}
+
+func recordControllerPanic(span oteltrace.Span, recovered any) {
+	if recovered == nil || !span.IsRecording() {
+		return
+	}
+	message := boundedControllerErrorMessage(fmt.Sprint(recovered))
+	var stack [controllerPanicStackTraceLimit]byte
+	n := runtime.Stack(stack[:], false)
+	setControllerSpanError(span, errorTypePanic, message)
+	addControllerExceptionEvent(span, recovered, message, strings.ToValidUTF8(string(stack[:n]), "?"))
+}
+
+// RecordError takes its message from the original error. Construct the exception event directly so
+// it carries the bounded message while retaining the original Go type.
+func addControllerExceptionEvent(span oteltrace.Span, value any, message, stack string) {
+	t := reflect.TypeOf(value)
+	exceptionType := t.String()
+	if t.PkgPath() != "" && t.Name() != "" {
+		exceptionType = t.PkgPath() + "." + t.Name()
+	}
+	attrs := []attribute.KeyValue{semconv.ExceptionType(exceptionType), semconv.ExceptionMessage(message)}
+	if stack != "" {
+		attrs = append(attrs, semconv.ExceptionStacktrace(stack))
+	}
+	span.AddEvent(semconv.ExceptionEventName, oteltrace.WithAttributes(attrs...))
+}
 
 func comparisonLevelTraceValue(level CompareWith) string {
 	switch level {
@@ -83,26 +164,17 @@ func refreshReconciliationOutcome(origStatus, finalStatus *v1alpha1.ApplicationS
 type operationTraceResult struct {
 	phase        synccommon.OperationPhase
 	outcome      string
-	hasError     bool
+	errorType    string
 	errorMessage string
 }
 
 func calculateOperationTraceResult(attempted, persisted *v1alpha1.OperationState, attemptPhase *synccommon.OperationPhase, requeuedForRetry bool) operationTraceResult {
 	var result operationTraceResult
 	attemptFailed := attemptPhase != nil && isFailedOperationPhase(*attemptPhase)
-	usedFallback := !requeuedForRetry && persisted != nil && persisted != attempted
+	usedFallback := !requeuedForRetry && attempted != nil && persisted != nil && persisted != attempted
 
-	if attempted != nil {
-		if persisted == nil {
-			result.hasError = true
-			result.errorMessage = "operation state was not persisted"
-		} else {
-			result.phase = persisted.Phase
-			if usedFallback {
-				result.hasError = true
-				result.errorMessage = persisted.Message
-			}
-		}
+	if attempted != nil && persisted != nil {
+		result.phase = persisted.Phase
 	}
 
 	// A failed attempt remains an error when retry handling resets it to Running.
@@ -115,20 +187,28 @@ func calculateOperationTraceResult(attempted, persisted *v1alpha1.OperationState
 	}
 	result.outcome = operationReconciliationOutcome(outcomePhase, requeuedForRetry)
 
-	if attemptFailed || (persisted != nil && isFailedOperationPhase(persisted.Phase)) {
-		result.hasError = true
-		result.errorMessage = ""
+	switch {
+	case attempted != nil && persisted == nil:
+		result.errorType = errorTypeOperationStatePersistenceFailed
+		result.errorMessage = "operation state was not persisted"
+	case usedFallback:
+		result.errorType = errorTypeOperationStatePersistenceFailed
+		result.errorMessage = persisted.Message
+	case attemptFailed:
+		result.errorType = errorTypeSyncFailed
 		if attempted != nil {
 			result.errorMessage = attempted.Message
 		}
-		if usedFallback {
-			result.errorMessage = persisted.Message
+	case persisted != nil && isFailedOperationPhase(persisted.Phase):
+		result.errorType = semconv.ErrorTypeOther.Value.AsString()
+		if attempted != nil {
+			result.errorMessage = attempted.Message
 		}
 	}
 	return result
 }
 
-func finishOperationTrace(span oteltrace.Span, attempted, persisted *v1alpha1.OperationState, attemptPhase *synccommon.OperationPhase, requeuedForRetry bool) {
+func finishOperationTrace(span oteltrace.Span, attempted, persisted *v1alpha1.OperationState, attemptPhase *synccommon.OperationPhase, requeuedForRetry, panicked bool) {
 	defer span.End()
 	if !span.IsRecording() {
 		return
@@ -136,8 +216,8 @@ func finishOperationTrace(span oteltrace.Span, attempted, persisted *v1alpha1.Op
 	result := calculateOperationTraceResult(attempted, persisted, attemptPhase, requeuedForRetry)
 	setOperationStateTraceAttrs(span, attempted, result.phase, attemptPhase)
 	span.SetAttributes(attribute.String("argocd.reconciliation.outcome", result.outcome))
-	if result.hasError {
-		span.SetStatus(otel_codes.Error, result.errorMessage)
+	if result.errorType != "" && !panicked {
+		setControllerSpanError(span, result.errorType, result.errorMessage)
 	}
 }
 

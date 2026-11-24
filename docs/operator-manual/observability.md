@@ -43,7 +43,7 @@ data:
   # Extra headers sent with each export, as comma-separated key=value pairs.
   otlp.headers: ""
   # Extra resource attributes, as comma-separated key:value pairs.
-  otlp.attrs: "deployment.environment:production"
+  otlp.attrs: "deployment.environment.name:production"
   # Fraction of new traces to sample, between 0.0 and 1.0. Defaults to 1.0.
   otlp.sample.ratio: "0.1"
 ```
@@ -67,7 +67,8 @@ repo server and plugins. Set the same ratio on every component to get a consiste
 
 `controller.Refresh` and `controller.Operation` each describe one workqueue processing attempt.
 An operation that waits, resumes, or retries can produce multiple traces. Argo CD uses `argocd.*`
-attributes to describe GitOps reconciliation, which OpenTelemetry semantic conventions do not cover.
+attributes to describe GitOps reconciliation and the OpenTelemetry `error.type` attribute to
+classify controller failures.
 
 Use these attributes to find spans for an Application, for example `controller.Refresh`,
 `controller.Operation`, `controller.CompareAppState`, and `controller.SyncAppState`:
@@ -135,10 +136,29 @@ Application health.
 
 #### Error status
 
-An observed `OutOfSync` or `Degraded` Application is not by itself a controller execution error.
-Comparison, cache, and application-status or operation-state persistence failures set the relevant
-span's OpenTelemetry status to `Error`. Failed sync attempts also set error status, including attempts
-scheduled for retry.
+The controller sets the span status to `Error` when a reconciliation or sync attempt fails. Use
+`error.type` to group these failures by category. A failed sync attempt reports an error even if
+the controller schedules a retry. An attempt that only waits for retry backoff leaves `error.type`
+unset. A successful comparison can observe an `OutOfSync` or `Degraded` Application and still
+leave `error.type` unset.
+
+`controller.Refresh`, `controller.Operation`, `controller.CompareAppState`, `controller.SyncAppState`,
+`controller.autoSync`, and `controller.persistAppStatus` use these values. See the
+[OpenTelemetry error attribute reference](https://opentelemetry.io/docs/specs/semconv/registry/attributes/error/).
+
+| `error.type` | Meaning |
+| --- | --- |
+| `application_validation_failed` | The controller could not validate the Application before comparison. |
+| `destination_lookup_failed` | The controller could not resolve the destination cluster. |
+| `resource_tree_failed` | The controller could not build the Application resource tree. |
+| `cache_failed` | The controller could not write the Application resource cache. |
+| `comparison_failed` | The controller could not complete the Application comparison successfully. |
+| `auto_sync_initiation_failed` | The controller could not start auto-sync. |
+| `status_persistence_failed` | The controller could not save the requested Application status. |
+| `operation_state_persistence_failed` | The controller could not save the requested sync operation state. |
+| `sync_failed` | The sync attempt failed. |
+| `panic` | The controller caught a panic during reconciliation or sync. |
+| `_OTHER` | The controller could not classify the failure. |
 
 An application-status write failure also marks the parent `controller.Refresh` as an error, with
 `argocd.reconciliation.outcome=error` and `argocd.reconciliation.status_changed=false`. This includes
@@ -148,8 +168,9 @@ Failure to initiate auto-sync marks both `controller.autoSync` and its `controll
 errors. Historical failed-sync conditions and intentional policy skips are observations of controller
 state and do not, by themselves, mark the current attempt as an error.
 
-If a Refresh or sync attempt panics, its span shows `Error`. For the panic and stack trace, check the
-application controller logs.
+The instrumented spans limit error descriptions and exception messages to 1,024 bytes. A panic
+adds an exception event with a stack trace of up to 2,048 bytes. Check the application controller
+logs if you need the full stack trace.
 
 Arbitrary Application annotations, labels, operation info, and initiator usernames are not added to
 these spans.
