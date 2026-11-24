@@ -717,6 +717,18 @@ func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applicat
 
 // checkAllApplicationsReconciled verifies that all Applications have been reconciled since the given time,
 // if all applications not reconciled, returns list of applications that need to be reconciled by adding refresh annotation
+// applicationNames returns the names of the given applications. Logging the
+// full Application objects formats every field, including the resource tree and
+// sync history in Status, which produces log lines hundreds of kilobytes long
+// that are dropped by log collectors. Only the names are useful in this message.
+func applicationNames(apps []argov1alpha1.Application) []string {
+	names := make([]string, 0, len(apps))
+	for _, app := range apps {
+		names = append(names, app.Name)
+	}
+	return names
+}
+
 func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, sinceTime *metav1.Time) (bool, []argov1alpha1.Application) {
 	if sinceTime == nil {
 		return true, nil
@@ -798,7 +810,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	if len(appsNeedReconcile) > 0 {
-		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", appsNeedReconcile))
+		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", applicationNames(appsNeedReconcile)))
 	}
 	return false, nil
 }
