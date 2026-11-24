@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,16 +46,69 @@ type OpenAPIClient interface {
 	discovery.OpenAPIV3SchemaInterface
 }
 
+const (
+	// openAPIIndexTTL bounds how long a cached v3 index is trusted without an invalidation, e.g. when
+	// an aggregated API changes its schema or CRD events aren't watched.
+	openAPIIndexTTL = time.Minute
+	// openAPIIndexSettle is how long after Invalidate the API server may still serve the old index,
+	// as it regenerates OpenAPI documents asynchronously.
+	openAPIIndexSettle = 10 * time.Second
+)
+
 // OpenAPISchemaCache keeps the structured merge diff types built for a cluster's kinds across
 // resolvers, but not the documents they were built from. A group version's types are reused while
-// the cluster serves it under the same hash.
+// the cluster serves it under the same hash. The v3 index that holds the hashes is cached too, until
+// Invalidate is called or it expires.
 type OpenAPISchemaCache struct {
 	mu            sync.Mutex
 	groupVersions map[schema.GroupVersion]*groupVersionTypes
+	// urls maps v3 index paths (e.g. "apis/apps/v1") to their document URLs, which include the hash.
+	urls        map[string]string
+	urlsExpiry  time.Time
+	settleUntil time.Time
+	now         func() time.Time
 }
 
 func NewOpenAPISchemaCache() *OpenAPISchemaCache {
-	return &OpenAPISchemaCache{groupVersions: map[schema.GroupVersion]*groupVersionTypes{}}
+	return &OpenAPISchemaCache{groupVersions: map[schema.GroupVersion]*groupVersionTypes{}, now: time.Now}
+}
+
+// Invalidate drops the cached index, so that resolvers fetch it again to learn the current hashes.
+// Call it when the cluster's schemas may have changed, e.g. on CRD and APIService events.
+func (c *OpenAPISchemaCache) Invalidate() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.urls = nil
+	c.settleUntil = c.now().Add(openAPIIndexSettle)
+}
+
+func (c *OpenAPISchemaCache) indexURLs() map[string]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.urls == nil || !c.now().Before(c.urlsExpiry) {
+		return nil
+	}
+	return c.urls
+}
+
+func (c *OpenAPISchemaCache) setIndex(paths map[string]openapi.GroupVersion) {
+	urls := make(map[string]string, len(paths))
+	for path, gv := range paths {
+		urls[path] = gv.ServerRelativeURL()
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.now()
+	c.urls = urls
+	c.urlsExpiry = now.Add(openAPIIndexTTL)
+	// An index fetched right after an invalidation may predate the change, so refetch it once the
+	// API server had time to catch up.
+	if now.Before(c.settleUntil) {
+		c.urlsExpiry = c.settleUntil
+	}
 }
 
 // NewOpenAPISchemaResolver returns a resolver that fetches schemas using config. Nothing is fetched
@@ -63,9 +117,8 @@ func NewOpenAPISchemaResolver(config *rest.Config, log logr.Logger) OpenAPISchem
 	return NewCachedOpenAPISchemaResolver(config, log, nil)
 }
 
-// NewCachedOpenAPISchemaResolver is NewOpenAPISchemaResolver that reuses types from cache, which
-// may be nil. It still fetches the v3 index once, to learn the current hashes, and fetches the
-// document for LookupPatchMeta.
+// NewCachedOpenAPISchemaResolver is NewOpenAPISchemaResolver that reuses the index and types from
+// cache, which may be nil. It still fetches the document for LookupPatchMeta.
 func NewCachedOpenAPISchemaResolver(config *rest.Config, log logr.Logger, cache *OpenAPISchemaCache) OpenAPISchemaResolver {
 	r := newOpenAPISchemaResolver(func() (OpenAPIClient, error) {
 		return discovery.NewDiscoveryClientForConfig(config)
@@ -112,7 +165,7 @@ type groupVersionTypes struct {
 
 // groupVersionSchema is a group version as loaded by one resolver.
 type groupVersionSchema struct {
-	path  openapi.GroupVersion
+	gv    schema.GroupVersion
 	types *groupVersionTypes
 	// raw holds the document's schemas undecoded. It is nil until needed if types came from the cache.
 	raw map[string]jsontext.Value
@@ -197,7 +250,7 @@ func (r *openAPISchemaResolver) closure(gv *groupVersionSchema, name string) (ma
 		return schemas, nil
 	}
 	if gv.raw == nil {
-		raw, err := fetchSchemas(gv.path)
+		raw, err := r.fetchSchemas(gv.gv)
 		if err != nil {
 			return nil, err
 		}
@@ -351,30 +404,27 @@ func (r *openAPISchemaResolver) load(gv schema.GroupVersion) (*groupVersionSchem
 }
 
 func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*groupVersionSchema, error) {
-	if r.client == nil {
-		client, err := r.newClient()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create discovery client: %w", err)
-		}
-		r.client = client
+	var url string
+	var ok bool
+	if r.v3Paths == nil && r.cache != nil {
+		url, ok = r.cache.indexURLs()[openAPIV3Path(gv)]
 	}
-	if r.v3Paths == nil {
-		paths, err := r.client.OpenAPIV3().Paths()
-		if apierrors.IsNotFound(err) {
-			return nil, r.loadV2()
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error getting OpenAPI v3 paths: %w", err)
-		}
-		r.v3Paths = paths
-	}
-	path, ok := r.v3Paths[openAPIV3Path(gv)]
+	// Without a cached index, or if gv isn't in it because it was just added, use a fresh one.
 	if !ok {
-		r.groupVersions[gv] = nil
-		return nil, nil
+		if err := r.loadIndex(); err != nil {
+			return nil, err
+		}
+		if r.v2 != nil {
+			return nil, nil
+		}
+		path, served := r.v3Paths[openAPIV3Path(gv)]
+		if !served {
+			r.groupVersions[gv] = nil
+			return nil, nil
+		}
+		url = path.ServerRelativeURL()
 	}
-	url := path.ServerRelativeURL()
-	s := &groupVersionSchema{path: path, closures: map[string]map[string]*spec.Schema{}}
+	s := &groupVersionSchema{gv: gv, closures: map[string]map[string]*spec.Schema{}}
 	if r.cache != nil {
 		r.cache.mu.Lock()
 		cached := r.cache.groupVersions[gv]
@@ -385,10 +435,12 @@ func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*group
 			return s, nil
 		}
 	}
-	raw, err := fetchSchemas(path)
+	raw, err := r.fetchSchemas(gv)
 	if err != nil {
 		return nil, err
 	}
+	// The document comes from a fresh index, which may be newer than the cached one.
+	url = r.v3Paths[openAPIV3Path(gv)].ServerRelativeURL()
 	models, duplicates := indexModelsByGVK(raw)
 	if len(duplicates) > 0 {
 		r.log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", duplicates)
@@ -404,8 +456,41 @@ func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*group
 	return s, nil
 }
 
-// fetchSchemas fetches a v3 document and returns its component schemas without decoding them.
-func fetchSchemas(path openapi.GroupVersion) (map[string]jsontext.Value, error) {
+// loadIndex fetches the v3 index once per resolver, or sets r.v2 if the server doesn't serve v3.
+func (r *openAPISchemaResolver) loadIndex() error {
+	if r.v3Paths != nil || r.v2 != nil {
+		return nil
+	}
+	if r.client == nil {
+		client, err := r.newClient()
+		if err != nil {
+			return fmt.Errorf("failed to create discovery client: %w", err)
+		}
+		r.client = client
+	}
+	paths, err := r.client.OpenAPIV3().Paths()
+	if apierrors.IsNotFound(err) {
+		return r.loadV2()
+	}
+	if err != nil {
+		return fmt.Errorf("error getting OpenAPI v3 paths: %w", err)
+	}
+	r.v3Paths = paths
+	if r.cache != nil {
+		r.cache.setIndex(paths)
+	}
+	return nil
+}
+
+// fetchSchemas fetches gv's v3 document and returns its component schemas without decoding them.
+func (r *openAPISchemaResolver) fetchSchemas(gv schema.GroupVersion) (map[string]jsontext.Value, error) {
+	if err := r.loadIndex(); err != nil {
+		return nil, err
+	}
+	path, ok := r.v3Paths[openAPIV3Path(gv)]
+	if !ok {
+		return nil, fmt.Errorf("OpenAPI v3 document of %s is no longer served", gv)
+	}
 	data, err := path.Schema(runtime.ContentTypeJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error getting OpenAPI v3 document: %w", err)

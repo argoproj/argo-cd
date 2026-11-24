@@ -248,7 +248,8 @@ type store struct {
 	// published one.
 	serverVersion atomic.Pointer[string]
 	apiResources  atomic.Pointer[[]kube.APIResourceInfo]
-	// openAPISchemaCache shares parsed OpenAPI documents between the resolvers of this cluster.
+	// openAPISchemaCache shares the OpenAPI v3 index and types between the resolvers of this
+	// cluster. It is invalidated when schemas may have changed.
 	openAPISchemaCache *kube.OpenAPISchemaCache
 	// namespacedResources maps each watched GroupKind to whether it is namespaced.
 	// IsNamespaced reads it without c.lock, so writers publish a complete map
@@ -707,6 +708,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)
+	c.openAPISchemaCache.Invalidate()
 	c.log.Info("Invalidated cluster")
 }
 
@@ -788,6 +790,7 @@ func (c *store) listResources(ctx context.Context, resClient dynamic.ResourceInt
 // without c.lock; it takes the lock around each API resource update and
 // startMissingWatches.
 func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
+	c.openAPISchemaCache.Invalidate()
 	resources, err := c.crdVersionsToAPIResources(obj)
 	if err != nil {
 		c.log.Error(err, "Failed to extract CRD resources")
@@ -827,6 +830,7 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 // available or is removed, so kinds that weren't served at startup get
 // watched without waiting for a resync. Call it without c.lock.
 func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
+	c.openAPISchemaCache.Invalidate()
 	deleted := event == watch.Deleted
 	if !deleted && !isAPIServiceAvailable(obj) {
 		return

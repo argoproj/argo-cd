@@ -151,13 +151,14 @@ func TestOpenAPISchemaResolver_Cache(t *testing.T) {
 		require.NotNil(t, pt)
 		assert.True(t, pt.IsValid())
 	}
+	index, apps := "/openapi/v3", "/openapi/v3/apis/apps/v1"
 
 	resolve()
-	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+	assert.Equal(t, []string{index, apps}, server.Requests())
 
-	// A new resolver only fetches the index while the hash is unchanged.
+	// The index and types are cached, so a new resolver fetches nothing.
 	resolve()
-	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3"}, server.Requests())
+	assert.Equal(t, []string{index, apps}, server.Requests())
 
 	// The cache keeps types only, so patch metadata needs the document.
 	resolver := kube.NewCachedOpenAPISchemaResolver(&rest.Config{Host: server.URL}, logr.Discard(), cache)
@@ -168,13 +169,26 @@ func TestOpenAPISchemaResolver_Cache(t *testing.T) {
 	require.NotNil(t, meta)
 	_, err = resolver.Type(statefulSetGVK)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+	assert.Equal(t, []string{index, apps, index, apps}, server.Requests())
 
+	// A group version missing from the cached index may have just been added, so the index is fetched.
+	pt, err := kube.NewCachedOpenAPISchemaResolver(&rest.Config{Host: server.URL}, logr.Discard(), cache).Type(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Example"})
+	require.NoError(t, err)
+	assert.Nil(t, pt)
+	assert.Equal(t, []string{index, apps, index, apps, index}, server.Requests())
+
+	// A schema change goes unnoticed until the cache is invalidated.
 	server.mu.Lock()
 	server.hash = "456"
 	server.mu.Unlock()
 	resolve()
-	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+	assert.Len(t, server.Requests(), 5)
+
+	cache.Invalidate()
+	resolve()
+	assert.Equal(t, []string{index, apps, index, apps, index, index, apps}, server.Requests())
+	resolve()
+	assert.Len(t, server.Requests(), 7)
 }
 
 func TestOpenAPISchemaResolver_UnknownGVK(t *testing.T) {
