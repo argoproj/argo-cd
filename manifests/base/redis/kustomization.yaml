@@ -10,5 +10,5 @@ resources:
   - argocd-redis-rolebinding.yaml
 
 images:
-  - name: redis
-    newName: public.ecr.aws/docker/library/redis
+  - name: valkey
+    newName: docker.io/valkey/valkey
