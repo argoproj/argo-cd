@@ -635,7 +635,10 @@ func (a *Actions) GetHelmTemplateProcess() *Actions {
 	require.NoError(a.context.T(), err)
 
 	appName := regexp.QuoteMeta(a.context.AppName())
-	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
+	// The release name is passed as the positional NAME argument rather than via
+	// --name-template, so that a user-supplied value is never evaluated as a Go
+	// template by Helm.
+	regexStr := "(?m)^.* helm template " + appName + " \\. .*$"
 	regex := regexp.MustCompile(regexStr)
 	a.lastOutput = regex.FindString(output)
 	a.lastError = nil
