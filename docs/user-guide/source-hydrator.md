@@ -159,7 +159,8 @@ The repository root is never written to, so files such as CI/CD configuration, R
 If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
 
 > [!NOTE]
-> The hydrator hydrates all Applications that share a destination together, as a single atomic commit. A group is
+> The hydrator hydrates Applications together, as a single atomic commit, when they share the same dry-source
+> repository, dry-source target revision, destination repository and destination branch. A group is
 > re-hydrated unless every Application in it was already hydrated from the current dry-source commit with its
 > current `spec.sourceHydrator` configuration.
 >
