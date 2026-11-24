@@ -2528,17 +2528,8 @@ func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
 	return source.Equals(&app.Status.Sync.ComparedTo.Source)
 }
 
-// needRefreshAppStatus answers if application status needs to be refreshed.
-// Returns true if application never been compared, has changed or comparison result has expired.
-// Additionally, it returns whether full refresh was requested or not.
-// If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
-func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
-	needRefresh, refreshType, compareWith, _ := ctrl.needRefreshAppStatusWithCause(app, statusRefreshTimeout, statusHardRefreshTimeout)
-	return needRefresh, refreshType, compareWith
-}
-
-// needRefreshAppStatusWithCause returns a stable, low-cardinality cause for tracing in addition
-// to the existing refresh decision. The detailed log reason remains local to the controller log.
+// needRefreshAppStatusWithCause reports whether the Application needs a refresh and how to compare it.
+// It returns a stable cause for tracing and logs the detailed reason separately.
 func (ctrl *ApplicationController) needRefreshAppStatusWithCause(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith, string) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	var reason string
