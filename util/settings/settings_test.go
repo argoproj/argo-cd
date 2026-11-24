@@ -232,6 +232,22 @@ func TestGetSettings_InClusterIsEnabledWithMissingServerSecretKey(t *testing.T) 
 	require.True(t, enabled)
 }
 
+func TestUpdateSettingsFromConfigMap_DebugImages(t *testing.T) {
+	t.Run("trims whitespace and drops empty entries", func(t *testing.T) {
+		settings := &ArgoCDSettings{}
+		updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: map[string]string{
+			"exec.debug.images": " busybox:1.36 , ,nicolaka/netshoot:latest,",
+		}})
+		assert.Equal(t, []string{"busybox:1.36", "nicolaka/netshoot:latest"}, settings.DebugImages)
+	})
+
+	t.Run("unset yields no images", func(t *testing.T) {
+		settings := &ArgoCDSettings{}
+		updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: map[string]string{}})
+		assert.Empty(t, settings.DebugImages)
+	})
+}
+
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	t.Run("should get custom instanceLabelKey", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), map[string]string{

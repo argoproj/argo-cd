@@ -24,7 +24,8 @@ import (
 type actionTraitMap map[string]rbacTrait
 
 type rbacTrait struct {
-	allowPath bool
+	allowPath   bool
+	requirePath bool
 }
 
 // Provide a mapping of shorthand resource names to their RBAC counterparts
@@ -100,6 +101,7 @@ var accountsActions = actionTraitMap{
 
 var execActions = actionTraitMap{
 	rbac.ActionCreate: rbacTrait{},
+	rbac.ActionDebug:  rbacTrait{allowPath: true, requirePath: true},
 }
 
 var logsActions = actionTraitMap{
@@ -502,7 +504,7 @@ func validateRBACResourceAction(resource, action string) error {
 
 	realAction, _, hasPath := strings.Cut(action, "/")
 	actionTrait, ok := validActions[realAction]
-	if !ok || hasPath && !actionTrait.allowPath {
+	if !ok || hasPath && !actionTrait.allowPath || !hasPath && actionTrait.requirePath {
 		return fmt.Errorf("'%s' is not a valid action for %s", action, resource)
 	}
 	return nil
