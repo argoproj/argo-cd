@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand"
 	"net"
@@ -49,6 +50,7 @@ type SessionManager struct {
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
 	metricsRegistry               MetricsRegistry
+	userStripes                   []sync.Mutex
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -101,9 +103,18 @@ const (
 
 	// Max number of stored usernames
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
+
+	// Number of striped mutexes for login serialization (bounded memory)
+	loginLockStripes = 256
 )
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+
+func fnv32a(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
+}
 
 // OpenTelemetry tracer for this package
 var tracer trace.Tracer
@@ -135,18 +146,20 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		sleep:                         time.Sleep,
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
+		userStripes:                   make([]sync.Mutex, loginLockStripes),
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
 		panic(err)
 	}
 
+	d := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           d.DialContext,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
@@ -167,6 +180,20 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	}
 
 	return &s
+}
+
+// stripeIndex maps a username to a bounded stripe using fnv32a
+func (mgr *SessionManager) stripeIndex(username string) int {
+	return int(fnv32a(username) % uint32(len(mgr.userStripes)))
+}
+
+// lockUser serializes login attempts for the same username using a striped mutex
+// Returns an unlock function that MUST be deferred by the caller.
+func (mgr *SessionManager) lockUser(username string) func() {
+	idx := mgr.stripeIndex(username)
+	mu := &mgr.userStripes[idx]
+	mu.Lock()
+	return mu.Unlock
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
@@ -437,6 +464,10 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	// Prevent race condition by serializing login attempts for this username
+	unlock := mgr.lockUser(username)
+	defer unlock()
+
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
@@ -601,10 +632,9 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			return nil, "", common.ErrTokenVerification
 		}
 
-		id, ok := claims["jti"].(string)
-		if !ok {
-			log.Warnf("token does not have jti claim")
-			id = ""
+		id := tokenUniqueID(claims)
+		if id == "" {
+			log.Warnf("token does not have jti or uti claim")
 		}
 		// Workaround for Dex token, because does not have jti.
 		if id == "" {
@@ -622,6 +652,18 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		}
 		return claims, "", nil
 	}
+}
+
+// tokenUniqueID returns a unique identifier for the token, used for revocation
+// checks. It prefers the standard "jti" claim. Microsoft Entra ID does not emit
+// "jti"; it emits "uti" (unique token identifier), which Microsoft documents as
+// the equivalent, so fall back to it. Returns an empty string when neither claim
+// is present.
+func tokenUniqueID(claims jwt.MapClaims) string {
+	if id := jwtutil.StringField(claims, "jti"); id != "" {
+		return id
+	}
+	return jwtutil.StringField(claims, "uti")
 }
 
 func (mgr *SessionManager) provider() (oidcutil.Provider, error) {

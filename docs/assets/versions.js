@@ -29,6 +29,25 @@ function getCurrentVersion() {
   return null;
 }
 
+/** Same docs page under /en/stable/ (for version warning banner). */
+function getStableDocsUrlForCurrentPage() {
+  try {
+    const url = new URL(window.location.href);
+    const newPath = url.pathname.replace(VERSION_REGEX, '/en/stable/');
+    if (newPath === url.pathname) {
+      return 'https://argo-cd.readthedocs.io/en/stable/';
+    }
+    url.pathname = newPath;
+    return url.href;
+  } catch (e) {
+    return 'https://argo-cd.readthedocs.io/en/stable/';
+  }
+}
+
+function escapeHtmlAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 function initializeVersionDropdown() {
   const callbackName = 'callback_' + new Date().getTime();
   window[callbackName] = function(response) {
@@ -139,17 +158,49 @@ window.addEventListener("DOMContentLoaded", function() {
   var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
   const currentVersion = getCurrentVersion();
   if (currentVersion && currentVersion !== "stable") {
-    var stableUrl = window.location.href.replace(VERSION_REGEX, '/en/stable/');
+    const stablePageUrl = escapeHtmlAttr(getStableDocsUrlForCurrentPage());
     if (currentVersion === "latest") {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='" + stableUrl + "'>view the latest stable version.</a></div>";
+      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     } else {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='" + stableUrl + "'>view the latest stable version.</a></div>";
+      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     }
     var bannerHeight = document.getElementById('announce-msg').offsetHeight + margin;
+    var sidebarOffset = bannerHeight + headerHeight;
     document.querySelector("header.md-header").style.top = bannerHeight + "px";
     document.querySelector('style').textContent +=
-        "@media screen and (min-width: 76.25em){ .md-sidebar { height: 0;  top:" + (bannerHeight + headerHeight) + "px !important; }}";
+        "@media screen and (min-width: 76.25em){ .md-sidebar { height: 0;  top:" + sidebarOffset + "px !important; }}";
     document.querySelector('style').textContent +=
-        "@media screen and (min-width: 60em){ .md-sidebar--secondary { height: 0;  top:" + (bannerHeight + headerHeight) + "px !important; }}";
+        "@media screen and (min-width: 60em){ .md-sidebar--secondary { height: 0;  top:" + sidebarOffset + "px !important; }}";
+
+    // Banner raises sidebar `top`; Material's scrollwrap height then overhangs the
+    // footer. Cap with max-height so Material can still set height / overflow.
+    // Match Material breakpoints: primary sticky 76.25em, secondary (TOC) 60em.
+    function fitSidebarsToFooter() {
+      var footer = document.querySelector("footer.md-footer");
+      var limit = Math.min(
+        window.innerHeight,
+        (footer ? footer.getBoundingClientRect().top : window.innerHeight) - 8
+      );
+      var primarySticky = window.matchMedia("screen and (min-width: 76.25em)").matches;
+      var secondarySticky = window.matchMedia("screen and (min-width: 60em)").matches;
+      document.querySelectorAll(".md-sidebar__scrollwrap").forEach(function(el) {
+        var sidebar = el.closest(".md-sidebar");
+        var clamp = sidebar && sidebar.classList.contains("md-sidebar--secondary")
+          ? secondarySticky
+          : primarySticky;
+        if (!clamp) {
+          el.style.removeProperty("max-height");
+          return;
+        }
+        el.style.setProperty(
+          "max-height",
+          Math.max(0, limit - el.getBoundingClientRect().top) + "px",
+          "important"
+        );
+      });
+    }
+    window.addEventListener("scroll", fitSidebarsToFooter, {passive: true});
+    window.addEventListener("resize", fitSidebarsToFooter);
+    fitSidebarsToFooter();
   }
 });

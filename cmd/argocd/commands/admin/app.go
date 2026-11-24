@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -288,7 +288,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
@@ -379,6 +379,9 @@ func reconcileApplications(
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
+	if err := appInformer.AddIndexers(kubecache.Indexers{cache.ManagedCRDIndex: cache.ManagedCRDIndexFunc}); err != nil {
+		return nil, fmt.Errorf("error adding indexers to application informer: %w", err)
+	}
 	projInformer := appInformerFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
@@ -388,11 +391,11 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(_ any) bool {
-		return true
+	server, err := metrics.NewMetricsServer("", appLister, func(_ any) (bool, string, error) {
+		return true, "", nil
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{}, argoDB)
+	}, []string{}, []string{}, nil, false)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
@@ -480,5 +483,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking(), cache.ClusterCacheConfigFromEnv())
 }

@@ -280,6 +280,30 @@ spec:
               name: argocd-cmd-params-cm
               key: otlp.headers
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.attrs
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.sample.ratio
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.enabled
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.interval
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -321,6 +345,54 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: hydrator.enabled
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_RESYNC_DURATION
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.resync.duration
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.watch.resync.duration
+              optional: true
+        - name: ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.sync.retry.timeout
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.list.page.size
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.list.page.buffer.size
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.list.semaphore
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.attempt.limit
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.retry.use.backoff
               optional: true
         - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
           valueFrom:
@@ -368,6 +440,9 @@ spec:
           mountPath: /home/argocd
         - name: argocd-cmd-params-cm
           mountPath: /home/argocd/params
+        # CA for the OTLP collector, looked up by --otlp-address host.
+        - name: tls-certs
+          mountPath: /app/config/tls
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -387,6 +462,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - name: tls-certs
+        configMap:
+          name: argocd-tls-certs-cm
       - name: argocd-repo-server-tls
         secret:
           secretName: argocd-repo-server-tls

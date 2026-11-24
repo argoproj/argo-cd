@@ -15,7 +15,7 @@ argocd-dex [flags]
 ### Options
 
 ```
-  -h, --help   help for argocd-dex
+  -h, --help[=true|false]   help for argocd-dex
 ```
 
 ### SEE ALSO

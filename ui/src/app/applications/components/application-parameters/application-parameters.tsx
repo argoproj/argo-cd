@@ -27,12 +27,14 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {ARGO_WARNING_COLOR} from '../../../shared/components/colors';
 import {concatMaps} from '../../../shared/utils';
 import {deleteSourceAction, getAppDefaultSource, getAppDrySource, helpTip} from '../utils';
 import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
+import {isRefOnlySource} from '../shared/app-source-edit';
 
 import './application-parameters.scss';
 import {AppContext} from '../../../shared/context';
@@ -280,9 +282,17 @@ export const ApplicationParameters = (props: {
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
-                    {(details: models.RepoAppDetails) => {
+                    {({details, error}: SourceDetails) => {
+                        if (!details) {
+                            return null;
+                        }
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
-                        return getEditablePanel(attr, details);
+                        return (
+                            <>
+                                <SourceDetailsWarning error={error} />
+                                {getEditablePanel(attr, details)}
+                            </>
+                        );
                     }}
                 </DataLoader>
             );
@@ -291,7 +301,7 @@ export const ApplicationParameters = (props: {
 
     // Collapse button is separate
     function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): React.ReactElement {
-        return (collapsible && props.collapsedSources[index] === undefined) || props.collapsedSources[index] ? (
+        return props.collapsedSources?.[index] === true ? (
             <div
                 key={'app_params_collapsed_' + index}
                 className='settings-overview__redirect-panel'
@@ -306,7 +316,15 @@ export const ApplicationParameters = (props: {
                 <div className='settings-overview__redirect-panel__content'>
                     <div className='settings-overview__redirect-panel__title'>Source {index + 1 + (appSource.name ? ' - ' + appSource.name : '') + ': ' + appSource.repoURL}</div>
                     <div className='settings-overview__redirect-panel__description'>
-                        {(appSource.path ? 'PATH=' + appSource.path : '') + (appSource.targetRevision ? (appSource.path ? ', ' : '') + 'REVISION=' + appSource.targetRevision : '')}
+                        {[
+                            appSource.path ? 'PATH=' + appSource.path : '',
+                            appSource.chart ? 'CHART=' + appSource.chart : '',
+                            appSource.ref ? 'REF=' + appSource.ref : '',
+                            appSource.targetRevision ? 'REVISION=' + appSource.targetRevision : '',
+                            appSource.plugin?.env?.length ? 'ENV=[' + appSource.plugin.env.map(env => env.name + '=' + env.value).join(', ') + ']' : ''
+                        ]
+                            .filter(part => part !== '')
+                            .join(', ')}
                     </div>
                 </div>
             </div>
@@ -323,12 +341,16 @@ export const ApplicationParameters = (props: {
                             />
                         </div>
                     )}
-                    <DataLoader
-                        key={'app_params_source_' + index}
-                        input={app.spec.sources[index]}
-                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                        {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
-                    </DataLoader>
+                    {isRefOnlySource(app.spec.sources[index]) ? (
+                        getEditablePanelForOneSource(undefined, index, app.spec.sources[index])
+                    ) : (
+                        <DataLoader
+                            key={'app_params_source_' + index}
+                            input={app.spec.sources[index]}
+                            load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                            {({details, error}: SourceDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error)}
+                        </DataLoader>
+                    )}
                 </div>
             </div>
         );
@@ -428,26 +450,32 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails, ind: number, src: models.ApplicationSource): any {
+    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, detailsError?: Error): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
+        const refOnly = isRefOnlySource(src);
 
         const upperPanel = gatherCoreSourceDetails(ind, upperPanelAttributes, appSources[ind], app);
-        const lowerPanel = gatherDetails(
-            ind,
-            repoAppDetails,
-            lowerPanelAttributes,
-            appSources[ind],
-            app,
-            setRemovedOverrides,
-            removedOverrides,
-            appParamsDeletedState,
-            setAppParamsDeletedState,
-            true
-        );
+        const lowerPanel =
+            refOnly || !repoAppDetails
+                ? []
+                : gatherDetails(
+                      ind,
+                      repoAppDetails,
+                      lowerPanelAttributes,
+                      appSources[ind],
+                      app,
+                      setRemovedOverrides,
+                      removedOverrides,
+                      appParamsDeletedState,
+                      setAppParamsDeletedState,
+                      true
+                  );
 
-        if (repoAppDetails.type === 'Directory') {
+        if (refOnly) {
+            floatingTitle = 'Source ' + (ind + 1) + ': REF=' + src.ref + ', URL=' + src.repoURL + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
+        } else if (repoAppDetails?.type === 'Directory') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -457,7 +485,7 @@ export const ApplicationParameters = (props: {
                 src.repoURL +
                 (repoAppDetails.path ? ', PATH=' + repoAppDetails.path : '') +
                 (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Helm') {
+        } else if (repoAppDetails?.type === 'Helm') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -468,7 +496,7 @@ export const ApplicationParameters = (props: {
                 (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '') +
                 (src.path ? ', PATH=' + src.path : '') +
                 (src.targetRevision ? ', REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Kustomize') {
+        } else if (repoAppDetails?.type === 'Kustomize') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -478,7 +506,7 @@ export const ApplicationParameters = (props: {
                 src.repoURL +
                 (repoAppDetails.path ? ', PATH=' + repoAppDetails.path : '') +
                 (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Plugin') {
+        } else if (repoAppDetails?.type === 'Plugin') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -492,6 +520,7 @@ export const ApplicationParameters = (props: {
         return (
             <ApplicationParametersSource
                 index={ind}
+                banner={<SourceDetailsWarning error={detailsError} />}
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
@@ -540,8 +569,8 @@ export const ApplicationParameters = (props: {
                         setRemovedOverrides(new Array<boolean>());
                     })
                 }
-                valuesTop={(app?.spec?.sources && (repoAppDetails.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
-                valuesBottom={(app?.spec?.sources && (repoAppDetails.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
+                valuesTop={(app?.spec?.sources && (repoAppDetails?.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
+                valuesBottom={(app?.spec?.sources && (repoAppDetails?.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
                 validateTop={updatedApp => {
                     const errors = [] as any;
                     const repoURL = updatedApp.spec.sources[ind].repoURL;
@@ -568,18 +597,19 @@ export const ApplicationParameters = (props: {
                     return errors;
                 }}
                 onModeSwitch={
-                    repoAppDetails.plugin &&
+                    repoAppDetails?.plugin &&
                     (() => {
                         setAppParamsDeletedState([]);
                     })
                 }
-                titleBottom={repoAppDetails.type.toLocaleUpperCase()}
+                titleBottom={repoAppDetails?.type?.toLocaleUpperCase()}
                 titleTop={'SOURCE ' + (ind + 1)}
                 floatingTitle={floatingTitle ? floatingTitle : null}
                 itemsBottom={lowerPanel as EditablePanelItem[]}
                 itemsTop={upperPanel as EditablePanelItem[]}
                 noReadonlyMode={props.noReadonlyMode}
                 collapsible={collapsible}
+                hideBottom={refOnly}
                 numberOfSources={app?.spec?.sources.length}
                 deleteSource={() => {
                     deleteSourceAction(app, app.spec.sources.at(ind), props.appContext);
@@ -620,7 +650,9 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
                     </span>
                 ),
                 edit: (formApi: FormApi) => (
-                    <DataLoader input={{repoURL: source.repoURL}} load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                    <DataLoader
+                        input={{repoURL: source.repoURL, appProject: app.spec.project}}
+                        load={src => services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())}>
                         {(charts: models.HelmChart[]) => (
                             <div className='row'>
                                 <div className='columns small-8'>
@@ -775,8 +807,12 @@ function gatherDetails(
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
         const isValuesObject = source?.helm?.valuesObject;
         const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
+        const valueFilesHint = isMultiSource
+            ? 'To use a file from another Git source, set its Ref and enter $<ref>/path/to/values.yaml. The path is relative to that repository root.'
+            : undefined;
         attributes.push({
             title: 'VALUES FILES',
+            hint: valueFilesHint,
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',
             edit: (formApi: FormApi) => (
                 <FormField
@@ -785,7 +821,10 @@ function gatherDetails(
                     component={TagsInputField}
                     componentProps={{
                         options: repoDetails.helm.valueFiles,
-                        noTagsLabel: 'No values files selected'
+                        noTagsLabel: 'No values files selected',
+                        ariaLabel: 'Values files',
+                        description: valueFilesHint,
+                        placeholder: isMultiSource ? '$<ref>/path/to/values.yaml' : 'path/to/values.yaml'
                     }}
                 />
             )
@@ -861,7 +900,7 @@ function gatherDetails(
     } else if (repoDetails.type === 'Plugin') {
         attributes.push({
             title: 'NAME',
-            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(app.spec.source?.plugin?.name, null)}</div>,
+            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(source?.plugin?.name, null)}</div>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.authService.plugins()}>
                     {(plugins: Plugin[]) => (
@@ -879,7 +918,7 @@ function gatherDetails(
             title: 'ENV',
             view: (
                 <div style={{marginTop: 15}}>
-                    {(app.spec.source?.plugin?.env || []).map(val => (
+                    {(source?.plugin?.env || []).map(val => (
                         <span key={val.name} style={{display: 'block', marginBottom: 5}}>
                             {NameValueEditor(val, null)}
                         </span>
@@ -896,8 +935,8 @@ function gatherDetails(
                 parametersSet.add(announcement.name);
             }
         }
-        if (app.spec.source?.plugin?.parameters) {
-            for (const appParameter of app.spec.source.plugin.parameters) {
+        if (source?.plugin?.parameters) {
+            for (const appParameter of source.plugin.parameters) {
                 parametersSet.add(appParameter.name);
             }
         }
@@ -907,7 +946,7 @@ function gatherDetails(
         }
         parametersSet.forEach(name => {
             const announcement = repoDetails.plugin.parametersAnnouncement?.find(param => param.name === name);
-            const liveParam = app.spec.source?.plugin?.parameters?.find(param => param.name === name);
+            const liveParam = source?.plugin?.parameters?.find(param => param.name === name);
             const pluginIcon =
                 announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
             const isPluginPar = !!announcement;
@@ -1090,23 +1129,63 @@ function gatherDetails(
     return attributes;
 }
 
+interface SourceDetails {
+    details: models.RepoAppDetails;
+    error?: Error;
+}
+
 // For Sources field. Get one source with index i from the list
-async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number) {
-    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => ({
-        type: 'Directory' as models.AppSourceType,
-        path: aSource.path
-    }));
-    return repoDetail;
+async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number): Promise<SourceDetails> {
+    try {
+        return {details: applyExplicitSourceType(aSource, await services.repos.appDetails(aSource, name, project, index, version))};
+    } catch (error) {
+        return {details: getExplicitSourceDetails(aSource), error};
+    }
 }
 
 // Delete when source field is removed
-async function getSingleSource(app: models.Application) {
+async function getSingleSource(app: models.Application): Promise<SourceDetails> {
     if (app.spec.source || app.spec.sourceHydrator) {
-        const repoDetail = await services.repos.appDetails(getAppDrySource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
-            type: 'Directory' as models.AppSourceType,
-            path: getAppDrySource(app).path
-        }));
-        return repoDetail;
+        const source = getAppDrySource(app);
+        return getSourceFromAppSources(source, app.metadata.name, app.spec.project, 0, 0);
     }
-    return null;
+    return {details: null};
+}
+
+const SourceDetailsWarning = ({error}: {error?: Error}) =>
+    error ? (
+        <p role='alert'>
+            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />{' '}
+            <ErrorNotification title='Unable to load repository details. The source settings shown may be incomplete' e={error} />
+        </p>
+    ) : null;
+
+function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
+    const explicitDetails = getExplicitSourceDetails(source);
+    if (!hasExplicitSourceType(source) || details.type === explicitDetails.type) {
+        return details;
+    }
+    return {...details, ...explicitDetails};
+}
+
+function hasExplicitSourceType(source: models.ApplicationSource): boolean {
+    return !!(source.chart || source.helm || source.kustomize || source.directory || source.plugin);
+}
+
+function getExplicitSourceDetails(source: models.ApplicationSource): models.RepoAppDetails {
+    const path = source.path || '';
+    if (source.chart || source.helm) {
+        return {
+            type: 'Helm',
+            path,
+            helm: {name: source.chart || '', path, valueFiles: [], parameters: [], fileParameters: []}
+        };
+    }
+    if (source.kustomize) {
+        return {type: 'Kustomize', path, kustomize: {path}};
+    }
+    if (source.plugin) {
+        return {type: 'Plugin', path, plugin: {name: source.plugin.name || '', env: source.plugin.env || []}};
+    }
+    return {type: 'Directory', path, directory: {}};
 }

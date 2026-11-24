@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -1838,6 +1838,34 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 	populateNodeInfo(ingress, info, []string{})
 
 	expectedExternalUrls := []string{"https://107.178.210.11/my/sub/path/"}
+	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestExternalUrlTlsScheme(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - host: ingress-tls-without-secret.example.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                number: 443
+          path: /
+    tls:
+    - hosts:
+      - ingress-tls-without-secret.example.com`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info, []string{})
+	expectedExternalUrls := []string{"https://ingress-tls-without-secret.example.com/"}
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
 

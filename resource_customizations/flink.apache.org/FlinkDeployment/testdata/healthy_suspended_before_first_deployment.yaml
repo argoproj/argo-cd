@@ -1,0 +1,13 @@
+# A FlinkDeployment created with `job.state: suspended` is never deployed by the
+# operator, so `reconciliationStatus` keeps its default `UPGRADING` state, no
+# `lastReconciledSpec` is ever recorded and `jobManagerDeploymentStatus` stays
+# `MISSING`.
+apiVersion: flink.apache.org/v1alpha1
+kind: FlinkDeployment
+spec:
+  job:
+    state: suspended
+status:
+  jobManagerDeploymentStatus: MISSING
+  reconciliationStatus:
+    state: UPGRADING

@@ -1,6 +1,9 @@
 package e2e
 
 import (
+	"encoding/json"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
 
 func restrictedDefaultProjectSpec() AppProjectSpec {
@@ -123,6 +126,136 @@ func TestAddingApp(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist())
+}
+
+func TestHydratorWebhookNoOpSyncRevisionFastForward(t *testing.T) {
+	appA := Given(t).
+		Name("hydrator-webhook-changed").
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		HTTPSInsecureRepoURLAdded(true).
+		WriteCredentials(true).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-webhook-a").
+		SyncSourceBranch("env/test").
+		HydrateToBranch("env/test-next")
+	appB := GivenWithSameState(appA).
+		Name("hydrator-webhook-unchanged").
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		DrySourcePath("hydrator-directory").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("hydrator-webhook-b").
+		SyncSourceBranch("env/test").
+		HydrateToBranch("env/test-next")
+
+	appA.When().CreateApp()
+	appB.When().CreateApp()
+	t.Cleanup(func() {
+		appB.When().Delete(true)
+		appA.When().Delete(true)
+	})
+
+	// App A may begin hydrating before app B has been created. Advance the shared dry revision after both exist so a
+	// subsequent group hydration is guaranteed to include both applications.
+	fixture.AddFile(t, "hydrate-webhook-group.marker", "hydrate both applications")
+	initialDryRevision := fixture.Git(t, "rev-parse", "master")
+	appA.When().Refresh(RefreshTypeHard)
+	appA.When().ThenWithTimeout(80).Expect(App(func(app *Application) bool {
+		return app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+			app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA == initialDryRevision
+	}))
+	appB.When().ThenWithTimeout(80).Expect(App(func(app *Application) bool {
+		return app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+			app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA == initialDryRevision
+	}))
+
+	// Simulate the first external promotion and deploy both applications. This also populates the manifest cache at
+	// the first sync revision, which the no-op webhook path needs in order to warm the cache for the next revision.
+	firstSyncRevision := fixture.PromoteBranch(t, "env/test-next", "env/test")
+	appA.When().Refresh(RefreshTypeNormal).Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncRevisionIs(firstSyncRevision))
+	appB.When().Refresh(RefreshTypeNormal).Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncRevisionIs(firstSyncRevision))
+
+	// Change only app A's dry source. The group hydration advances lastComparedDryRevision for both apps, but only
+	// app A's hydrated directory changes on the staging branch.
+	appA.When().PatchDrySourceFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`)
+	dryRevision := fixture.Git(t, "rev-parse", "master")
+	appA.When().Refresh(RefreshTypeHard)
+	appA.When().ThenWithTimeout(80).Expect(App(func(app *Application) bool {
+		return app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+			app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA == dryRevision
+	}))
+	appB.When().ThenWithTimeout(80).Expect(App(func(app *Application) bool {
+		return app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+			app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA == dryRevision
+	}))
+
+	// Wait for the post-hydration refresh against the still-unpromoted sync branch. This prevents that refresh from
+	// racing with the promotion below and accidentally observing the new revision.
+	appB.When().Then().Expect(App(func(app *Application) bool {
+		return app.Status.SourceHydrator.CurrentOperation != nil &&
+			app.Status.SourceHydrator.CurrentOperation.FinishedAt != nil &&
+			app.Status.ReconciledAt != nil &&
+			!app.Status.ReconciledAt.Time.Before(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) &&
+			app.Status.Sync.Revision == firstSyncRevision
+	}))
+
+	secondSyncRevision := fixture.PromoteBranch(t, "env/test-next", "env/test")
+	require.NotEqual(t, firstSyncRevision, secondSyncRevision)
+	changedFiles := fixture.GitChangedFiles(t, firstSyncRevision, secondSyncRevision)
+	require.NotEmpty(t, changedFiles)
+	require.Contains(t, changedFiles, "hydrator-webhook-a/manifest.yaml")
+	for _, changedFile := range changedFiles {
+		require.False(t, strings.HasPrefix(changedFile, "hydrator-webhook-b/"),
+			"the sibling app must be a no-op in the promoted commit")
+	}
+
+	var hydrationStartedAt time.Time
+	appB.When().Then().
+		Expect(SyncRevisionIs(firstSyncRevision)).
+		And(func(app *Application) {
+			require.Equal(t, dryRevision, app.Status.SourceHydrator.LastComparedDryRevision)
+			require.NotNil(t, app.Status.SourceHydrator.CurrentOperation)
+			hydrationStartedAt = app.Status.SourceHydrator.CurrentOperation.StartedAt.Time
+		})
+
+	payload, err := json.Marshal(map[string]any{
+		"ref":    "refs/heads/env/test",
+		"before": firstSyncRevision,
+		"after":  secondSyncRevision,
+		"commits": []map[string]any{{
+			"id":       secondSyncRevision,
+			"modified": changedFiles,
+		}},
+		"repository": map[string]any{
+			"html_url":       fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+			"default_branch": "master",
+		},
+	})
+	require.NoError(t, err)
+	resp, err := fixture.DoHttpRequestWithToken(fixture.GetToken(), http.MethodPost, "/api/webhook", "", map[string]string{
+		"X-GitHub-Event": "push",
+	}, payload...)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// Before the fix this times out with B still reporting firstSyncRevision. The webhook path sees no changed files
+	// under B's sync path and warms its manifest cache, but fails to request the reconcile that advances status.
+	appB.When().Then().
+		Expect(SyncRevisionIs(secondSyncRevision)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, hydrationStartedAt, app.Status.SourceHydrator.CurrentOperation.StartedAt.Time,
+				"a sync-source no-op webhook must not trigger hydration")
+		})
 }
 
 func TestHydratorNormalRefreshRecoversFailedHydration(t *testing.T) {
@@ -551,6 +684,10 @@ func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
+		Expect(App(func(app *Application) bool {
+			op := app.Status.SourceHydrator.CurrentOperation
+			return op != nil && op.DrySHA != firstDrySHA
+		})).
 		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
 		And(func(app *Application) {
 			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
@@ -628,4 +765,77 @@ func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 				app.Status.SourceHydrator.CurrentOperation.DrySHA,
 				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
 		})
+}
+
+func TestHydratorNestedRequest(t *testing.T) {
+	// Test that hydration request that arrived when application
+	// was hydrating is not ignored
+	dir := "slow-manifest"
+	valuesFile := "values.yaml"
+	ctx := Given(t)
+	acts := ctx.DrySourcePath(dir).
+		DrySourceRevision("HEAD").
+		SyncSourcePath(dir).
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(All(OperationPhaseIs(OperationSucceeded), SyncStatusIs(SyncStatusCodeSynced))).
+		When().
+		// set long delay for the next helm template invocation
+		PatchDrySourceFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 400}]`)
+
+	// runs app get --refresh asynchronously, so we do not wait for hydration to finish
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// wait until Hydration actually runs `helm template`.  We can
+	// catch it because the template is really nasty and
+	// `helm template` rendering takes tens of seconds
+	acts.Then().Expect(HelmTemplateRuns())
+	// ps output line containing helm PID and command line
+	helmProcessData := acts.GetLastOutput()
+
+	// make another change: removing the long delay: we do not need it for the second template invocation,
+	// so the test will run faster
+	acts = acts.PatchDrySourceFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 1}]`)
+	// get last revision after the change
+	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
+
+	// second (nested) refresh request
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// get process one more time and ensure the same helm process
+	// still running, so the second refresh was nested
+	acts.Then().Expect(All(HelmTemplateRuns(), Success(helmProcessData)))
+
+	// in the end hydrated to the last committed revision - the second refresh worked
+	// it is expected to take a long time if runner is slow
+	acts.ThenWithTimeout(80).Expect(All(HydrationPhaseIs(HydrateOperationPhaseHydrated), DryRevisionIs(revision)))
+}
+
+func TestWaitOperationWithSelectedResource(t *testing.T) {
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Given().
+		// Run sync asynchronously so the operation is pending while we wait
+		Async(true).
+		When().
+		Sync().
+		// Wait for the operation to complete and the selected resource to be healthy/synced.
+		// Without the global operation check, this would evaluate the resource prematurely
+		// or timeout if the operation takes a while.
+		Wait("--operation", "--resource", "apps:Deployment:guestbook-ui").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

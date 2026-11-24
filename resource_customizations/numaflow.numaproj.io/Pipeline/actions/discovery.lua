@@ -78,7 +78,7 @@ end
 
 -- force-promote
 local forcePromote = false
-if obj.metadata.labels ~= nil and (obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "in-progress" or obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "trial") then
+if obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "trial" then
   forcePromote = true
 end
 if (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/force-promote"] == "true") then
@@ -94,7 +94,7 @@ end
 local recyclable = false
 if obj.metadata.labels ~= nil then
   local upgradeState = obj.metadata.labels["numaplane.numaproj.io/upgrade-state"]
-  if upgradeState ~= nil and string.find(upgradeState, "^recyclable") then
+  if upgradeState == "recyclable" or upgradeState == "recyclable-expired" then
     recyclable = true
   end
 end

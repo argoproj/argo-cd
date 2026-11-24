@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -21,10 +21,8 @@ func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTim
 
 func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 	a := &ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: ApplicationSetSpec{
 			Generators: []ApplicationSetGenerator{
 				{

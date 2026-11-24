@@ -4,8 +4,89 @@ import {isValidURL} from '../../shared/utils';
 
 const GitUrlParse = require('git-url-parse');
 
+// Returns true for self-hosted Bitbucket Server instances.
+// git-url-parse sets source='bitbucket-server' for HTTPS clone URLs (which contain /scm/
+// in their path) and for SCP-style SSH clone URLs that also include /scm/. For SSH clone
+// URLs without the /scm/ prefix (e.g. ssh://git@HOST:7999/PROJECT/repo.git) it does not
+// set that source, so we additionally check the resource hostname.
+function isBitbucketServer(parsed: GitUrl): boolean {
+    return parsed.source === 'bitbucket-server' || (parsed.resource.startsWith('bitbucket') && parsed.source !== 'bitbucket.org');
+}
+
+// Returns true for gitlab.com and self-hosted GitLab instances (e.g. gitlab.my-enterprise.com).
+function isGitlab(parsed: GitUrl): boolean {
+    return parsed.resource.startsWith('gitlab.');
+}
+
+// git-url-parse does not handle uppercase Azure DevOps SSH hostnames correctly.
+// Normalize the hostname before parsing while preserving the original path casing.
+function normalizeAzureDevOpsSshUrl(url: string): string {
+    return url.replace(/^git@ssh\.dev\.azure\.com:/i, 'git@ssh.dev.azure.com:').replace(/^git@vs-ssh\.visualstudio\.com:/i, 'git@vs-ssh.visualstudio.com:');
+}
+
+function isAzureDevOps(parsed: GitUrl): boolean {
+    return (
+        parsed.resource === 'dev.azure.com' ||
+        parsed.resource === 'ssh.dev.azure.com' ||
+        parsed.resource === 'vs-ssh.visualstudio.com' ||
+        /^[^.]+\.visualstudio\.com$/.test(parsed.resource)
+    );
+}
+
 function supportedSource(parsed: GitUrl): boolean {
-    return parsed.resource.startsWith('github') || ['gitlab.com', 'bitbucket.org'].indexOf(parsed.source) >= 0;
+    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed) || isAzureDevOps(parsed);
+}
+
+function azureDevOpsRepoUrl(parsed: GitUrl, url: string): string | null {
+    const isLegacyHttps = parsed.resource !== 'vs-ssh.visualstudio.com' && /^[^.]+\.visualstudio\.com$/.test(parsed.resource);
+    const organization = isLegacyHttps ? parsed.resource.split('.')[0] : parsed.organization || parsed.owner;
+    let project = isLegacyHttps || Boolean(parsed.organization) ? `/${encodeURIComponent(parsed.owner)}` : '';
+    let name = parsed.name;
+
+    if (isLegacyHttps) {
+        try {
+            // git-url-parse can misidentify the project in legacy URLs containing
+            // DefaultCollection or team segments, so parse the path directly.
+            const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+            const gitIndex = segments.indexOf('_git');
+            if (gitIndex < 0 || gitIndex !== segments.length - 2) {
+                return null;
+            }
+
+            const scope = segments.slice(0, gitIndex);
+            if (scope[0]?.toLowerCase() === 'defaultcollection') {
+                scope.shift();
+            }
+            if (scope.length > 2) {
+                return null;
+            }
+
+            project = scope.length ? `/${encodeURIComponent(scope[0])}` : '';
+            name = segments[gitIndex + 1];
+        } catch {
+            return null;
+        }
+    }
+
+    if (!organization || !name || name === '_git' || name.includes('/') || (!isLegacyHttps && !parsed.owner)) {
+        return null;
+    }
+
+    return `https://dev.azure.com/${encodeURIComponent(organization)}${project}/_git/${encodeURIComponent(name)}`;
+}
+
+// Bitbucket Server browse URLs differ from clone URLs:
+//   clone:  https://HOST/scm/~user/repo.git  or  https://HOST/scm/PROJECTKEY/repo.git
+//   browse: https://HOST/users/user/repos/repo  or  https://HOST/projects/PROJECTKEY/repos/repo
+function bitbucketServerBrowseUrl(parsed: GitUrl): string {
+    const port = parsed.port ? `:${parsed.port}` : '';
+    const host = `${protocol(parsed.protocol)}://${parsed.resource}${port}`;
+    const owner = parsed.owner;
+    // Personal repos use the ~ prefix in the clone URL owner
+    if (owner.startsWith('~')) {
+        return `${host}/users/${owner.slice(1)}/repos/${parsed.name}`;
+    }
+    return `${host}/projects/${owner}/repos/${parsed.name}`;
 }
 
 function protocol(proto: string): string {
@@ -14,9 +95,24 @@ function protocol(proto: string): string {
 
 export function repoUrl(url: string): string {
     try {
-        const parsed = GitUrlParse(url);
+        const parsed = GitUrlParse(normalizeAzureDevOpsSshUrl(url));
 
         if (!supportedSource(parsed)) {
+            return null;
+        }
+
+        if (isAzureDevOps(parsed)) {
+            const browseUrl = azureDevOpsRepoUrl(parsed, url);
+            return browseUrl && isValidURL(browseUrl) ? browseUrl : null;
+        }
+
+        // Self-hosted Bitbucket Server has a different browse URL structure
+        // from its clone URLs, so reconstruct it using the known pattern.
+        if (isBitbucketServer(parsed)) {
+            const browseUrl = bitbucketServerBrowseUrl(parsed);
+            if (isValidURL(browseUrl)) {
+                return browseUrl;
+            }
             return null;
         }
 
@@ -33,25 +129,65 @@ export function repoUrl(url: string): string {
 export function revisionUrl(url: string, revision: string, forPath: boolean): string {
     let parsed;
     try {
-        parsed = GitUrlParse(url);
+        parsed = GitUrlParse(normalizeAzureDevOpsSshUrl(url));
     } catch {
         return null;
     }
+
+    if (!supportedSource(parsed)) {
+        return null;
+    }
+
+    if (isAzureDevOps(parsed)) {
+        const base = azureDevOpsRepoUrl(parsed, url);
+        if (!base || !isValidURL(base)) {
+            return null;
+        }
+
+        if (isSHA(revision) && !forPath) {
+            return `${base}/commit/${revision}`;
+        }
+        if (!revision || revision === 'HEAD') {
+            return base;
+        }
+        if (isSHA(revision)) {
+            return `${base}?version=GC${revision}`;
+        }
+        if (revision.startsWith('refs/tags/')) {
+            return `${base}?version=GT${encodeURIComponent(revision.slice('refs/tags/'.length))}`;
+        }
+
+        // Unqualified revisions cannot be distinguished from branch names without Git ref metadata.
+        const branch = revision.startsWith('refs/heads/') ? revision.slice('refs/heads/'.length) : revision;
+        return `${base}?version=GB${encodeURIComponent(branch)}`;
+    }
+
+    // Bitbucket Server uses /commits/SHA for bare commit links, and /browse[/PATH]?at=REF
+    // for branch and path links. The Revision component (revision.tsx) inserts the path
+    // segment BEFORE the ?at= query param, so we return only the base browse URL here.
+    // When revision is empty or HEAD, omit ?at= so Bitbucket Server uses its default branch.
+    if (isBitbucketServer(parsed)) {
+        const base = bitbucketServerBrowseUrl(parsed);
+        if (isSHA(revision) && !forPath) {
+            return `${base}/commits/${revision}`;
+        }
+        if (!revision || revision === 'HEAD') {
+            return `${base}/browse`;
+        }
+        return `${base}/browse?at=${encodeURIComponent(revision)}`;
+    }
+
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
 
-    if (url.indexOf('bitbucket') >= 0) {
+    if (parsed.source === 'bitbucket.org') {
         // The reason for the condition of 'forPath' is that when we build nested path, we need to use 'src'
         urlSubPath = isSHA(revision) && !forPath ? 'commits' : 'src';
     }
 
     // Gitlab changed the way urls to commit look like
     // Ref: https://docs.gitlab.com/ee/update/deprecations.html#legacy-urls-replaced-or-removed
-    if (parsed.source === 'gitlab.com') {
+    if (isGitlab(parsed)) {
         urlSubPath = '-/' + urlSubPath;
-    }
-
-    if (!supportedSource(parsed)) {
-        return null;
     }
 
     return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${urlSubPath}/${revision || 'HEAD'}`;

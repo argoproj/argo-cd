@@ -81,11 +81,9 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 
 	event := corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
-			Labels:      eventLabels,
-			Annotations: logFields,
-		},
+		Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
+		Labels:      eventLabels,
+		Annotations: logFields,
 		Source: corev1.EventSource{
 			Component: l.component,
 		},
@@ -163,7 +161,7 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 	objectMeta := ObjectRef{
 		Name:            res.Name,
 		Namespace:       res.Namespace,
-		ResourceVersion: res.Version,
+		ResourceVersion: res.ResourceVersion,
 		UID:             types.UID(res.UID),
 	}
 	fields := map[string]string{}
@@ -192,7 +190,7 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
+	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, fields, nil)
 }
 
 func NewAuditLogger(kIf kubernetes.Interface, namespace, component string, enableK8sEvent []string) *AuditLogger {

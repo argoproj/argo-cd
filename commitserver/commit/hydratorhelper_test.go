@@ -112,7 +112,7 @@ Argocd-reference-commit-sha: abc123
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	var topMetadata hydratorMetadataFile
+	var topMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
@@ -135,7 +135,7 @@ Argocd-reference-commit-sha: abc123
 		metadataBytes, err := os.ReadFile(metadataPath)
 		require.NoError(t, err)
 
-		var readMetadata hydratorMetadataFile
+		var readMetadata hydrator.HydratorCommitMetadata
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
@@ -218,7 +218,7 @@ Argocd-reference-commit-sha: abc123
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	var topMetadata hydratorMetadataFile
+	var topMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
@@ -247,7 +247,7 @@ Argocd-reference-commit-sha: abc123
 		metadataBytes, err := os.ReadFile(metadataPath)
 		require.NoError(t, err)
 
-		var readMetadata hydratorMetadataFile
+		var readMetadata hydrator.HydratorCommitMetadata
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
@@ -542,7 +542,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	var topMetadata hydratorMetadataFile
+	var topMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	// The top-level metadata should have the NEW dry SHA (files are written, just not committed)

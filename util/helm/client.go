@@ -63,7 +63,7 @@ type Client interface {
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(ctx context.Context, chart string, noCache bool) ([]string, error)
-	TestHelmOCI() (bool, error)
+	TestHelmOCI(ctx context.Context) (bool, error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -165,6 +165,12 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)
 	}
+
+	// ExtractChart reads and extracts the cached archive while holding this key lock.
+	// Acquire it here as well so a hard refresh cannot delete the archive mid-extraction.
+	c.repoLock.Lock(cachePath)
+	defer c.repoLock.Unlock(cachePath)
+
 	if err := os.RemoveAll(cachePath); err != nil {
 		return fmt.Errorf("error removing chart cache at %s: %w", cachePath, err)
 	}
@@ -255,7 +261,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -343,7 +349,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	return index, nil
 }
 
-func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
+func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 	start := time.Now()
 
 	tmpDir, err := os.MkdirTemp("", "helm")
@@ -365,7 +371,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+		_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}
@@ -454,7 +460,6 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 
 // Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
 func normalizeChartName(chart string) string {
-	strings.Join(strings.Split(chart, "/"), "_")
 	_, nc := path.Split(chart)
 	// We do not want to return the empty string or something else related to filesystem access
 	// Instead, return original string
@@ -474,12 +479,15 @@ func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (stri
 
 // Ensures that given OCI registries URL does not have protocol
 func IsHelmOciRepo(repoURL string) bool {
-	if repoURL == "" {
+	if repoURL == "" || strings.Contains(repoURL, "://") {
 		return false
 	}
-	parsed, err := url.Parse(repoURL)
-	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
-	return err == nil && parsed.Host == ""
+	// A scheme-less registry reference such as "demo.goharbor.io:8080" or
+	// "192.168.100.150:1843" cannot be parsed as a URL on its own, so prepend a
+	// dummy scheme and require a host, the same way oras-go validates a registry
+	// (registry.Reference.ValidateRegistry).
+	parsed, err := url.ParseRequestURI("dummy://" + repoURL)
+	return err == nil && parsed.Host != ""
 }
 
 func getIndexURL(rawURL string) (string, error) {
