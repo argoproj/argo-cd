@@ -200,8 +200,14 @@ endif
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+BUILDVCS_FLAG=
 else
 IMAGE_TAG?=latest
+# Untagged builds (e.g. master/latest images) have no v3.x.y tag in their git history, so Go stamps the main module
+# with a v3.0.0-<timestamp>-<hash> pseudo-version. That sorts below v3.0.0, so vulnerability scanners match every
+# published Argo CD advisory against it. Disable VCS stamping so the main module version is reported as (devel).
+# Tagged release builds keep VCS stamping so scanners see the real release version.
+BUILDVCS_FLAG=-buildvcs=false
 endif
 
 # defaults for building images and manifests
@@ -340,7 +346,7 @@ manifests: test-tools-image
 
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v ${BUILDVCS_FLAG} -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 .PHONY: server
 server: clean-debug
@@ -544,8 +550,15 @@ start-e2e: test-tools-image
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
 # Starts e2e server locally (or within a container)
+# In CI the Procfiles skip the UI dev server (no e2e test uses it), so installing its
+# dependencies there is wasted time and a needless dependency on the npm registry.
+ifeq ($(ARGOCD_IN_CI),true)
+E2E_UI_DEPS=
+else
+E2E_UI_DEPS=dep-ui-local
+endif
 .PHONY: start-e2e-local
-start-e2e-local: mod-download-local dep-ui-local cli-local
+start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true

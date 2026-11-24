@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+	toolscache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -980,4 +983,353 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "Deployment", resNode.ParentRefs[0].Kind)
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
+}
+
+func setClusterCacheEnv(t *testing.T, value string) {
+	t.Helper()
+	for _, name := range []string{
+		EnvClusterCacheResyncDuration,
+		EnvClusterCacheWatchResyncDuration,
+		EnvClusterSyncRetryTimeoutDuration,
+		EnvClusterCacheListPageSize,
+		EnvClusterCacheListPageBufferSize,
+		EnvClusterCacheListSemaphore,
+		EnvClusterCacheAttemptLimit,
+		EnvClusterCacheRetryUseBackoff,
+		EnvClusterCacheBatchEventsProcessing,
+		EnvClusterCacheEventsProcessingInterval,
+	} {
+		t.Setenv(name, value)
+	}
+}
+
+func defaultClusterCacheConfig() ClusterCacheConfig {
+	return ClusterCacheConfig{
+		ResyncDuration:           12 * time.Hour,
+		WatchResyncDuration:      10 * time.Minute,
+		SyncRetryTimeout:         10 * time.Second,
+		ListPageSize:             500,
+		ListPageBufferSize:       1,
+		ListSemaphoreSize:        50,
+		AttemptLimit:             1,
+		RetryUseBackoff:          false,
+		BatchEventsProcessing:    true,
+		EventsProcessingInterval: 100 * time.Millisecond,
+	}
+}
+
+func TestClusterCacheConfigFromEnv(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		assert.Equal(t, defaultClusterCacheConfig(), ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheResyncDuration, "6h")
+		t.Setenv(EnvClusterCacheWatchResyncDuration, "5m")
+		t.Setenv(EnvClusterSyncRetryTimeoutDuration, "30s")
+		t.Setenv(EnvClusterCacheListPageSize, "250")
+		t.Setenv(EnvClusterCacheListPageBufferSize, "4")
+		t.Setenv(EnvClusterCacheListSemaphore, "10")
+		t.Setenv(EnvClusterCacheAttemptLimit, "3")
+		t.Setenv(EnvClusterCacheRetryUseBackoff, "true")
+		t.Setenv(EnvClusterCacheBatchEventsProcessing, "false")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "1s")
+
+		assert.Equal(t, ClusterCacheConfig{
+			ResyncDuration:           6 * time.Hour,
+			WatchResyncDuration:      5 * time.Minute,
+			SyncRetryTimeout:         30 * time.Second,
+			ListPageSize:             250,
+			ListPageBufferSize:       4,
+			ListSemaphoreSize:        10,
+			AttemptLimit:             3,
+			RetryUseBackoff:          true,
+			BatchEventsProcessing:    false,
+			EventsProcessingInterval: time.Second,
+		}, ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("out of range values fall back to defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheResyncDuration, "-1s")
+		t.Setenv(EnvClusterCacheListPageSize, "-1")
+		t.Setenv(EnvClusterCacheListPageBufferSize, "0")
+		t.Setenv(EnvClusterCacheAttemptLimit, "0")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "invalid")
+
+		assert.Equal(t, defaultClusterCacheConfig(), ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("zero values that would break the cluster cache fall back to defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheListSemaphore, "0")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "0s")
+
+		cfg := ClusterCacheConfigFromEnv()
+
+		assert.Equal(t, defaultClusterCacheConfig(), cfg)
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("every value set to zero keeps the zero values that are allowed", func(t *testing.T) {
+		setClusterCacheEnv(t, "0")
+
+		cfg := ClusterCacheConfigFromEnv()
+
+		want := defaultClusterCacheConfig()
+		want.ResyncDuration = 0
+		want.WatchResyncDuration = 0
+		want.SyncRetryTimeout = 0
+		want.ListPageSize = 0
+		assert.Equal(t, want, cfg)
+		require.NoError(t, cfg.Validate())
+	})
+}
+
+func TestClusterCacheConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*ClusterCacheConfig)
+		wantErr string
+	}{
+		{name: "defaults", modify: func(*ClusterCacheConfig) {}},
+		{name: "zero values within range", modify: func(c *ClusterCacheConfig) {
+			c.ResyncDuration = 0
+			c.ListPageSize = 0
+		}},
+		{name: "zero events processing interval without batch processing", modify: func(c *ClusterCacheConfig) {
+			c.BatchEventsProcessing = false
+			c.EventsProcessingInterval = 0
+		}},
+		{name: "zero events processing interval with batch processing", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = 0 }, wantErr: "events processing interval must be greater than 0"},
+		{name: "negative resync duration", modify: func(c *ClusterCacheConfig) { c.ResyncDuration = -time.Second }, wantErr: "resync duration must not be negative"},
+		{name: "negative watch resync duration", modify: func(c *ClusterCacheConfig) { c.WatchResyncDuration = -time.Second }, wantErr: "watch resync duration must not be negative"},
+		{name: "negative sync retry timeout", modify: func(c *ClusterCacheConfig) { c.SyncRetryTimeout = -time.Second }, wantErr: "sync retry timeout must not be negative"},
+		{name: "negative events processing interval", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = -time.Second }, wantErr: "events processing interval must not be negative"},
+		{name: "negative list page size", modify: func(c *ClusterCacheConfig) { c.ListPageSize = -1 }, wantErr: "list page size must not be negative"},
+		{name: "list page buffer size below 1", modify: func(c *ClusterCacheConfig) { c.ListPageBufferSize = 0 }, wantErr: "list page buffer size must be at least 1"},
+		{name: "list semaphore size below 1", modify: func(c *ClusterCacheConfig) { c.ListSemaphoreSize = 0 }, wantErr: "list semaphore size must be at least 1"},
+		{name: "attempt limit below 1", modify: func(c *ClusterCacheConfig) { c.AttemptLimit = 0 }, wantErr: "attempt limit must be at least 1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := defaultClusterCacheConfig()
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+
+	t.Run("reports every invalid value", func(t *testing.T) {
+		cfg := defaultClusterCacheConfig()
+		cfg.ListPageBufferSize = 0
+		cfg.AttemptLimit = 0
+		err := cfg.Validate()
+		require.ErrorContains(t, err, "list page buffer size must be at least 1")
+		require.ErrorContains(t, err, "attempt limit must be at least 1")
+	})
+}
+
+func TestNewLiveStateCache_UsesClusterCacheConfig(t *testing.T) {
+	cfg := defaultClusterCacheConfig()
+	cfg.ListPageSize = 42
+	cfg.AttemptLimit = 3
+
+	c := NewLiveStateCache(nil, nil, nil, nil, nil, nil, nil, cfg)
+
+	assert.Equal(t, cfg, c.(*liveStateCache).clusterCacheConfig)
+}
+
+func engineField(t *testing.T, clusterCache any, path ...string) reflect.Value {
+	t.Helper()
+	v := reflect.ValueOf(clusterCache).Elem()
+	for _, name := range path {
+		v = v.FieldByName(name)
+		require.Truef(t, v.IsValid(), "gitops-engine cluster cache has no field %q", name)
+	}
+	return reflect.NewAt(v.Type(), unsafe.Pointer(v.UnsafeAddr())).Elem()
+}
+
+func TestGetCluster_AppliesClusterCacheConfig(t *testing.T) {
+	cfg := ClusterCacheConfig{
+		ResyncDuration:           7 * time.Hour,
+		WatchResyncDuration:      11 * time.Minute,
+		SyncRetryTimeout:         13 * time.Second,
+		ListPageSize:             42,
+		ListPageBufferSize:       5,
+		ListSemaphoreSize:        6,
+		AttemptLimit:             3,
+		RetryUseBackoff:          true,
+		BatchEventsProcessing:    true,
+		EventsProcessingInterval: 17 * time.Millisecond,
+	}
+	cluster := &appv1.Cluster{Server: "https://mycluster"}
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	clusterSharding := sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+	clusterSharding.Add(cluster)
+	_, settingsMgr := fixtures(t.Context(), map[string]string{})
+	c := &liveStateCache{
+		clusters:           map[string]cache.ClusterCache{},
+		hosts:              map[string]*clusterHostsEntry{},
+		clusterSharding:    clusterSharding,
+		settingsMgr:        settingsMgr,
+		clusterCacheConfig: cfg,
+	}
+
+	clusterCache, err := c.getCluster(cluster)
+	require.NoError(t, err)
+
+	assert.Equal(t, cfg.ResyncDuration, engineField(t, clusterCache, "syncStatus", "resyncTimeout").Interface())
+	assert.Equal(t, cfg.WatchResyncDuration, engineField(t, clusterCache, "watchResyncTimeout").Interface())
+	assert.Equal(t, cfg.SyncRetryTimeout, engineField(t, clusterCache, "clusterSyncRetryTimeout").Interface())
+	assert.Equal(t, cfg.ListPageSize, engineField(t, clusterCache, "listPageSize").Interface())
+	assert.Equal(t, cfg.ListPageBufferSize, engineField(t, clusterCache, "listPageBufferSize").Interface())
+	assert.Equal(t, cfg.AttemptLimit, engineField(t, clusterCache, "listRetryLimit").Interface())
+	assert.Equal(t, cfg.RetryUseBackoff, engineField(t, clusterCache, "listRetryUseBackoff").Interface())
+	assert.Equal(t, cfg.BatchEventsProcessing, engineField(t, clusterCache, "batchEventsProcessing").Interface())
+	assert.Equal(t, cfg.EventsProcessingInterval, engineField(t, clusterCache, "eventProcessingInterval").Interface())
+
+	sem := engineField(t, clusterCache, "listSemaphore").Interface().(cache.WeightedSemaphore)
+	require.True(t, sem.TryAcquire(cfg.ListSemaphoreSize), "semaphore must allow its full size")
+	assert.False(t, sem.TryAcquire(1), "semaphore must be exhausted at its size")
+	sem.Release(cfg.ListSemaphoreSize)
+	assert.False(t, sem.TryAcquire(cfg.ListSemaphoreSize+1), "semaphore must not exceed its size")
+}
+
+func newAppManagingCRD(name, server string, crds ...string) *appv1.Application {
+	app := &appv1.Application{
+		Name: name, Namespace: "argocd",
+		Spec: appv1.ApplicationSpec{Destination: appv1.ApplicationDestination{Server: server}},
+	}
+	for _, crd := range crds {
+		app.Status.Resources = append(app.Status.Resources, appv1.ResourceStatus{Group: "apiextensions.k8s.io", Version: "v1", Kind: kube.CustomResourceDefinitionKind, Name: crd})
+	}
+	return app
+}
+
+func TestManagedCRDIndexFunc(t *testing.T) {
+	app := newAppManagingCRD("app", "https://cluster-a", "dummies.argoproj.io")
+	app.Status.Resources = append(app.Status.Resources,
+		appv1.ResourceStatus{Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "cm"},
+		appv1.ResourceStatus{Group: "example.com", Version: "v1", Kind: kube.CustomResourceDefinitionKind, Name: "not-a-crd"},
+	)
+
+	keys, err := ManagedCRDIndexFunc(app)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"dummies.argoproj.io"}, keys)
+
+	keys, err = ManagedCRDIndexFunc(&corev1.ConfigMap{})
+	require.NoError(t, err)
+	assert.Empty(t, keys)
+}
+
+func TestAppsToNotify(t *testing.T) {
+	const crdName = "dummies.argoproj.io"
+	crdRef := corev1.ObjectReference{APIVersion: "apiextensions.k8s.io/v1", Kind: kube.CustomResourceDefinitionKind, Name: crdName}
+
+	appInformer := toolscache.NewSharedIndexInformer(&toolscache.ListWatch{}, &appv1.Application{}, 0, toolscache.Indexers{ManagedCRDIndex: ManagedCRDIndexFunc})
+	byName := newAppManagingCRD("by-name", "", crdName)
+	byName.Spec.Destination.Name = "cluster-a"
+	for _, app := range []*appv1.Application{
+		newAppManagingCRD("same-cluster", "https://cluster-a/", crdName),
+		newAppManagingCRD("other-cluster", "https://cluster-b", crdName),
+		newAppManagingCRD("other-crd", "https://cluster-a", "others.argoproj.io"),
+		byName,
+	} {
+		require.NoError(t, appInformer.GetIndexer().Add(app))
+	}
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterServersByName(mock.Anything, "cluster-a").Return([]string{"https://cluster-a"}, nil)
+	c := &liveStateCache{db: db, appInformer: appInformer}
+	want := map[string]bool{"argocd/same-cluster": true, "argocd/by-name": true}
+
+	t.Run("CRD update refreshes the apps managing it on the same cluster", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a", crdRef, crd, crd, nil))
+	})
+
+	t.Run("cluster server with a trailing slash", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a/", crdRef, crd, crd, nil))
+	})
+
+	t.Run("CRD deletion refreshes the apps managing it", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a", crdRef, nil, crd, nil))
+	})
+
+	t.Run("CRD tracked by an app does not fall back to the index", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{AppName: "tracked"}}
+		assert.Equal(t, map[string]bool{"tracked": true}, c.appsToNotify("https://cluster-a", crdRef, crd, nil, nil))
+	})
+
+	t.Run("other resources are not looked up in the index", func(t *testing.T) {
+		cmRef := corev1.ObjectReference{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default", Name: crdName}
+		cm := &cache.Resource{Ref: cmRef, Info: &ResourceInfo{}}
+		assert.Empty(t, c.appsToNotify("https://cluster-a", cmRef, cm, nil, nil))
+	})
+
+	t.Run("no app informer", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Empty(t, (&liveStateCache{}).appsToNotify("https://cluster-a", crdRef, crd, nil, nil))
+	})
+}
+
+func TestHandleResourceUpdated(t *testing.T) {
+	const crdName = "dummies.argoproj.io"
+	crdRef := corev1.ObjectReference{APIVersion: "apiextensions.k8s.io/v1", Kind: kube.CustomResourceDefinitionKind, Name: crdName}
+
+	appInformer := toolscache.NewSharedIndexInformer(&toolscache.ListWatch{}, &appv1.Application{}, 0, toolscache.Indexers{ManagedCRDIndex: ManagedCRDIndexFunc})
+	require.NoError(t, appInformer.GetIndexer().Add(newAppManagingCRD("crd-app", "https://cluster-a", crdName)))
+
+	newCache := func(notified *[]map[string]bool, ignoreResourceUpdatesEnabled bool) *liveStateCache {
+		return &liveStateCache{
+			db:            &dbmocks.ArgoDB{},
+			appInformer:   appInformer,
+			cacheSettings: cacheSettings{ignoreResourceUpdatesEnabled: ignoreResourceUpdatesEnabled},
+			onObjectUpdated: func(managedByApp map[string]bool, _ corev1.ObjectReference) {
+				*notified = append(*notified, managedByApp)
+			},
+		}
+	}
+
+	t.Run("untracked CRD update refreshes the apps managing it", func(t *testing.T) {
+		var notified []map[string]bool
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", crd, crd, nil)
+		assert.Equal(t, []map[string]bool{{"argocd/crd-app": true}}, notified)
+	})
+
+	t.Run("untracked CRD delete refreshes the apps managing it", func(t *testing.T) {
+		var notified []map[string]bool
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", nil, crd, nil)
+		assert.Equal(t, []map[string]bool{{"argocd/crd-app": true}}, notified)
+	})
+
+	t.Run("update with an unchanged manifest hash is ignored", func(t *testing.T) {
+		var notified []map[string]bool
+		ref := corev1.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "guestbook"}
+		oldRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", newRes, oldRes, nil)
+		assert.Empty(t, notified)
+	})
+
+	t.Run("update with an unchanged manifest hash refreshes the app when ignoring updates is disabled", func(t *testing.T) {
+		var notified []map[string]bool
+		ref := corev1.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "guestbook"}
+		oldRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newCache(&notified, false).handleResourceUpdated("https://cluster-a", newRes, oldRes, nil)
+		assert.Equal(t, []map[string]bool{{"guestbook": true}}, notified)
+	})
 }

@@ -1,0 +1,16 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.query-retry {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: $argo-color-teal-6;
+    cursor: pointer;
+
+    &:focus-visible {
+        // argo-ui removes button outlines globally with !important.
+        outline: 2px solid currentColor !important;
+        outline-offset: 2px;
+    }
+}

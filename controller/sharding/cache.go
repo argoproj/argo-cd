@@ -224,7 +224,7 @@ func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
 	if old.Shard == nil && newCluster.Shard == nil {
 		return false
 	}
-	return old.Shard == nil || newCluster.Shard == nil || int64(*old.Shard) != int64(*newCluster.Shard)
+	return old.Shard == nil || newCluster.Shard == nil || *old.Shard != *newCluster.Shard
 }
 
 // A read lock should be acquired before calling getClusterAccessor.
