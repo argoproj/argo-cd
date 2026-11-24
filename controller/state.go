@@ -689,6 +689,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
 	setAppTraceAttrs(span, app)
 	defer func() {
+		if recovered := recover(); recovered != nil {
+			recordControllerPanic(span, recovered)
+			span.End()
+			panic(recovered)
+		}
 		defer span.End()
 		setComparisonResultTraceAttrs(span, result)
 		if retErr != nil {

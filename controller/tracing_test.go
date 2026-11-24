@@ -717,6 +717,31 @@ func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
 	}
 }
 
+func TestCompareAppStateTraceRecordsAndPropagatesPanic(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	app := newFakeApp()
+	source := app.Spec.GetSource()
+	panicErr := errors.New("manifest generation panic: " + strings.Repeat("界", 1024))
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:             []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{},
+		onGenerateManifest: func(*apiclient.ManifestRequest) {
+			panic(panicErr)
+		},
+	}, nil)
+
+	require.PanicsWithValue(t, panicErr, func() {
+		_, _ = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{source.TargetRevision}, []v1alpha1.ApplicationSource{source}, false, false, nil, false)
+	})
+
+	span := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
+	assertTraceError(t, span, "panic")
+	assertBoundedTraceMessage(t, span.Status().Description, "manifest generation panic: ")
+	exception := traceExceptionAttrs(t, span)
+	assert.Equal(t, span.Status().Description, exception["exception.message"].AsString())
+	assert.NotEmpty(t, exception["exception.stacktrace"].AsString())
+}
+
 func TestCompareAppStateTraceRecordsMultiSourceResolution(t *testing.T) {
 	for _, partialFailure := range []bool{false, true} {
 		name := "all sources resolved"
