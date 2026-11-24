@@ -296,9 +296,8 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 						}
 					}
 					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
-					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
+					repoServerAddress, err = kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
 					errors.CheckError(err)
-					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
 				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, tls.Configuration{DisableTLS: false, StrictValidation: false})
 				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff, ignoreNormalizerOpts)

@@ -36,7 +36,16 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 // connection will be insecure (plain-text).
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
 func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	rawConn, err := proxy.Dial(ctx, network, address)
+	return blockingNewClient(ctx, proxy.Dial, network, address, creds, opts...)
+}
+
+// BlockingNewClientNoProxy is BlockingNewClient without the proxy, for an address this process listens on.
+func BlockingNewClientNoProxy(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	return blockingNewClient(ctx, proxy.Direct.DialContext, network, address, creds, opts...)
+}
+
+func blockingNewClient(ctx context.Context, dial func(ctx context.Context, network, address string) (net.Conn, error), network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	rawConn, err := dial(ctx, network, address)
 	if err != nil {
 		return nil, fmt.Errorf("error dial proxy: %w", err)
 	}

@@ -572,7 +572,10 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
+	// Go dials a wildcard listen address as the local system. gRPC skips HTTPS_PROXY only for loopback targets.
+	dOpts = append(dOpts, grpc.WithNoProxy())
+	// The default "dns" scheme parses the target as a URL and rejects the "%" of an IPv6 zone.
+	conn, err := grpc.NewClient("passthrough:"+mainLn.Addr().String(), dOpts...)
 	if err != nil {
 		utilio.Close(mainLn)
 		utilio.Close(metricsLn)
