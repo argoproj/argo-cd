@@ -1,6 +1,7 @@
 package gpgkeys
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -60,7 +61,8 @@ func waitForKeyring(t *testing.T, present bool) {
 		// empty directory. Wait for the repo-server to create it, so this check never
 		// writes into the repo-server's keyring.
 		if _, err := os.Stat(filepath.Join(home, "pubring.kbx")); err != nil {
-			return !present
+			// No keyring means no key. Any other error proves nothing.
+			return stderrors.Is(err, os.ErrNotExist) && !present
 		}
 		cmd := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--lock-never", "--no-auto-check-trustdb", "--no-autostart", "--list-keys", fixture.GpgGoodKeyID)
 		cmd.Env = append(os.Environ(), "LC_ALL=C")

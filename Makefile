@@ -566,13 +566,17 @@ start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
 	# Wait for the CRDs to be served, otherwise the API server can exit on its first AppProject write.
-	# A jsonpath wait keeps waiting while .status.conditions is still unset; --for=condition
-	# fails with an accessor error if it reads a CRD before the API server has set any status.
-	kubectl wait --for=jsonpath='{.status.conditions[?(@.type=="Established")].status}'=True --timeout=60s \
-		crd/applications.argoproj.io \
-		crd/applicationsets.argoproj.io \
-		crd/appprojects.argoproj.io \
-		crd/placementdecisions.cluster.open-cluster-management.io
+	# A new CRD has status.conditions set to null until the API server fills it in, and
+	# kubectl wait exits with an accessor error if it reads the CRD then, so retry it.
+	for i in 1 2 3 4 5; do \
+		kubectl wait --for=condition=Established --timeout=60s \
+			crd/applications.argoproj.io \
+			crd/applicationsets.argoproj.io \
+			crd/appprojects.argoproj.io \
+			crd/placementdecisions.cluster.open-cluster-management.io && break; \
+		[ $$i -lt 5 ] || exit 1; \
+		sleep 2; \
+	done
 	# Create GPG keys and source directories
 	if test -d $(ARGOCD_E2E_DIR)/app/config/gpg; then rm -rf $(ARGOCD_E2E_DIR)/app/config/gpg/*; fi
 	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/keys && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/keys
