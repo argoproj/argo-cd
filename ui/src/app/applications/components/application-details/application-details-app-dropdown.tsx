@@ -4,7 +4,7 @@ import * as React from 'react';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {getAppUrl, getApplicationSetOwnerRef} from '../utils';
+import {getApplicationSetOwnerRef, getAppListLink} from '../utils';
 
 const MAX_RESULTS = 100; // cap results after filtering to avoid performance issues
 
@@ -70,18 +70,21 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                     {filteredSiblings.length > 0 && (
                                         <>
                                             <li className='application-details-app-dropdown__section-header'>IN SET: {appSetRef.name}</li>
-                                            {filteredSiblings.map(sibling => (
-                                                <li
-                                                    className='application-details-app-dropdown__item'
-                                                    key={`sibling-${sibling.name}`}
-                                                    onClick={() => ctx.navigation.goto(`/applications/${sibling.namespace}/${sibling.name}`)}>
-                                                    <i className='icon argo-icon-application resource-icon__font-icon application-details-app-dropdown__resource-icon' />
-                                                    <span>
-                                                        {sibling.name}
-                                                        {sibling.name === props.appName && ' (current)'}
-                                                    </span>
-                                                </li>
-                                            ))}
+                                            {filteredSiblings.map(sibling => {
+                                                const siblingApp = {kind: sibling.kind, metadata: {name: sibling.name, namespace: sibling.namespace}} as models.Application;
+                                                const siblingLink = getAppListLink(ctx, siblingApp);
+                                                return (
+                                                    <li className='application-details-app-dropdown__item' key={`sibling-${sibling.name}`}>
+                                                        <a href={siblingLink.href} onClick={siblingLink.onClick} className='application-details-app-dropdown__link'>
+                                                            <i className='icon argo-icon-application resource-icon__font-icon application-details-app-dropdown__resource-icon' />
+                                                            <span>
+                                                                {sibling.name}
+                                                                {sibling.name === props.appName && ' (current)'}
+                                                            </span>
+                                                        </a>
+                                                    </li>
+                                                );
+                                            })}
                                             <li className='application-details-app-dropdown__divider' role='separator' />
                                         </>
                                     )}
@@ -89,20 +92,22 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                         .filter(app => !siblingKeys.has(`${app.metadata.namespace}/${app.metadata.name}`))
                                         .filter(app => appFilter.length === 0 || app.metadata.name.toLowerCase().includes(appFilter.toLowerCase()))
                                         .slice(0, MAX_RESULTS)
-                                        .map(app => (
-                                            <li
-                                                className='application-details-app-dropdown__item'
-                                                key={app.metadata.name}
-                                                onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
-                                                <i
-                                                    className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`}
-                                                />
-                                                <span>
-                                                    {app.metadata.name}
-                                                    {app.metadata.name === props.appName && ' (current)'}
-                                                </span>
-                                            </li>
-                                        ))}
+                                        .map(app => {
+                                            const appLink = getAppListLink(ctx, app);
+                                            return (
+                                                <li className='application-details-app-dropdown__item' key={app.metadata.name}>
+                                                    <a className='application-details-app-dropdown__link' href={appLink.href} onClick={appLink.onClick}>
+                                                        <i
+                                                            className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`}
+                                                        />
+                                                        <span>
+                                                            {app.metadata.name}
+                                                            {app.metadata.name === props.appName && ' (current)'}
+                                                        </span>
+                                                    </a>
+                                                </li>
+                                            );
+                                        })}
                                 </>
                             );
                         }}

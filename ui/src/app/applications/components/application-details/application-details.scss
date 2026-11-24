@@ -450,14 +450,19 @@ $status-panel-toggle-height: 22px;
     }
 
     ul li.application-details-app-dropdown__item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 5px 10px;
+        padding: 0;
         font-size: 14px;
         line-height: normal;
-        color: $argo-color-gray-6;
         border-bottom: none;
+
+        .application-details-app-dropdown__link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            color: $argo-color-gray-6;
+            text-decoration: none;
+        }
 
         .application-details-app-dropdown__resource-icon.icon {
             font-size: 14px;
