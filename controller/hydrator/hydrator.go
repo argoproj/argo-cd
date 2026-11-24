@@ -670,6 +670,10 @@ func (h *Hydrator) canAdvanceHydratorNote(ctx context.Context, app *appv1.Applic
 	if err != nil {
 		return false, fmt.Sprintf("failed to get project: %v", err)
 	}
+	// Only a full hydration verifies the dry revision (see getManifests); never attest an unverified one.
+	if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), app.Spec.SourceHydrator.GetDrySource()) {
+		return false, "dry source requires source integrity verification"
+	}
 	baseline := app.DeepCopy()
 	baseline.Status.SourceHydrator.LastComparedDryRevision = status.LastSuccessfulOperation.DrySHA
 	hasChanges, _, err := h.dependencies.EvaluateAppRevisionsChanges(ctx, baseline, app.Spec.SourceHydrator.GetDrySource(), resolvedDryRevision, project, false)

@@ -663,11 +663,14 @@ new dry SHA, without rendering manifests or creating a commit. This happens on t
 check, and only when:
 
 * the last hydrate operation succeeded;
-* no annotated path changed between the last successfully hydrated dry SHA and the new one; and
-* the Application is the only one hydrating to its `hydrateTo` branch.
+* no annotated path changed between the last successfully hydrated dry SHA and the new one;
+* the Application is the only one hydrating to its `hydrateTo` branch; and
+* the project does not require [source integrity](#signature-verification) verification for the dry source, since
+  only a full hydration verifies the dry revision.
 
 Otherwise the note is left as is until the next full hydration. In particular, when several Applications share a
-hydrated branch, the note attests only dry commits for which the hydrator actually ran.
+hydrated branch, or the dry source requires verification, the note attests only dry commits for which the hydrator
+actually ran.
 
 ### Signature Verification
 

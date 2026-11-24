@@ -2304,3 +2304,27 @@ func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenBranchSharedAcrossDrySourc
 	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
 	h.ProcessAppHydrateQueueItem(app)
 }
+
+// Only a full hydration verifies source integrity, so an integrity-enforced dry source never takes the note-only path.
+func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenSourceIntegrityRequired(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"4AEE18F83AFDEB23"},
+				},
+			}},
+		},
+	}
+	app := newNoteAdvanceTestApp(v1alpha1.HydrateOperationPhaseHydrated)
+	expectNoChangesSinceLastCompared(d, app, proj, 2)
+
+	// No baseline comparison, branch lookup, or AdvanceHydratorNote call is expected.
+	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
+	h.ProcessAppHydrateQueueItem(app)
+}
