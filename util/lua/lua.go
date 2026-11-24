@@ -462,6 +462,10 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	for _, action := range availableActionsMap {
 		availableActions = append(availableActions, action)
 	}
+	// Sort by name, so that the actions are listed in the same order every time.
+	slices.SortFunc(availableActions, func(a, b appv1.ResourceAction) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	return availableActions, nil
 }
