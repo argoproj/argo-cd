@@ -936,6 +936,60 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 	}
 }
 
+// A deny pattern on one identifier of a destination entry must veto the
+// destination even when the entry's other identifier matches the cluster.
+func TestAppProject_IsDestinationPermitted_DenyNameOrServer(t *testing.T) {
+	testData := []struct {
+		name        string
+		projDest    []ApplicationDestination
+		appDest     ApplicationDestination
+		isPermitted bool
+	}{
+		{
+			name:        "cluster name denied, server matches",
+			projDest:    []ApplicationDestination{{Name: "!bad-cluster", Server: "https://api.example.com", Namespace: "*"}},
+			appDest:     ApplicationDestination{Server: "https://api.example.com", Name: "bad-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			name:        "cluster server denied, name matches",
+			projDest:    []ApplicationDestination{{Name: "good-cluster", Server: "!https://api.example.com", Namespace: "*"}},
+			appDest:     ApplicationDestination{Server: "https://api.example.com", Name: "good-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			name:        "deny pattern for a different cluster does not block an allowed one",
+			projDest:    []ApplicationDestination{{Name: "!other-cluster", Server: "https://api.example.com", Namespace: "*"}},
+			appDest:     ApplicationDestination{Server: "https://api.example.com", Name: "good-cluster", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			name:        "name-only deny still blocks",
+			projDest:    []ApplicationDestination{{Name: "!bad-cluster", Namespace: "*"}},
+			appDest:     ApplicationDestination{Server: "https://api.example.com", Name: "bad-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+	}
+
+	for _, data := range testData {
+		t.Run(data.name, func(t *testing.T) {
+			proj := AppProject{
+				Spec: AppProjectSpec{
+					Destinations: data.projDest,
+				},
+			}
+			destCluster := &Cluster{
+				Server: data.appDest.Server,
+				Name:   data.appDest.Name,
+			}
+			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+				return []*Cluster{}, nil
+			})
+			assert.Equal(t, data.isPermitted, permitted)
+		})
+	}
+}
+
 func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *testing.T) {
 	testData := []struct {
 		projDest    []ApplicationDestination

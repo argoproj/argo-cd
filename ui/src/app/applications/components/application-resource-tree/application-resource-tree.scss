@@ -475,4 +475,21 @@
 
     }
 
+    &__grouped-node-title {
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+
+        &-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        &-icon {
+            flex-shrink: 0;
+            padding-left: 0.5em;
+            font-size: small;
+        }
+    }
+
 }
