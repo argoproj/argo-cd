@@ -168,9 +168,11 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}
 
 	reg := &remote.Registry{
-		Client:    repo.Client,
-		Reference: repo.Reference,
-		PlainHTTP: repo.PlainHTTP,
+		RepositoryOptions: remote.RepositoryOptions{
+			Client:    repo.Client,
+			Reference: repo.Reference,
+			PlainHTTP: repo.PlainHTTP,
+		},
 	}
 	// Registries that don't paginate by default return every tag otherwise.
 	pingRepo := &remote.Repository{
