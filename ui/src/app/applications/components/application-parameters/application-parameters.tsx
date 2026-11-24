@@ -450,7 +450,13 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, detailsError?: Error, onRetry?: () => void): any {
+    function getEditablePanelForOneSource(
+        repoAppDetails: models.RepoAppDetails | undefined,
+        ind: number,
+        src: models.ApplicationSource,
+        detailsError?: Error,
+        onRetry?: () => void
+    ): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -1165,7 +1171,15 @@ const SourceDetailsWarning = ({error, onRetry}: {error?: Error; onRetry?: () => 
         </p>
     ) : null;
 
-const SourceDetailsLoader = ({input, load, children}: {input: any; load: (input: any) => Promise<SourceDetails>; children: (result: SourceDetails, retry: () => void) => React.ReactNode}) => {
+const SourceDetailsLoader = ({
+    input,
+    load,
+    children
+}: {
+    input: any;
+    load: (input: any) => Promise<SourceDetails>;
+    children: (result: SourceDetails, retry: () => void) => React.ReactNode;
+}) => {
     const [attempt, setAttempt] = React.useState(0);
     const loaderInput = React.useMemo(() => ({input, attempt}), [input, attempt]);
     return (
