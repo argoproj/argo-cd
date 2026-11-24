@@ -182,18 +182,23 @@ export const Filters = (props: FiltersProps) => {
                 })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
-                <label className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
+                <label className={`filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <input
                         type='checkbox'
+                        className='filter__item__checkbox'
                         checked={!!pref.orphanedResources}
+                        aria-label='Show Orphaned'
                         onChange={event => {
                             const val = event.target.checked;
                             ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                         }}
-                        style={{marginRight: '8px'}}
                     />
+                    <div style={{marginRight: '5px'}}>
+                        <i className='fa fa-ghost' />
+                    </div>
                     <div className='filter__item__label'>Show Orphaned</div>
+                    <div style={{marginLeft: 'auto'}}>{tree.orphanedNodes.length}</div>
                 </label>
             )}
         </FiltersGroup>
