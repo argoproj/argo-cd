@@ -66,16 +66,29 @@ repo server and plugins. Set the same ratio on every component to get a consiste
 ### Application controller span attributes
 
 `controller.Refresh` and `controller.Operation` each describe one workqueue processing attempt.
-An operation that waits, resumes, or retries can produce multiple traces. Comparison and sync spans
-record the work performed within an attempt. These attributes add metadata to the existing spans;
-they do not change queue behavior or trace parentage.
+An operation that waits, resumes, or retries can produce multiple traces. Argo CD uses `argocd.*`
+attributes to describe GitOps reconciliation, which OpenTelemetry semantic conventions do not cover.
+
+Use these attributes to find spans for an Application, for example `controller.Refresh`,
+`controller.Operation`, `controller.CompareAppState`, and `controller.SyncAppState`:
+
+| Attribute | Meaning |
+| --- | --- |
+| `argocd.app.name` | Name of the Application object. |
+| `argocd.app.namespace` | Namespace of the Application object. |
+| `argocd.app.project` | Name of the AppProject. If `spec.project` is empty, the value is `default`. |
 
 | Attribute | Spans | Meaning |
 | --- | --- | --- |
 | `argocd.app.sync.status` | Refresh, CompareAppState | Final sync status observed by the comparison, or an explicit status snapshot when Refresh returns before comparison. |
 | `argocd.app.health.status` | Refresh, CompareAppState | Health status observed by the same result or explicit snapshot. |
-| `argocd.resolved_revision` | Refresh, CompareAppState, SyncAppState | Resolved revision for a single-source Application. |
+| `argocd.resolved_revision` | Refresh, CompareAppState, SyncAppState, GetRepoObjs.source | Resolved revision for a single-source Application or for the individual source on `GetRepoObjs.source`. |
 | `argocd.resolved_revisions` | Refresh, CompareAppState, SyncAppState | Ordered string array of resolved revisions for a multi-source Application. |
+| `argocd.source.index` | GetRepoObjs.source | Zero-based position of the source in the Application. |
+| `argocd.source.name` | GetRepoObjs.source | Configured source name, which can be empty. |
+| `argocd.source.repo_url` | GetRepoObjs.source | Source repository URL. Argo CD strips embedded user information from parseable URLs. |
+| `argocd.revision` | GetRepoObjs.source | Revision or ref passed to source resolution. |
+| `argocd.hook.type` | executeHooks, cleanupHooks | Deletion hook type, `PreDelete` or `PostDelete`. |
 | `argocd.operation.phase` | Operation | Operation phase retained by Kubernetes after the attempt, including retry handling or a size-limit fallback. Omitted when persistence fails and the retained phase is unknown. |
 | `argocd.operation.attempt.phase` | Operation | Phase observed after sync work, before retry handling can reset it to `Running`. Absent for a retry-backoff dequeue that performs no sync work. |
 | `argocd.operation.retry_count` | Operation | Retry count at the end of the attempt. |
@@ -88,10 +101,10 @@ they do not change queue behavior or trace parentage.
 | `argocd.reconciliation.outcome` | Refresh, Operation | Bounded result of the attempt, described below. |
 | `argocd.reconciliation.status_changed` | Refresh | Whether the sync and health snapshots changed, including revision and comparison inputs. Reconciliation timestamps do not count as changes. False when the attempt reports an error. |
 
-Resolved revision attributes are emitted only after every source resolves successfully. Requested refs
-such as `main` or `HEAD`, and partially resolved source sets, are not labeled as resolved aggregate
-revisions. If comparison fails before producing a result, Refresh does not export the previous
-Application status as the failed comparison's result.
+Refresh, CompareAppState, and SyncAppState emit resolved revisions only after every source resolves
+successfully. Each `controller.GetRepoObjs.source` span can show its own resolved revision as soon
+as that source resolves. If comparison fails before producing a result, Refresh omits the sync and
+health status attributes for that comparison.
 
 #### Causes and outcomes
 
@@ -135,11 +148,11 @@ Failure to initiate auto-sync marks both `controller.autoSync` and its `controll
 errors. Historical failed-sync conditions and intentional policy skips are observations of controller
 state and do not, by themselves, mark the current attempt as an error.
 
-Refresh and sync panics are recorded before the span ends, preserving the controller's existing
-recovery behavior. `SyncAppState` re-panics after finalizing its span.
+If a Refresh or sync attempt panics, its span shows `Error`. For the panic and stack trace, check the
+application controller logs.
 
-These are Argo CD attributes, not standardized OpenTelemetry GitOps semantic conventions. Arbitrary
-Application annotations, labels, operation info, and initiator usernames are not added to these spans.
+Arbitrary Application annotations, labels, operation info, and initiator usernames are not added to
+these spans.
 
 ## Pushing metrics via OTLP
 
