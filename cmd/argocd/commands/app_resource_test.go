@@ -700,7 +700,7 @@ func TestPrintManifests_FilterNestedListObject_Wide(t *testing.T) {
 		}
 
 		var obj2 *unstructured.Unstructured
-		err = json.Unmarshal([]byte(v), &obj2)
+		err = json.Unmarshal(v, &obj2)
 		if err != nil {
 			return nil
 		}

@@ -136,27 +136,30 @@ func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, 
 		return nil, nil, fmt.Errorf("failed to create discovery client: %w", err)
 	}
 
-	oapiGetter := openapi.NewOpenAPIGetter(disco)
-	oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+	return k.loadOpenAPISchema(disco)
+}
+
+// loadOpenAPISchema parses the OpenAPI document once and builds both the openapi.Resources and the
+// GVK parser from the same models. Neither keeps a reference to the decoded document, so it can be
+// garbage collected as soon as this returns.
+func (k *KubectlCmd) loadOpenAPISchema(oapiGetter discovery.OpenAPISchemaInterface) (openapi.Resources, *managedfields.GvkParser, error) {
+	doc, err := oapiGetter.OpenAPISchema()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting openapi schema: %w", err)
+	}
+	models, err := proto.NewOpenAPIData(doc)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting openapi resources: %w", err)
 	}
-	gvkParser, err := k.newGVKParser(oapiGetter)
+	oapiResources := newOpenAPIResources(models)
+	gvkParser, err := k.newGVKParser(models)
 	if err != nil {
 		return oapiResources, nil, fmt.Errorf("error getting gvk parser: %w", err)
 	}
 	return oapiResources, gvkParser, nil
 }
 
-func (k *KubectlCmd) newGVKParser(oapiGetter discovery.OpenAPISchemaInterface) (*managedfields.GvkParser, error) {
-	doc, err := oapiGetter.OpenAPISchema()
-	if err != nil {
-		return nil, fmt.Errorf("error getting openapi schema: %w", err)
-	}
-	models, err := proto.NewOpenAPIData(doc)
-	if err != nil {
-		return nil, fmt.Errorf("error getting openapi data: %w", err)
-	}
+func (k *KubectlCmd) newGVKParser(models proto.Models) (*managedfields.GvkParser, error) {
 	var taintedGVKs []schema.GroupVersionKind
 	models, taintedGVKs = newUniqueModels(models)
 	if len(taintedGVKs) > 0 {

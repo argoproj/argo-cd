@@ -1111,7 +1111,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
 
-			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
+			for invocationCount := range tt.TotalCacheInvocations {
 				adjustedInvocation := invocationCount % totalAttempts
 
 				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
@@ -4294,6 +4294,23 @@ func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+// https://github.com/argoproj/argo-cd/security/advisories/GHSA-94mc-2ch7-r5r5
+// Only the repositories a chart's dependencies reference may be added to Helm,
+// so that one broken registered repository can't break other charts' dependency builds.
+func TestGetHelmRepos_ExcludesUnrelatedRepos(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{
+		{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true},
+		{Repo: "https://unrelated.example.com/charts", Name: "unrelated", Type: "helm"},
+		{Repo: "https://other-team.example.com/charts", Name: "unrelated", Type: "helm"},
+	}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 

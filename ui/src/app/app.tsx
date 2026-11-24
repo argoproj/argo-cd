@@ -7,6 +7,7 @@ import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router
 import {Subscription} from 'rxjs';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {ErrorBoundary} from './shared/components/error-boundary/error-boundary';
+import {PageSuspense} from './shared/components/page-suspense';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
@@ -15,6 +16,7 @@ import {newQueryClient} from './shared/query-client';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
+import {resumeAutoLoginForSession} from './shared/sso-auto-login';
 import {Banner} from './ui-banner/ui-banner';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
@@ -193,9 +195,11 @@ export class App extends React.Component<
     }
 
     private async bootstrapAppSession(): Promise<void> {
+        const sessionCheckStartedAt = Date.now();
         const [authSettings, userInfoResult, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
 
         const {loggedIn, isSSO} = sessionFromBootstrap(userInfoResult, authSettings, versionInfo);
+        resumeAutoLoginForSession(userInfoResult, sessionCheckStartedAt);
 
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
@@ -318,54 +322,51 @@ export class App extends React.Component<
                                 <AuthSettingsCtx.Provider value={this.state.authSettings}>
                                     <Router history={history}>
                                         <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
-                                            <React.Suspense
-                                                fallback={
-                                                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
-                                                        <Spinner show={true} />
-                                                    </div>
-                                                }>
-                                                <Switch>
-                                                    <Redirect exact={true} path='/' to='/applications' />
-                                                    {Object.keys(this.routes).map(path => {
-                                                        const route = this.routes[path];
-                                                        return (
-                                                            <Route
-                                                                key={path}
-                                                                path={path}
-                                                                render={routeProps =>
-                                                                    route.noLayout ? (
-                                                                        <div>
+                                            <Switch>
+                                                <Redirect exact={true} path='/' to='/applications' />
+                                                {Object.keys(this.routes).map(path => {
+                                                    const route = this.routes[path];
+                                                    return (
+                                                        <Route
+                                                            key={path}
+                                                            path={path}
+                                                            render={routeProps =>
+                                                                route.noLayout ? (
+                                                                    <div>
+                                                                        <PageSuspense>
                                                                             <route.component {...routeProps} />
-                                                                        </div>
-                                                                    ) : (
-                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                            {pref => (
-                                                                                <Layout
-                                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                                    navItems={this.navItems}
-                                                                                    pref={pref}>
-                                                                                    <Banner>
+                                                                        </PageSuspense>
+                                                                    </div>
+                                                                ) : (
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {pref => (
+                                                                            <Layout
+                                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                                navItems={this.navItems}
+                                                                                pref={pref}>
+                                                                                <Banner>
+                                                                                    <PageSuspense>
                                                                                         <route.component {...routeProps} />
-                                                                                    </Banner>
-                                                                                </Layout>
-                                                                            )}
-                                                                        </DataLoader>
-                                                                    )
-                                                                }
-                                                            />
-                                                        );
-                                                    })}
-                                                </Switch>
-                                            </React.Suspense>
+                                                                                    </PageSuspense>
+                                                                                </Banner>
+                                                                            </Layout>
+                                                                        )}
+                                                                    </DataLoader>
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                })}
+                                            </Switch>
                                         </ErrorBoundary>
                                     </Router>
                                 </AuthSettingsCtx.Provider>
                             </AppContextReact.Provider>
+                            <VersionPanel isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
                         </QueryClientProvider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
-                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
     }
