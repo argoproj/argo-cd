@@ -84,7 +84,7 @@ users:
 
 		clientConfig := newClientConfig(&clientcmd.ConfigOverrides{
 			CurrentContext: "target-context",
-		})
+		}, "")
 		require.NotNil(t, clientConfig)
 
 		restConfig, err := clientConfig.ClientConfig()
@@ -95,5 +95,45 @@ users:
 		namespace, _, err := clientConfig.Namespace()
 		require.NoError(t, err)
 		assert.Equal(t, "target-ns", namespace)
+	})
+
+	t.Run("namespace argument overrides the kube context namespace", func(t *testing.T) {
+		tempDir := t.TempDir()
+		kubeconfigPath := filepath.Join(tempDir, "kubeconfig")
+		kubeconfigContent := `
+apiVersion: v1
+kind: Config
+clusters:
+- name: current-cluster
+  cluster:
+    server: https://current.example.com
+contexts:
+- name: current-context
+  context:
+    cluster: current-cluster
+    user: current-user
+    namespace: current-ns
+current-context: current-context
+users:
+- name: current-user
+  user:
+    token: current-token
+`
+		require.NoError(t, os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0o600))
+		t.Setenv("KUBECONFIG", kubeconfigPath)
+
+		overrides := &clientcmd.ConfigOverrides{}
+		namespace, _, err := newClientConfig(overrides, "argocd-ns").Namespace()
+		require.NoError(t, err)
+		assert.Equal(t, "argocd-ns", namespace)
+		assert.Empty(t, overrides.Context.Namespace)
+
+		namespace, _, err = newClientConfig(overrides, "").Namespace()
+		require.NoError(t, err)
+		assert.Equal(t, "current-ns", namespace)
+
+		namespace, _, err = newClientConfig(nil, "argocd-ns").Namespace()
+		require.NoError(t, err)
+		assert.Equal(t, "argocd-ns", namespace)
 	})
 }
