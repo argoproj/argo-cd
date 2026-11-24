@@ -1,6 +1,6 @@
 import {DataLoader} from 'argo-ui';
 import * as React from 'react';
-import {Timestamp} from '../../../shared/components';
+import {Timestamp, ValidatedLink} from '../../../shared/components';
 import {ApplicationSource, RevisionMetadata, ChartDetails, OCIMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -43,14 +43,16 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                             <div className='columns small-9'>
                                 {props.source.chart}&nbsp;
                                 {m.home && (
-                                    <a
+                                    <ValidatedLink
+                                        url={m.home}
+                                        target='_blank'
+                                        rel='noopener noreferrer'
                                         title={m.home}
                                         onClick={e => {
                                             e.stopPropagation();
-                                            window.open(m.home);
                                         }}>
                                         <i className='fa fa-external-link-alt' />
-                                    </a>
+                                    </ValidatedLink>
                                 )}
                             </div>
                         </div>

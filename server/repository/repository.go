@@ -480,7 +480,9 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			repo, err = existing, nil
 		case q.Upsert:
 			r.Project = q.Repo.Project
-			return s.db.UpdateRepository(ctx, r)
+			// Go through the update handler so upsert needs the same
+			// `repositories, update` permission as a direct update.
+			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
@@ -525,7 +527,9 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 		case reflect.DeepEqual(existing, q.Repo):
 			repo, err = existing, nil
 		case q.Upsert:
-			return s.db.UpdateWriteRepository(ctx, q.Repo)
+			// Go through the update handler so upsert needs the same
+			// `write-repositories, update` permission as a direct update.
+			return s.UpdateWriteRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: q.Repo})
 		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("write repository", existing, q.Repo))
 		}

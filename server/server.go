@@ -1222,6 +1222,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	} else {
 		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
 	}
+	handler = withNoCacheHeaders(handler)
 	mux.Handle("/api/", handler)
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
@@ -1288,6 +1289,17 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+// withNoCacheHeaders marks responses as uncacheable. API responses may contain sensitive data, and without
+// an explicit Cache-Control header, intermediate proxies or CDNs may cache them and serve them to other users.
+func withNoCacheHeaders(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range noCacheHeaders {
+			w.Header().Set(k, v)
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func enforceContentTypes(handler http.Handler, types []string) http.Handler {
@@ -1709,6 +1721,15 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	bf.handler.ServeHTTP(w, r)
 }
 
+// bug21955WorkaroundInterceptor is a gRPC unary server interceptor that complements bug21955Workaround.
+// Because the HTTP handler keeps URL path parameters in their escaped form (see
+// https://github.com/golang/go/issues/21955), repository URLs, repository credential URL patterns and
+// cluster IDs arrive in the request messages still query-escaped. This interceptor unescapes those fields in
+// place before invoking the handler, and returns an error if a value cannot be unescaped.
+//
+// This interceptor runs before authentication and must treat every request as untrusted: requests can
+// arrive over gRPC or gRPC-Web with arbitrary (including empty) messages, so optional sub-messages may
+// be nil and must be checked before they are dereferenced.
 func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	switch req := req.(type) {
 	case *repositorypkg.RepoQuery:
@@ -1724,17 +1745,21 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 		}
 		req.Repo = repo
 	case *repositorypkg.RepoAppDetailsQuery:
-		repo, err := url.QueryUnescape(req.Source.RepoURL)
-		if err != nil {
-			return nil, err
+		if req.Source != nil {
+			repo, err := url.QueryUnescape(req.Source.RepoURL)
+			if err != nil {
+				return nil, err
+			}
+			req.Source.RepoURL = repo
 		}
-		req.Source.RepoURL = repo
 	case *repositorypkg.RepoUpdateRequest:
-		repo, err := url.QueryUnescape(req.Repo.Repo)
-		if err != nil {
-			return nil, err
+		if req.Repo != nil {
+			repo, err := url.QueryUnescape(req.Repo.Repo)
+			if err != nil {
+				return nil, err
+			}
+			req.Repo.Repo = repo
 		}
-		req.Repo.Repo = repo
 	case *repocredspkg.RepoCredsQuery:
 		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {

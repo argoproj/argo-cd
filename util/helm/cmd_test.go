@@ -40,6 +40,112 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
+func TestValidateReleaseName(t *testing.T) {
+	t.Parallel()
+
+	// Anything Helm itself accepts must still be accepted here, so that this
+	// validation cannot reject a release name that previously worked.
+	valid := []string{
+		"a",
+		"my-release",
+		"my.release",
+		"my-release.v2",
+		"release0",
+		"0release",
+		strings.Repeat("a", maxHelmReleaseNameLength),
+	}
+	for _, name := range valid {
+		t.Run("valid/"+name, func(t *testing.T) {
+			t.Parallel()
+			assert.NoError(t, ValidateReleaseName(name))
+		})
+	}
+
+	invalid := []struct {
+		name   string
+		reason string
+	}{
+		{"", "empty"},
+		{strings.Repeat("a", maxHelmReleaseNameLength+1), "too long"},
+		{"UPPER", "uppercase"},
+		{"has_underscore", "underscore"},
+		{"-leading-hyphen", "leading hyphen"},
+		{"trailing-hyphen-", "trailing hyphen"},
+		{"has space", "space"},
+		{"has/slash", "slash"},
+		// Go template syntax must never be accepted: Helm's --name-template
+		// evaluates such values, which would expose sprig's env().
+		{`{{ env "REDIS_PASSWORD" }}`, "template expression"},
+		{`{{ printf "%x" (env "REDIS_PASSWORD") }}`, "hex-encoded template expression"},
+		{"{{", "opening braces"},
+		{"a{{b}}c", "embedded template expression"},
+	}
+	for _, tc := range invalid {
+		t.Run("invalid/"+tc.reason, func(t *testing.T) {
+			t.Parallel()
+			assert.Error(t, ValidateReleaseName(tc.name), "expected %q to be rejected (%s)", tc.name, tc.reason)
+		})
+	}
+}
+
+// TestCmd_template_releaseNameIsNotEvaluatedAsTemplate is the regression test for
+// the release-name template injection. A release name containing Go template
+// syntax must be rejected outright, and must never be evaluated by Helm.
+func TestCmd_template_releaseNameIsNotEvaluatedAsTemplate(t *testing.T) {
+	// Not parallel: t.Setenv is incompatible with t.Parallel.
+	const canary = "argocd-f06-canary-value"
+	t.Setenv("ARGOCD_F06_CANARY", canary)
+
+	cmd, err := NewCmdWithVersion(".", false, "", "")
+	require.NoError(t, err)
+
+	payloads := []string{
+		`{{ env "ARGOCD_F06_CANARY" }}`,
+		`{{ printf "%x" (env "ARGOCD_F06_CANARY") }}`,
+		`{{ expandenv "$ARGOCD_F06_CANARY" }}`,
+	}
+	for _, payload := range payloads {
+		t.Run(payload, func(t *testing.T) {
+			out, _, err := cmd.template("testdata/redis", &TemplateOpts{Name: payload})
+			require.Error(t, err, "a templated release name must be rejected")
+			require.ErrorContains(t, err, "invalid helm release name")
+			// Belt and braces: the canary must not appear in any form.
+			assert.NotContains(t, out, canary)
+			assert.NotContains(t, out, "6172676f63642d663036") // hex("argocd-f06")
+		})
+	}
+}
+
+// TestCmd_template_emptyReleaseNameFallsBackToHelmDefault pins the behaviour that
+// an unset name is not an error. Helm previously accepted `--name-template ""`
+// and substituted its own default; omitting the positional argument must keep
+// that behaviour so existing callers are unaffected.
+func TestCmd_template_emptyReleaseNameFallsBackToHelmDefault(t *testing.T) {
+	t.Parallel()
+	cmd, err := NewCmdWithVersion(".", false, "", "")
+	require.NoError(t, err)
+	out, _, err := cmd.template("testdata/redis", &TemplateOpts{})
+	require.NoError(t, err)
+	assert.Contains(t, out, "release-name", "expected Helm's default release name")
+}
+
+// TestCmd_template_validReleaseNameIsUsedLiterally guards against a regression in
+// the opposite direction: ordinary release names must still reach the rendered
+// manifests unchanged.
+func TestCmd_template_validReleaseNameIsUsedLiterally(t *testing.T) {
+	t.Parallel()
+	cmd, err := NewCmdWithVersion(".", false, "", "")
+	require.NoError(t, err)
+	for _, name := range []string{"my-release", "my.release"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			out, _, err := cmd.template("testdata/redis", &TemplateOpts{Name: name})
+			require.NoError(t, err)
+			assert.Contains(t, out, name)
+		})
+	}
+}
+
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
 	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
@@ -218,5 +324,33 @@ func TestRegistryLogout(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestRepoAdd_CertAndKeyFilesLiveUntilClose(t *testing.T) {
+	t.Parallel()
+	var tmpFiles []string
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+		for i, arg := range cmd.Args {
+			if arg == "--cert-file" || arg == "--key-file" {
+				tmpFiles = append(tmpFiles, cmd.Args[i+1])
+			}
+		}
+		return "", nil
+	})
+	require.NoError(t, err)
+
+	_, err = c.RepoAdd("test", "https://example.com/charts", &HelmCreds{CertData: []byte("cert"), KeyData: []byte("key")}, false)
+	require.NoError(t, err)
+
+	// helm keeps these paths in repositories.yaml and reads them during dependency build.
+	require.Len(t, tmpFiles, 2)
+	for _, f := range tmpFiles {
+		assert.FileExists(t, f)
+	}
+
+	c.Close()
+	for _, f := range tmpFiles {
+		assert.NoFileExists(t, f)
 	}
 }

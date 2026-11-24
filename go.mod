@@ -26,7 +26,7 @@ require (
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/cyphar/filepath-securejoin v0.6.1
-	github.com/dlclark/regexp2 v1.11.5
+	github.com/dlclark/regexp2/v2 v2.13.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/expr-lang/expr v1.17.8
@@ -37,7 +37,7 @@ require (
 	// #1515) is mitigated in util/git by populating HostKeyAlgorithms via
 	// skeema/knownhosts. Keep that fix in place when bumping further.
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.23.3
 	github.com/go-openapi/runtime v0.29.3
@@ -230,7 +230,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/keybase/go-keychain v0.0.1 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
