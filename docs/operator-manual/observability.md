@@ -109,10 +109,11 @@ health status attributes for that comparison.
 
 #### Causes and outcomes
 
-Refresh causes are `explicit_request`, `source_changed`, `refresh_expired`,
-`hard_refresh_expired`, `destination_changed`, `managed_namespace_metadata_changed`,
-`ignore_differences_changed`, and `controller_request`. The last value is coarse: the refresh queue
-does not retain the specific event that requested the work.
+An explicit refresh request reports `normal_refresh_requested` or `hard_refresh_requested`.
+Other refresh causes include `source_changed`, `refresh_expired`, `hard_refresh_expired`,
+`destination_changed`, `managed_namespace_metadata_changed`, `ignore_differences_changed`, and
+`controller_request`. The controller uses `controller_request` for queued refreshes whose
+triggering event is unavailable.
 
 Operation causes are `auto_sync`, `manual`, `resume`, `retry`, `termination`, and `unknown`.
 Causes describe available controller state; they do not establish the identity of a triggering event.

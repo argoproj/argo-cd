@@ -2545,7 +2545,7 @@ func (ctrl *ApplicationController) needRefreshAppStatusWithCause(app *appv1.Appl
 		// user requested app refresh.
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
-		cause = "explicit_request"
+		cause = string(refreshType) + "_refresh_requested"
 	} else {
 		if !currentSourceEqualsSyncedSource(app) {
 			reason = "spec.source differs"

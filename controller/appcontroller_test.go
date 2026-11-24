@@ -2320,20 +2320,27 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				assert.Equal(t, CompareWithLatest, compareWith)
 			})
 
-			t.Run("execute hard refresh if app has refresh annotation", func(t *testing.T) {
-				app := app.DeepCopy()
-				needRefresh, _, _, _ := ctrl.needRefreshAppStatusWithCause(app, 1*time.Hour, 2*time.Hour)
-				assert.False(t, needRefresh)
-				reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
-				app.Status.ReconciledAt = &reconciledAt
-				app.Annotations = map[string]string{
-					v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeHard),
-				}
-				needRefresh, refreshType, compareWith, _ := ctrl.needRefreshAppStatusWithCause(app, 1*time.Hour, 2*time.Hour)
-				assert.True(t, needRefresh)
-				assert.Equal(t, v1alpha1.RefreshTypeHard, refreshType)
-				assert.Equal(t, CompareWithLatestForceResolve, compareWith)
-			})
+			for _, tc := range []struct {
+				refreshType v1alpha1.RefreshType
+				cause       string
+			}{
+				{v1alpha1.RefreshTypeNormal, "normal_refresh_requested"},
+				{v1alpha1.RefreshTypeHard, "hard_refresh_requested"},
+			} {
+				t.Run("execute "+string(tc.refreshType)+" refresh if app has refresh annotation", func(t *testing.T) {
+					app := app.DeepCopy()
+					needRefresh, _, _, _ := ctrl.needRefreshAppStatusWithCause(app, 1*time.Hour, 2*time.Hour)
+					assert.False(t, needRefresh)
+					reconciledAt := metav1.NewTime(time.Now().UTC().Add(-90 * time.Minute))
+					app.Status.ReconciledAt = &reconciledAt
+					app.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(tc.refreshType)}
+					needRefresh, refreshType, compareWith, cause := ctrl.needRefreshAppStatusWithCause(app, 1*time.Hour, 2*time.Hour)
+					assert.True(t, needRefresh)
+					assert.Equal(t, tc.refreshType, refreshType)
+					assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+					assert.Equal(t, tc.cause, cause)
+				})
+			}
 
 			t.Run("ensure that CompareWithLatest level is used if application source has changed", func(t *testing.T) {
 				app := app.DeepCopy()
