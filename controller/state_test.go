@@ -610,6 +610,36 @@ func TestCompareAppStateResourceSelector(t *testing.T) {
 		assert.Empty(t, compRes.managedResources)
 	})
 
+	t.Run("live resource still matching the selector is not pruned", func(t *testing.T) {
+		// the label was removed in Git, but the live pod still has it and so is still watched
+		livePod := NewPod()
+		livePod.SetNamespace(test.FakeDestNamespace)
+		livePod.SetLabels(map[string]string{"app": "my-app", common.LabelKeyAppInstance: "my-app"})
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(livePod): livePod,
+			},
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Pod\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Empty(t, compRes.resources)
+		assert.Empty(t, compRes.managedResources)
+	})
+
 	t.Run("resource matching the selector is not reported", func(t *testing.T) {
 		compRes, app := compare(t, labeledPodManifest, "app=my-app")
 
