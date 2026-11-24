@@ -2455,11 +2455,12 @@ func TestHandleCRDEventRetriesOpenAPISchemaReload(t *testing.T) {
 	defer cluster.Invalidate()
 
 	var calls atomic.Int32
+	wantParser := &managedfields.GvkParser{}
 	cluster.kubectl.(*kubetest.MockKubectlCmd).WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
 		if calls.Add(1) == 1 {
 			return nil, nil, fmt.Errorf("transient schema failure")
 		}
-		return nil, nil, nil
+		return nil, wantParser, nil
 	})
 
 	crd := strToUnstructured(`
@@ -2479,6 +2480,7 @@ spec:
 
 	cluster.handleCRDEvent(legacyEngineOf(cluster), watch.Added, crd)
 	require.Eventually(t, func() bool { return calls.Load() >= 2 }, 5*time.Second, 50*time.Millisecond)
+	require.Eventually(t, func() bool { return cluster.gvkParser.Load() == wantParser }, 5*time.Second, 50*time.Millisecond)
 }
 
 // TestReconcileAPIServiceWatches_LockContract checks that
