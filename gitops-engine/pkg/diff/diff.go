@@ -1079,6 +1079,51 @@ var remarshalScheme = func() *runtime.Scheme {
 	return s
 }()
 
+// detachCRDSchemas returns a copy of the CRD without its version schemas, and the schemas by version
+// index. The schema types have custom unmarshalers that silently drop unknown fields, for example
+// under items, so a schema must not go through the typed struct or a real difference gets lost.
+func detachCRDSchemas(crd *unstructured.Unstructured) (*unstructured.Unstructured, map[int]any) {
+	crd = crd.DeepCopy()
+	versions, found, err := unstructured.NestedSlice(crd.Object, "spec", "versions")
+	if err != nil || !found {
+		return crd, nil
+	}
+	schemas := map[int]any{}
+	for i := range versions {
+		version, ok := versions[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		if versionSchema, ok := version["schema"]; ok {
+			schemas[i] = versionSchema
+			delete(version, "schema")
+		}
+	}
+	if err := unstructured.SetNestedSlice(crd.Object, versions, "spec", "versions"); err != nil {
+		return crd, nil
+	}
+	return crd, schemas
+}
+
+// attachCRDSchemas puts the schemas from detachCRDSchemas back into obj.
+func attachCRDSchemas(obj map[string]any, schemas map[int]any) error {
+	versions, _, err := unstructured.NestedSlice(obj, "spec", "versions")
+	if err != nil {
+		return err
+	}
+	for i, versionSchema := range schemas {
+		if i >= len(versions) {
+			return fmt.Errorf("version %d is missing", i)
+		}
+		version, ok := versions[i].(map[string]any)
+		if !ok {
+			return fmt.Errorf("version %d is not an object", i)
+		}
+		version["schema"] = versionSchema
+	}
+	return unstructured.SetNestedSlice(obj, versions, "spec", "versions")
+}
+
 func newRemarshalObject(gvk schema.GroupVersionKind) (runtime.Object, error) {
 	item, err := scheme.Scheme.New(gvk)
 	if err == nil {
@@ -1117,6 +1162,14 @@ func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstruct
 		o.log.V(1).Info(fmt.Sprintf("Could not create new object of type %s: %v", gvk, err))
 		return obj
 	}
+	var crdSchemas map[int]any
+	if _, ok := item.(*apiextensionsv1.CustomResourceDefinition); ok {
+		var withoutSchemas *unstructured.Unstructured
+		withoutSchemas, crdSchemas = detachCRDSchemas(obj)
+		if data, err = json.Marshal(withoutSchemas); err != nil {
+			panic(err)
+		}
+	}
 	// This will drop any omitempty fields, perform resource conversion etc...
 	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
 	// Unmarshal data into unmarshalledObj, but detect if there are any unknown fields that are not
@@ -1136,5 +1189,11 @@ func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstruct
 	}
 	// Remove all default values specified by custom formatter (e.g. creationTimestamp)
 	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
+	if len(crdSchemas) > 0 {
+		if err := attachCRDSchemas(unstrBody, crdSchemas); err != nil {
+			o.log.V(1).Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))
+			return obj
+		}
+	}
 	return &unstructured.Unstructured{Object: unstrBody}
 }

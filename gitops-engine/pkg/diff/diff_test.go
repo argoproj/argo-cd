@@ -2764,3 +2764,50 @@ spec:
 	require.NoError(t, err)
 	assert.JSONEq(t, string(want), string(got))
 }
+
+// Schema fields that the typed structs do not know must still show as a diff, also below items and
+// additionalProperties, whose unmarshalers drop unknown fields.
+func TestDiffCRDUnknownSchemaField(t *testing.T) {
+	crd := func(property string) *unstructured.Unstructured {
+		var un unstructured.Unstructured
+		require.NoError(t, yaml.Unmarshal(fmt.Appendf(nil, `
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+spec:
+  group: example.com
+  names: {kind: Widget, plural: widgets}
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - {name: Ready, type: string, jsonPath: .status.ready, priority: 0}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          a: %s
+`, property), &un))
+		return &un
+	}
+	for name, tc := range map[string]struct{ desired, live string }{
+		"property":             {"{type: string, unknown: 1}", "{type: string}"},
+		"items":                {"{type: array, items: {type: string, unknown: 1}}", "{type: array, items: {type: string}}"},
+		"additionalProperties": {"{type: object, additionalProperties: {type: string, unknown: 1}}", "{type: object, additionalProperties: {type: string}}"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			live := crd(tc.live)
+			versions, _, err := unstructured.NestedSlice(live.Object, "spec", "versions")
+			require.NoError(t, err)
+			column := versions[0].(map[string]any)["additionalPrinterColumns"].([]any)[0].(map[string]any)
+			delete(column, "priority")
+			require.NoError(t, unstructured.SetNestedSlice(live.Object, versions, "spec", "versions"))
+
+			assert.True(t, diff(t, crd(tc.desired), live, diffOptionsForTest()...).Modified)
+			assert.False(t, diff(t, crd(tc.live), live, diffOptionsForTest()...).Modified)
+		})
+	}
+}
