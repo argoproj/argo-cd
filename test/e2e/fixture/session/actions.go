@@ -90,10 +90,8 @@ func (a *Actions) getSharedMockOIDCServer() *mockoidc.MockOIDC {
 		err = mockServer.Start(ln, nil)
 		require.NoError(t, err)
 		t.Logf("OIDC server listening on %s", ln.Addr())
-		t.Cleanup(func() {
-			err := mockServer.Shutdown()
-			require.NoError(t, err, "error shutting down mock oidc server")
-		})
+		// No t.Cleanup shutdown here: t is only the first test that uses the server, and
+		// later tests share it. The server stops when the test binary exits.
 	})
 	return mockServer
 }
@@ -126,6 +124,10 @@ func (a *Actions) WithDirectOIDC() *Actions {
 	a.context.T().Logf("Direct OIDC Issuer: %s, ClientID: %s", m.Issuer(), m.Config().ClientID)
 
 	fixture.RestartAPIServer(a.context.T())
+	if fixture.IsLocal() {
+		// The local API server restarts itself on the oidc.config change.
+		require.NoError(a.context.T(), fixture.WaitForAPIServerLoginIssuer(a.context.T(), m.Issuer(), true))
+	}
 	return a
 }
 
