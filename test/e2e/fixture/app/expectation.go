@@ -89,6 +89,13 @@ func simple(success bool, message string) (state, string) {
 	return pending, message
 }
 
+func SyncRevisionIs(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.Sync.Revision
+		return simple(actual == expected, fmt.Sprintf("sync revision to be %s, is %s", expected, actual))
+	}
+}
+
 func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
