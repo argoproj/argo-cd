@@ -74,6 +74,9 @@ describe('toKubernetesSelector', () => {
         [`team=${'a'.repeat(64)}`],
         [`${'a'.repeat(254)}/team`],
         ['env in (prod,staging)'],
+        // Kubernetes reads `key notin ()` as excluding the empty string, while match() excludes nothing.
+        ['env notin ,'],
+        ['env in ,'],
         ['']
     ])('does not convert %p', selector => {
         expect(LabelSelector.toKubernetesSelector(selector)).toBeUndefined();

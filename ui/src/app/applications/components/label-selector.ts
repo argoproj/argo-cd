@@ -73,7 +73,8 @@ export function toKubernetesSelector(selector: string): string | undefined {
         return `!${req.key}`;
     }
     const values = (req as {values: string[]}).values;
-    if (!values.every(value => labelValueRegex.test(value))) {
+    // Kubernetes reads an empty set, `key in ()`, as the set holding the empty string.
+    if (values.length === 0 || !values.every(value => labelValueRegex.test(value))) {
         return undefined;
     }
     switch (req.operator) {
