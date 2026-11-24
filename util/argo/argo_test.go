@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"testing"
 
@@ -2477,7 +2478,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			var app argoappv1.Application
 			app.Name = "test-app"
 			app.Namespace = test.FakeArgoCDNamespace
-			app.Labels = tt.appLabels
+			app.Labels = maps.Clone(tt.appLabels)
 			appClientset := appclientset.NewSimpleClientset(proj)
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -2491,6 +2492,8 @@ func TestGetAppEventLabels(t *testing.T) {
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
+			// The Application's own labels must not be modified (it may be shared with an informer cache).
+			assert.Equal(t, tt.appLabels, app.Labels)
 			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]

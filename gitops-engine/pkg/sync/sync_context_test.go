@@ -2057,6 +2057,73 @@ func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	assert.Equal(t, 0, deletedCount)
 }
 
+// A PreSync hook Job that was created suspended, as Kueue does, and then resumed keeps a
+// Suspended condition with status False while its pod runs. The sync must wait for it.
+func TestSync_ResumedJobHookNotCompleted(t *testing.T) {
+	job := testingutils.Unstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: ` + testingutils.FakeArgoCDNamespace + `
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  suspend: false
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: alpine
+status:
+  active: 1
+  conditions:
+  - type: Suspended
+    status: "False"
+    reason: JobResumed
+    message: Job resumed
+`)
+	job.SetFinalizers([]string{hook.HookFinalizer})
+
+	pod := testingutils.NewPod()
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+
+	syncCtx := newTestSyncCtx(nil,
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(job),
+			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       1,
+		}}, metav1.Now()))
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), job)
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount++
+		return false, nil, nil
+	})
+	syncCtx.dynamicIf = fakeDynamicClient
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{job, nil},
+		Target: []*unstructured.Unstructured{nil, pod},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{job}
+
+	syncCtx.Sync(context.Background())
+	phase, message, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook batch/Job/db-migrate", message)
+	hookResult := getResourceResult(resources, kube.GetResourceKey(job))
+	require.NotNil(t, hookResult)
+	assert.Equal(t, synccommon.OperationRunning, hookResult.HookPhase)
+	// The Sync phase must not start, and the running Job must not be deleted.
+	assert.Nil(t, getResourceResult(resources, kube.GetResourceKey(pod)))
+	assert.Equal(t, 0, deletedCount)
+}
+
 func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)

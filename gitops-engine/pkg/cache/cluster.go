@@ -168,7 +168,8 @@ type ClusterCache interface {
 	IsNamespaced(gk schema.GroupKind) (bool, error)
 	// GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
 	// The function returns all resources from cache for those `isManaged` function returns true and resources
-	// specified in targetObjs list.
+	// specified in targetObjs list. isManaged runs with the cache's read lock
+	// held, so it must not call back into the cache.
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// GetClusterInfo returns cluster cache statistics
 	GetClusterInfo() ClusterInfo
@@ -1224,13 +1225,43 @@ func (c *store) processNamespaceHierarchy(
 
 func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map[types.UID]*Resource {
 	// Prepare to construct a graph
-	nodesByUID := make(map[types.UID][]*Resource, len(nsNodes))
+	// UIDs are almost always unique, so keep one node per UID and put the rest
+	// (same object served by two groups, or empty UIDs) aside, rather than
+	// allocating a slice per node.
+	nodesByUID := make(map[types.UID]*Resource, len(nsNodes))
+	var moreByUID map[types.UID][]*Resource
 	for _, node := range nsNodes {
-		nodesByUID[node.Ref.UID] = append(nodesByUID[node.Ref.UID], node)
+		if _, ok := nodesByUID[node.Ref.UID]; ok {
+			if moreByUID == nil {
+				moreByUID = map[types.UID][]*Resource{}
+			}
+			moreByUID[node.Ref.UID] = append(moreByUID[node.Ref.UID], node)
+			continue
+		}
+		nodesByUID[node.Ref.UID] = node
 	}
 
 	// In graph, the key is the parent and the value is a list of children.
 	graph := make(map[kube.ResourceKey]map[types.UID]*Resource)
+	link := func(uidNode, childNode *Resource) {
+		uidNodeKey := uidNode.ResourceKey()
+		// Update the graph for this owner to include the child.
+		if _, ok := graph[uidNodeKey]; !ok {
+			graph[uidNodeKey] = make(map[types.UID]*Resource)
+		}
+		r, ok := graph[uidNodeKey][childNode.Ref.UID]
+		if !ok {
+			graph[uidNodeKey][childNode.Ref.UID] = childNode
+		} else if r != nil {
+			// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
+			// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
+			key1 := r.ResourceKey()
+			key2 := childNode.ResourceKey()
+			if key1.String() > key2.String() {
+				graph[uidNodeKey][childNode.Ref.UID] = childNode
+			}
+		}
+	}
 
 	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
 	for _, childNode := range nsNodes {
@@ -1254,27 +1285,10 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 			}
 
 			// Now that we have the UID of the parent, update the graph.
-			uidNodes, ok := nodesByUID[ownerUID]
-			if ok {
-				for _, uidNode := range uidNodes {
-					// Cache ResourceKey() to avoid repeated expensive calls
-					uidNodeKey := uidNode.ResourceKey()
-					// Update the graph for this owner to include the child.
-					if _, ok := graph[uidNodeKey]; !ok {
-						graph[uidNodeKey] = make(map[types.UID]*Resource)
-					}
-					r, ok := graph[uidNodeKey][childNode.Ref.UID]
-					if !ok {
-						graph[uidNodeKey][childNode.Ref.UID] = childNode
-					} else if r != nil {
-						// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
-						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
-						key1 := r.ResourceKey()
-						key2 := childNode.ResourceKey()
-						if key1.String() > key2.String() {
-							graph[uidNodeKey][childNode.Ref.UID] = childNode
-						}
-					}
+			if uidNode, ok := nodesByUID[ownerUID]; ok {
+				link(uidNode, childNode)
+				for _, uidNode := range moreByUID[ownerUID] {
+					link(uidNode, childNode)
 				}
 			}
 		}
@@ -1305,45 +1319,55 @@ func (c *store) managesNamespace(namespace string) bool {
 
 // GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
 // The function returns all resources from cache for those `isManaged` function returns true and resources
-// specified in targetObjs list.
+// specified in targetObjs list. isManaged runs with the cache's read lock held,
+// so it must not call back into the cache.
 func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	c.lock.RLock()
-
-	for _, o := range targetObjs {
-		if len(c.namespaces) > 0 {
-			if o.GetNamespace() == "" && !c.clusterResources {
-				c.lock.RUnlock()
-				return nil, fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
-			} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
-				c.lock.RUnlock()
-				return nil, fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
+	// Shallow-copy the matches so manifests can be decoded after unlocking
+	// without depending on how the cache updates a stored Resource.
+	managed := map[kube.ResourceKey]*Resource{}
+	targets := make(map[kube.ResourceKey]*Resource, len(targetObjs))
+	var watchedGKs map[schema.GroupKind]struct{}
+	if err := func() error {
+		c.lock.RLock()
+		defer c.lock.RUnlock() // deferred: isManaged is caller code and may panic
+		for _, o := range targetObjs {
+			if len(c.namespaces) > 0 {
+				if o.GetNamespace() == "" && !c.clusterResources {
+					return fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
+				} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
+					return fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
+				}
 			}
 		}
+		for k, v := range c.resources {
+			if isManaged(v) && v.HasManifest() && len(v.OwnerRefs) == 0 {
+				r := *v
+				managed[k] = &r
+			}
+		}
+		for _, o := range targetObjs {
+			key := kube.GetResourceKey(o)
+			if v, ok := c.resources[key]; ok {
+				r := *v
+				targets[key] = &r
+			}
+		}
+		watchedGKs = make(map[schema.GroupKind]struct{}, len(c.apisMeta))
+		for gk := range c.apisMeta {
+			watchedGKs[gk] = struct{}{}
+		}
+		return nil
+	}(); err != nil {
+		return nil, err
 	}
-
-	// Snapshot resource values while protecting mutable fields from concurrent updates.
-	resources := make(map[kube.ResourceKey]*Resource, len(c.resources))
-	for k, v := range c.resources {
-		resource := *v
-		resource.OwnerRefs = append([]metav1.OwnerReference(nil), v.OwnerRefs...)
-		resources[k] = &resource
-	}
-	watchedGKs := make(map[schema.GroupKind]struct{}, len(c.apisMeta))
-	for gk := range c.apisMeta {
-		watchedGKs[gk] = struct{}{}
-	}
-
-	c.lock.RUnlock()
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	// iterate all objects in live state cache to find ones associated with app
-	for key, o := range resources {
-		if isManaged(o) && o.HasManifest() && len(o.OwnerRefs) == 0 {
-			if manifest, err := o.GetManifest(); err != nil {
-				c.log.Error(err, "Failed to decompress manifest", "resource", o.Ref)
-			} else {
-				managedObjs[key] = manifest
-			}
+	// decode the manifests of the resources associated with the app
+	for key, o := range managed {
+		if manifest, err := o.GetManifest(); err != nil {
+			c.log.Error(err, "Failed to decompress manifest", "resource", o.Ref)
+		} else {
+			managedObjs[key] = manifest
 		}
 	}
 	// but are simply missing our label
@@ -1356,7 +1380,7 @@ func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isMa
 		lock.Unlock()
 
 		if managedObj == nil {
-			if existingObj, exists := resources[key]; exists {
+			if existingObj, exists := targets[key]; exists {
 				if existingObj.HasManifest() {
 					if manifest, err := existingObj.GetManifest(); err != nil {
 						return fmt.Errorf("failed to decompress manifest: %w", err)
@@ -1414,6 +1438,10 @@ func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isMa
 }
 
 func (c *store) onNodeUpdated(oldRes *Resource, newRes *Resource) {
+	if oldRes != nil && oldRes.Ref.UID != newRes.Ref.UID {
+		c.onNodeRemoved(oldRes.ResourceKey())
+		oldRes = nil
+	}
 	c.setNode(newRes)
 	c.dispatchResourceUpdated(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
 }

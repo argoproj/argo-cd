@@ -115,7 +115,7 @@
       "enabled": true
     },
     {
-      "description": "Group Go toolchain with golangci-lint and mockery. These are tightly coupled (especially on major Go bumps) but go.mod is intentionally excluded so library consumers are not forced to upgrade.",
+      "description": "Group Go toolchain with golangci-lint and mockery. These are tightly coupled (especially on major Go bumps) but go.mod is intentionally excluded so library consumers are not forced to upgrade. `gomodTidy` is repeated here so the grouped branch still tidies hack/tools/go.mod when mockery is bumped.",
       "groupName": "group golang",
       "matchDatasources": [
         "docker",
@@ -127,6 +127,7 @@
         "github.com/golangci/golangci-lint/v2",
         "github.com/vektra/mockery/v3"
       ],
+      "postUpdateOptions": ["gomodTidy"],
       "separateMajorMinor": false
     },
     {

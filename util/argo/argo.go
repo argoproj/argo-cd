@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -1427,8 +1428,9 @@ func IsValidContainerName(name string) bool {
 func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) map[string]string {
 	eventLabels := make(map[string]string)
 
-	// Get all app & app-project labels
-	labels := app.Labels
+	// Get all app & app-project labels. Copy the app labels so that adding the project labels
+	// below does not modify the Application, which may be shared with an informer cache.
+	labels := maps.Clone(app.Labels)
 	if labels == nil {
 		labels = make(map[string]string)
 	}

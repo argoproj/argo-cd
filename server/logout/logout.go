@@ -83,6 +83,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cookiePath := "/" + strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/")
 	for _, cookie := range cookies {
 		if !strings.HasPrefix(cookie.Name, common.AuthCookieName) {
 			continue
@@ -93,8 +94,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Value: "",
 		}
 
-		argocdCookie.Path = "/" + strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/")
+		argocdCookie.Path = cookiePath
 		w.Header().Add("Set-Cookie", argocdCookie.String())
+	}
+
+	if argoCDSettings.SSOAutoLogin {
+		pausedCookie := http.Cookie{
+			Name:     common.SSOAutoLoginPausedCookieName,
+			Value:    cookiePath,
+			Path:     cookiePath,
+			SameSite: http.SameSiteLaxMode,
+		}
+		w.Header().Add("Set-Cookie", pausedCookie.String())
 	}
 
 	claims, _, err := h.verifyToken(r.Context(), tokenString)

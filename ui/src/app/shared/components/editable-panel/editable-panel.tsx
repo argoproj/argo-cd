@@ -1,4 +1,4 @@
-import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
+import {ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {type ReactNode, useCallback, useContext, useState, Fragment} from 'react';
@@ -19,6 +19,44 @@ export interface EditablePanelItem {
     view: string | ReactNode;
     edit?: (formApi: FormApi) => ReactNode;
     titleEdit?: (formApi: FormApi) => ReactNode;
+}
+
+export function EditablePanelItemTitle({item, formApi}: {item: EditablePanelItem; formApi?: FormApi}) {
+    const [hintDismissed, setHintDismissed] = useState(false);
+    const hintId = React.useId();
+    if (formApi && item.titleEdit) {
+        return <>{item.titleEdit(formApi)}</>;
+    }
+    return (
+        <>
+            {item.customTitle || item.title}
+            {item.hint && (
+                <span style={{marginLeft: '0.25em'}}>
+                    <Tooltip content={item.hint} visible={hintDismissed ? false : undefined}>
+                        <button
+                            type='button'
+                            className='editable-panel__hint'
+                            aria-label={`Help for ${item.title}`}
+                            aria-describedby={hintId}
+                            onFocus={() => setHintDismissed(false)}
+                            onMouseEnter={() => setHintDismissed(false)}
+                            onKeyDown={event => {
+                                if (event.key === 'Escape' && !hintDismissed) {
+                                    // Dismiss the hint without closing the surrounding editor.
+                                    event.stopPropagation();
+                                    setHintDismissed(true);
+                                }
+                            }}>
+                            <i className='fa fa-question-circle help-tip' aria-hidden='true' />
+                        </button>
+                    </Tooltip>
+                    <span id={hintId} hidden>
+                        {item.hint}
+                    </span>
+                </span>
+            )}
+        </>
+    );
 }
 
 export interface EditablePanelSubsection {
@@ -118,18 +156,7 @@ function EditablePanel<T extends {} = {}>({
             {item.before}
             <div className='row white-box__details-row'>
                 <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
-                    {api && item.titleEdit ? (
-                        item.titleEdit(api)
-                    ) : (
-                        <>
-                            {item.customTitle || item.title}
-                            {item.hint && (
-                                <span style={{marginLeft: '0.25em'}}>
-                                    <HelpIcon title={item.hint} />
-                                </span>
-                            )}
-                        </>
-                    )}
+                    <EditablePanelItemTitle item={item} formApi={api} />
                 </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>

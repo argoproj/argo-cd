@@ -8,13 +8,13 @@
 -- Condition types and reasons are defined in:
 --   https://github.com/kyverno/kyverno/tree/main/config/crds/policies.kyverno.io/policies.kyverno.io_namespaceddeletingpolicies.yaml
 --
--- NamespacedDeletingPolicy exposes a conditionStatus with a ready boolean and
--- standard Kubernetes conditions. No fixed condition type names are enforced.
+-- Kyverno's deleting controller (<= 1.18) only writes status.lastExecutionTime after a
+-- scheduled run and never sets conditionStatus.ready, so a missing ready field must not
+-- be treated as unhealthy.
 --
 -- ArgoCD health mapping:
---   conditionStatus.ready=true   => Healthy  (message from first True condition)
---   conditionStatus.ready=false  => Degraded (message from first False condition)
---   No status yet                => Progressing
+--   conditionStatus.ready=false or any False condition => Degraded (message from first False condition)
+--   anything else (incl. no status yet)                => Healthy
 local hs = {}
 
 if obj.status ~= nil and obj.status.conditionStatus ~= nil then
@@ -30,35 +30,52 @@ if obj.status ~= nil and obj.status.conditionStatus ~= nil then
     end
   end
 
-  if cs.ready == true then
-    hs.status = "Healthy"
-    if cs.conditions ~= nil then
-      for _, condition in ipairs(cs.conditions) do
-        if condition.status == "True" then
-          hs.message = condition.message
-          break
-        end
+  local failed = nil
+  if cs.conditions ~= nil then
+    for _, condition in ipairs(cs.conditions) do
+      if condition.status == "False" then
+        failed = condition
+        break
       end
     end
-    if hs.message == nil then
-      hs.message = (cs.message ~= nil and cs.message ~= "") and cs.message or "Policy is ready"
+  end
+
+  if cs.ready == false or failed ~= nil then
+    hs.status = "Degraded"
+    if failed ~= nil then
+      hs.message = failed.type .. ": " .. failed.message
+    else
+      hs.message = (cs.message ~= nil and cs.message ~= "") and cs.message or "Policy is not ready"
     end
     return hs
   end
 
-  hs.status = "Degraded"
+  hs.status = "Healthy"
   if cs.conditions ~= nil then
     for _, condition in ipairs(cs.conditions) do
-      if condition.status == "False" then
-        hs.message = condition.type .. ": " .. condition.message
-        return hs
+      if condition.status == "True" then
+        hs.message = condition.message
+        break
       end
     end
   end
-  hs.message = (cs.message ~= nil and cs.message ~= "") and cs.message or "Policy is not ready"
+  if hs.message == nil or hs.message == "" then
+    hs.message = cs.message
+  end
+  if hs.message == nil or hs.message == "" then
+    if obj.status.lastExecutionTime ~= nil then
+      hs.message = "Last executed at " .. obj.status.lastExecutionTime
+    else
+      hs.message = "Policy is ready"
+    end
+  end
   return hs
 end
 
-hs.status = "Progressing"
-hs.message = "Waiting for NamespacedDeletingPolicy status"
+hs.status = "Healthy"
+if obj.status ~= nil and obj.status.lastExecutionTime ~= nil then
+  hs.message = "Last executed at " .. obj.status.lastExecutionTime
+else
+  hs.message = "Policy has not been executed yet"
+end
 return hs

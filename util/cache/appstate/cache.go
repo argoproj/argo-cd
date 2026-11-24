@@ -79,6 +79,25 @@ func appResourcesTreeKey(appName string, shard int64) string {
 	return key
 }
 
+func appReconciledAtKey(appName string) string {
+	return "app|reconciled-at|" + appName
+}
+
+func (c *Cache) GetAppReconciledAt(appName string, res *time.Time) error {
+	return c.GetItem(appReconciledAtKey(appName), res)
+}
+
+// SetAppReconciledAt stores when the app was last reconciled; nil deletes it.
+func (c *Cache) SetAppReconciledAt(appName string, reconciledAt *time.Time) error {
+	return c.SetItem(appReconciledAtKey(appName), reconciledAt, c.appStateCacheExpiration, reconciledAt == nil)
+}
+
+// InvalidateAppReconciledAtLocal drops this controller's in-memory copy of the app's reconcile
+// time, so the next read reaches the external cache.
+func (c *Cache) InvalidateAppReconciledAtLocal(appName string) {
+	c.Cache.InvalidateLocalItem(appReconciledAtKey(appName))
+}
+
 func clusterInfoKey(server string) string {
 	return "cluster|info|" + server
 }

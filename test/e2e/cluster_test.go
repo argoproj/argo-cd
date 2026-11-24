@@ -170,6 +170,24 @@ func TestClusterSet(t *testing.T) {
 		})
 }
 
+func TestClusterInvalidateCache(t *testing.T) {
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		InvalidateCache().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("Cluster '%s' cache invalidation requested", ctx.GetName()), output)
+		}).
+		And(func(cluster *Cluster, err error) {
+			require.NoError(t, err)
+			assert.NotNil(t, cluster.RefreshRequestedAt)
+		})
+}
+
 func TestClusterGet(t *testing.T) {
 	fixture.SkipIfAlreadyRun(t)
 	defer fixture.RecordTestRun(t)
