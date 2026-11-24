@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -48,23 +49,23 @@ func (_m *Repos) EXPECT() *Repos_Expecter {
 }
 
 // GetDirectories provides a mock function for the type Repos
-func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
+func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*services.GitDirectoriesResult, error) {
 	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDirectories")
 	}
 
-	var r0 []string
+	var r0 *services.GitDirectoriesResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) ([]string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) (*services.GitDirectoriesResult, error)); ok {
 		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) []string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) *services.GitDirectoriesResult); ok {
 		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
+			r0 = ret.Get(0).(*services.GitDirectoriesResult)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
@@ -129,34 +130,34 @@ func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL s
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) Return(strings []string, err error) *Repos_GetDirectories_Call {
-	_c.Call.Return(strings, err)
+func (_c *Repos_GetDirectories_Call) Return(gitDirectoriesResult *services.GitDirectoriesResult, err error) *Repos_GetDirectories_Call {
+	_c.Call.Return(gitDirectoriesResult, err)
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*services.GitDirectoriesResult, error)) *Repos_GetDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFiles provides a mock function for the type Repos
-func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
+func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*services.GitFilesResult, error) {
 	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFiles")
 	}
 
-	var r0 map[string][]byte
+	var r0 *services.GitFilesResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) (map[string][]byte, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) (*services.GitFilesResult, error)); ok {
 		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) map[string][]byte); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) *services.GitFilesResult); ok {
 		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string][]byte)
+			r0 = ret.Get(0).(*services.GitFilesResult)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
@@ -227,12 +228,12 @@ func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string,
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) Return(stringToBytes map[string][]byte, err error) *Repos_GetFiles_Call {
-	_c.Call.Return(stringToBytes, err)
+func (_c *Repos_GetFiles_Call) Return(gitFilesResult *services.GitFilesResult, err error) *Repos_GetFiles_Call {
+	_c.Call.Return(gitFilesResult, err)
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*services.GitFilesResult, error)) *Repos_GetFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

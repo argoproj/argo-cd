@@ -1,10 +1,14 @@
 package generators
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestParseFileParams(t *testing.T) {
@@ -199,7 +203,7 @@ foo:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, "", tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.wantErr {
 				assert.Error(t, err, "GitGenerator.parseFileParams()")
 			} else {
@@ -411,7 +415,7 @@ func TestGenerateParamsFromPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := generateParamsFromPaths(tt.paths, tt.pathParamPrefix, tt.values, tt.useGoTemplate, tt.goTemplateOptions)
+			result, err := generateParamsFromPaths(tt.paths, tt.pathParamPrefix, "", tt.values, tt.useGoTemplate, tt.goTemplateOptions)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -455,5 +459,158 @@ func TestResolveProjectName(t *testing.T) {
 			result := resolveProjectName(tt.project)
 			assert.Equal(t, tt.expected, result)
 		})
+	}
+}
+
+func TestAddCommitSHAParam(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		params          map[string]any
+		commitSHA       string
+		pathParamPrefix string
+		useGoTemplate   bool
+		want            map[string]any
+	}{
+		{
+			name:      "flat",
+			params:    map[string]any{"path": "app"},
+			commitSHA: "abc",
+			want:      map[string]any{"path": "app", "git.commitSHA": "abc"},
+		},
+		{
+			name:            "flat with prefix",
+			params:          map[string]any{"myRepo.path": "app"},
+			commitSHA:       "abc",
+			pathParamPrefix: "myRepo",
+			want:            map[string]any{"myRepo.path": "app", "myRepo.git.commitSHA": "abc"},
+		},
+		{
+			name:      "flat keeps a value read from a file",
+			params:    map[string]any{"git.commitSHA": "from-file"},
+			commitSHA: "abc",
+			want:      map[string]any{"git.commitSHA": "from-file"},
+		},
+		{
+			name:          "go template",
+			params:        map[string]any{"path": map[string]any{"path": "app"}},
+			commitSHA:     "abc",
+			useGoTemplate: true,
+			want: map[string]any{
+				"path": map[string]any{"path": "app"},
+				"git":  map[string]any{"commitSHA": "abc"},
+			},
+		},
+		{
+			name:            "go template with prefix",
+			params:          map[string]any{"myRepo": map[string]any{"path": map[string]any{"path": "app"}}},
+			commitSHA:       "abc",
+			pathParamPrefix: "myRepo",
+			useGoTemplate:   true,
+			want: map[string]any{"myRepo": map[string]any{
+				"path": map[string]any{"path": "app"},
+				"git":  map[string]any{"commitSHA": "abc"},
+			}},
+		},
+		{
+			name:          "go template keeps a value read from a file",
+			params:        map[string]any{"git": "from-file"},
+			commitSHA:     "abc",
+			useGoTemplate: true,
+			want:          map[string]any{"git": "from-file"},
+		},
+		{
+			name:   "empty SHA is omitted",
+			params: map[string]any{"path": "app"},
+			want:   map[string]any{"path": "app"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			addCommitSHAParam(tt.params, tt.commitSHA, tt.pathParamPrefix, tt.useGoTemplate)
+			assert.Equal(t, tt.want, tt.params)
+		})
+	}
+}
+
+// fakeRepoSource resolves every revision to commitSHA and records the revision of each request.
+type fakeRepoSource struct {
+	commitSHA string
+	paths     []string
+	files     map[string]map[string][]byte
+	revisions []string
+}
+
+func (f *fakeRepoSource) resolveSourceIntegrity(_ context.Context, _ *argoprojiov1alpha1.ApplicationSet, _ client.Client) (*argoprojiov1alpha1.SourceIntegrity, error) {
+	return nil, nil
+}
+
+func (f *fakeRepoSource) listDirectories(_ context.Context, _, revision, _ string, _ bool, _ *argoprojiov1alpha1.SourceIntegrity) ([]string, string, error) {
+	f.revisions = append(f.revisions, revision)
+	return f.paths, f.commitSHA, nil
+}
+
+func (f *fakeRepoSource) getFiles(_ context.Context, _, revision, _, pattern string, _ bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, string, error) {
+	f.revisions = append(f.revisions, revision)
+	return f.files[pattern], f.commitSHA, nil
+}
+
+func TestGenerateRepoSourceDirectoryParamsCommitSHA(t *testing.T) {
+	t.Parallel()
+	src := &fakeRepoSource{commitSHA: "abc", paths: []string{"app"}}
+
+	flat, err := generateRepoSourceDirectoryParams(t.Context(), repoSourceCallParams{
+		src: src,
+		spec: repoSourceSpec{
+			Revision:    "main",
+			Directories: []pathPattern{{Path: "*"}},
+			Values:      map[string]string{"rev": "{{git.commitSHA}}"},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, flat, 1)
+	assert.Equal(t, "abc", flat[0]["git.commitSHA"])
+	assert.Equal(t, "abc", flat[0]["values.rev"])
+
+	goTemplate, err := generateRepoSourceDirectoryParams(t.Context(), repoSourceCallParams{
+		src: src,
+		spec: repoSourceSpec{
+			Revision:    "main",
+			Directories: []pathPattern{{Path: "*"}},
+			Values:      map[string]string{"rev": "{{ .git.commitSHA }}"},
+		},
+		useGoTemplate: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, goTemplate, 1)
+	assert.Equal(t, map[string]any{"commitSHA": "abc"}, goTemplate[0]["git"])
+	assert.Equal(t, map[string]string{"rev": "abc"}, goTemplate[0]["values"])
+}
+
+func TestGenerateRepoSourceFileParamsPinsResolvedCommit(t *testing.T) {
+	t.Parallel()
+	src := &fakeRepoSource{
+		commitSHA: "abc",
+		files: map[string]map[string][]byte{
+			"a/*.yaml": {"a/config.yaml": []byte("name: a")},
+			"b/*.yaml": {"b/config.yaml": []byte("name: b")},
+			"b/skip/*": {},
+		},
+	}
+
+	params, err := generateRepoSourceFileParams(t.Context(), repoSourceCallParams{
+		src: src,
+		spec: repoSourceSpec{
+			Revision: "main",
+			Files:    []pathPattern{{Path: "a/*.yaml"}, {Path: "b/*.yaml"}, {Path: "b/skip/*", Exclude: true}},
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"main", "abc", "abc"}, src.revisions)
+	require.Len(t, params, 2)
+	for _, p := range params {
+		assert.Equal(t, "abc", p["git.commitSHA"])
 	}
 }

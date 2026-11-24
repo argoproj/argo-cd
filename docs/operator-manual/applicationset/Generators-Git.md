@@ -71,6 +71,7 @@ The generator parameters are:
 - `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{.path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{.git.commitSHA}}`: The commit SHA that `revision` resolved to when the directories were listed. Use it as the `targetRevision` of the generated Application to deploy exactly the commit the parameters were generated from, even when `revision` is a branch. If `pathParamPrefix` is specified, it is prefixed as well (e.g. `{{.myRepo.git.commitSHA}}`).
 
 > [!NOTE]
 > The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
@@ -338,6 +339,7 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
 - `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
 - `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
+- `{{.git.commitSHA}}`: The commit SHA that `revision` resolved to. All matched files are read from this commit. If `pathParamPrefix` is specified, it is prefixed as well (e.g. `{{.myRepo.git.commitSHA}}`). A key with the same name in the configuration file takes precedence.
 
 > [!NOTE]
 > The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` 

@@ -5190,12 +5190,14 @@ func TestGetGitDirectories(t *testing.T) {
 	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.GetResolvedRevision())
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
 	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", directories.GetResolvedRevision())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 2,
@@ -5327,12 +5329,14 @@ func TestGetGitFiles(t *testing.T) {
 	fileResponse, err := s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", fileResponse.GetResolvedRevision())
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock
 	fileResponse, err = s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
+	assert.Equal(t, "632039659e542ed7de0c170a4fcc1c571b288fc0", fileResponse.GetResolvedRevision())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 2,

@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -158,7 +159,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&services.GitDirectoriesResult{Paths: testCaseCopy.repoApps}, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -457,7 +458,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&services.GitDirectoriesResult{Paths: testCaseCopy.repoApps}, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -830,7 +831,7 @@ cluster:
 
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+				Return(&services.GitFilesResult{Files: testCaseCopy.repoFileContents}, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -1164,12 +1165,12 @@ env: testing
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.excludeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.includeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -1499,12 +1500,12 @@ env: testing
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.excludeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.includeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -1728,12 +1729,12 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.excludeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+					Return(&services.GitFilesResult{Files: testCaseCopy.includeFiles}, testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -2087,7 +2088,7 @@ cluster:
 
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+				Return(&services.GitFilesResult{Files: testCaseCopy.repoFileContents}, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -2294,7 +2295,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				project = mock.Anything
 			}
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(&services.GitDirectoriesResult{Paths: testCase.repoApps}, testCase.repoPathsError)
 		}
 		gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
 

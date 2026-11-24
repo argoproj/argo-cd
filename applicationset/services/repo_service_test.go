@@ -35,7 +35,7 @@ func TestGetDirectories(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []string
+		want    *GitDirectoriesResult
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
@@ -59,12 +59,13 @@ func TestGetDirectories(t *testing.T) {
 			},
 			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return &apiclient.GitDirectoriesResponse{
-					Paths: []string{"foo", "foo/bar", "bar/foo"},
+					Paths:            []string{"foo", "foo/bar", "bar/foo"},
+					ResolvedRevision: "abc123",
 				}, nil
 			},
 		}, args: args{
 			repoURL: "foo",
-		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
+		}, want: &GitDirectoriesResult{Paths: []string{"foo", "foo/bar", "bar/foo"}, CommitSHA: "abc123"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
@@ -110,7 +111,7 @@ func TestGetFiles(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    map[string][]byte
+		want    *GitFilesResult
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
@@ -138,13 +139,17 @@ func TestGetFiles(t *testing.T) {
 						"foo.json": []byte("hello: world!"),
 						"bar.yaml": []byte("yay: appsets"),
 					},
+					ResolvedRevision: "def456",
 				}, nil
 			},
 		}, args: args{
 			repoURL: "foo",
-		}, want: map[string][]byte{
-			"foo.json": []byte("hello: world!"),
-			"bar.yaml": []byte("yay: appsets"),
+		}, want: &GitFilesResult{
+			Files: map[string][]byte{
+				"foo.json": []byte("hello: world!"),
+				"bar.yaml": []byte("yay: appsets"),
+			},
+			CommitSHA: "def456",
 		}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
