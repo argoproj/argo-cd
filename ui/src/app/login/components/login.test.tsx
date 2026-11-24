@@ -5,10 +5,19 @@ import {createMemoryHistory} from 'history';
 import {RouteComponentProps} from 'react-router';
 
 import {Context} from '../../shared/context';
+import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
+import {pauseAutoLogin, redirectToSSO} from '../../shared/sso-auto-login';
 import {Login} from './login';
 
 jest.mock('../../shared/services', () => ({services: {authService: {settings: jest.fn()}, users: {login: jest.fn()}}}));
+
+jest.mock('../../shared/sso-auto-login', () => ({
+    ...jest.requireActual('../../shared/sso-auto-login'),
+    redirectToSSO: jest.fn()
+}));
+
+const settings = (overrides: Partial<AuthSettings> = {}) => ({ssoAutoLogin: true, oidcConfig: {name: 'Keycloak'}, ...overrides}) as AuthSettings;
 
 const renderLogin = (search = '', baseHref = '/') => {
     const client = new QueryClient();
@@ -35,9 +44,13 @@ const submitLogin = async () => {
     });
 };
 
+beforeEach(() => {
+    jest.resetAllMocks();
+    window.localStorage.clear();
+});
+
 describe('Login query cache', () => {
     beforeEach(() => {
-        jest.resetAllMocks();
         jest.mocked(services.authService.settings).mockResolvedValue({} as any);
     });
 
@@ -71,5 +84,68 @@ describe('Login query cache', () => {
         expect(goto).toHaveBeenCalledTimes(1);
         expect(goto).toHaveBeenCalledWith('.', {sso_error: null});
         expect(screen.getByRole('button', {name: 'Sign In'})).toBeEnabled();
+    });
+});
+
+describe('Login SSO auto-login', () => {
+    beforeEach(() => {
+        jest.mocked(services.users.login).mockResolvedValue({token: 'token'});
+    });
+
+    it('redirects to SSO when auto-login is enabled', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+
+        renderLogin('?return_url=%2Fapplications');
+
+        await waitFor(() => expect(redirectToSSO).toHaveBeenCalledWith('auth/login?return_url=%2Fapplications'));
+    });
+
+    it('waits for a click when auto-login is disabled', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings({ssoAutoLogin: false}));
+
+        renderLogin();
+
+        expect(await screen.findByText('Log in via Keycloak')).toBeInTheDocument();
+        expect(redirectToSSO).not.toHaveBeenCalled();
+    });
+
+    it('waits for a click while auto-login is paused', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+        pauseAutoLogin();
+
+        renderLogin();
+
+        expect(await screen.findByText('Log in via Keycloak')).toBeInTheDocument();
+        expect(redirectToSSO).not.toHaveBeenCalled();
+    });
+
+    it('shows the local login form when opted out', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+
+        renderLogin('?sso_auto_login=false');
+
+        expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+        expect(redirectToSSO).not.toHaveBeenCalled();
+    });
+
+    it('pauses auto-login after a local account login', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+
+        renderLogin('?sso_auto_login=false');
+        await submitLogin();
+
+        await waitFor(() => expect(services.users.login).toHaveBeenCalledWith('new-user', 'password'));
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
+    });
+
+    it('keeps auto-login on after a failed local account login', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+        jest.mocked(services.users.login).mockRejectedValue(new Error('Invalid credentials'));
+
+        renderLogin('?sso_auto_login=false');
+        await submitLogin();
+
+        expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).toBeNull();
     });
 });

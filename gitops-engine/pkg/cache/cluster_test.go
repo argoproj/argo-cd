@@ -714,6 +714,86 @@ metadata:
 	}, managedObjs)
 }
 
+// A target whose live object isn't managed (e.g. missing the tracking label)
+// is still returned.
+func TestGetManagedLiveObjs_UnmanagedTarget(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
+		return nil, true
+	}))
+	require.NoError(t, cluster.EnsureSynced())
+
+	targetDeploy := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  namespace: default`)
+
+	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(*Resource) bool {
+		return false
+	})
+	require.NoError(t, err)
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
+	}, managedObjs)
+}
+
+// GetManagedLiveObjs returns cached resources without copying them, which is
+// only safe while nothing it reads after unlocking changes in place. Run it
+// against setOwnerRef, the in-place writer, so -race flags a regression.
+func TestGetManagedLiveObjs_ConcurrentOwnerRefUpdates(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
+		return nil, true
+	}))
+	require.NoError(t, cluster.EnsureSynced())
+
+	targets := []*unstructured.Unstructured{mustToUnstructured(testDeploy()), mustToUnstructured(testRS())}
+	owner := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "owner", UID: "owner-uid"}
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for add := true; ; add = !add {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			cluster.lock.Lock()
+			for _, r := range cluster.resources {
+				r.setOwnerRef(owner, add)
+			}
+			cluster.lock.Unlock()
+		}
+	})
+	for range 200 {
+		_, err := cluster.GetManagedLiveObjs(targets, func(*Resource) bool { return true })
+		require.NoError(t, err)
+	}
+	close(stop)
+	wg.Wait()
+}
+
+// A panicking isManaged must not leave the read lock held, or the next writer
+// blocks forever.
+func TestGetManagedLiveObjs_PanickingIsManagedReleasesLock(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	require.NoError(t, cluster.EnsureSynced())
+
+	assert.Panics(t, func() {
+		_, _ = cluster.GetManagedLiveObjs(nil, func(*Resource) bool { panic("boom") })
+	})
+	if !cluster.lock.TryLock() {
+		cluster.lock.RUnlock() // undo the leak so cleanup doesn't hang
+		t.Fatal("read lock leaked after isManaged panicked")
+	}
+	cluster.lock.Unlock()
+}
+
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
 	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
@@ -2443,6 +2523,115 @@ func BenchmarkBuildGraph(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buildGraph(testResources)
 	}
+}
+
+func graphTestResource(apiVersion, kind, name, uid string, owners ...metav1.OwnerReference) *Resource {
+	return &Resource{
+		Ref:       corev1.ObjectReference{APIVersion: apiVersion, Kind: kind, Namespace: "default", Name: name, UID: types.UID(uid)},
+		OwnerRefs: owners,
+	}
+}
+
+func graphTestNamespace(resources ...*Resource) map[kube.ResourceKey]*Resource {
+	ns := map[kube.ResourceKey]*Resource{}
+	for _, r := range resources {
+		ns[r.ResourceKey()] = r
+	}
+	return ns
+}
+
+// realisticNamespace has n resources shaped like a namespace of deployed
+// apps: per 10 resources, a Deployment owning 3 ReplicaSets (revision
+// history), one owning 3 Pods, plus a Service, its Endpoints (inferred,
+// UID-less owner ref) and an unowned ConfigMap.
+func realisticNamespace(n int) map[kube.ResourceKey]*Resource {
+	var resources []*Resource
+	for i := range n / 10 {
+		app := fmt.Sprintf("app-%d", i)
+		deploy := graphTestResource("apps/v1", "Deployment", app, app+"-deploy")
+		resources = append(resources, deploy)
+		for r := range 3 {
+			rs := graphTestResource("apps/v1", "ReplicaSet", fmt.Sprintf("%s-%d", app, r), fmt.Sprintf("%s-rs-%d", app, r), deploy.toOwnerRef())
+			resources = append(resources, rs)
+			if r == 0 {
+				for p := range 3 {
+					resources = append(resources, graphTestResource("v1", "Pod", fmt.Sprintf("%s-%d", rs.Ref.Name, p), fmt.Sprintf("%s-pod-%d", app, p), rs.toOwnerRef()))
+				}
+			}
+		}
+		resources = append(resources,
+			graphTestResource("v1", "Service", app, app+"-svc"),
+			graphTestResource("v1", "Endpoints", app, app+"-ep", metav1.OwnerReference{APIVersion: "v1", Kind: "Service", Name: app}),
+			graphTestResource("v1", "ConfigMap", app, app+"-cm"),
+		)
+	}
+	return graphTestNamespace(resources...)
+}
+
+func BenchmarkBuildGraph_Realistic(b *testing.B) {
+	for _, n := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("resources=%d", n), func(b *testing.B) {
+			ns := realisticNamespace(n)
+			b.ReportAllocs()
+			for b.Loop() {
+				buildGraph(ns)
+			}
+		})
+	}
+}
+
+func TestBuildGraph(t *testing.T) {
+	t.Parallel()
+	// nsNodes is a map, so which of several same-UID resources buildGraph
+	// meets first varies; repeat to cover both orders.
+	const runs = 20
+
+	t.Run("links a child to every parent sharing its owner's UID", func(t *testing.T) {
+		t.Parallel()
+		appsRS := graphTestResource("apps/v1", "ReplicaSet", "rs", "rs-uid")
+		extensionsRS := graphTestResource("extensions/v1beta1", "ReplicaSet", "rs", "rs-uid")
+		pod := graphTestResource("v1", "Pod", "pod", "pod-uid", appsRS.toOwnerRef())
+		ns := graphTestNamespace(appsRS, extensionsRS, pod)
+		for range runs {
+			graph := buildGraph(ns)
+			assert.Same(t, pod, graph[appsRS.ResourceKey()]["pod-uid"])
+			assert.Same(t, pod, graph[extensionsRS.ResourceKey()]["pod-uid"])
+		}
+	})
+
+	t.Run("keeps the lowest key among children sharing a UID", func(t *testing.T) {
+		t.Parallel()
+		deploy := graphTestResource("apps/v1", "Deployment", "web", "deploy-uid")
+		appsRS := graphTestResource("apps/v1", "ReplicaSet", "rs", "rs-uid", deploy.toOwnerRef())
+		extensionsRS := graphTestResource("extensions/v1beta1", "ReplicaSet", "rs", "rs-uid", deploy.toOwnerRef())
+		ns := graphTestNamespace(deploy, appsRS, extensionsRS)
+		for range runs {
+			children := buildGraph(ns)[deploy.ResourceKey()]
+			require.Len(t, children, 1)
+			assert.Same(t, appsRS, children["rs-uid"])
+		}
+	})
+
+	t.Run("resolves owner refs without a UID by name", func(t *testing.T) {
+		t.Parallel()
+		svc := graphTestResource("v1", "Service", "web", "svc-uid")
+		ep := graphTestResource("v1", "Endpoints", "web", "ep-uid", metav1.OwnerReference{APIVersion: "v1", Kind: "Service", Name: "web"})
+		graph := buildGraph(graphTestNamespace(svc, ep))
+		assert.Same(t, ep, graph[svc.ResourceKey()]["ep-uid"])
+		assert.Empty(t, ep.OwnerRefs[0].UID, "resolution must not write to the cached owner ref")
+	})
+
+	t.Run("links every owned resource in the realistic namespace", func(t *testing.T) {
+		t.Parallel()
+		graph := buildGraph(realisticNamespace(100))
+		// Per 10 resources: Deployment→3 RS, RS→3 Pods, Service→Endpoints.
+		assert.Len(t, graph, 3*10)
+		edges := 0
+		for _, children := range graph {
+			edges += len(children)
+		}
+		assert.Equal(t, 7*10, edges)
+	})
 }
 
 func BenchmarkIterateHierarchyV2(b *testing.B) {

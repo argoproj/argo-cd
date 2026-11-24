@@ -167,6 +167,12 @@ func (a *Actions) SetNamespaces() *Actions {
 	return a
 }
 
+func (a *Actions) InvalidateCache() *Actions {
+	a.context.T().Helper()
+	a.runCli("cluster", "invalidate-cache", a.context.GetName())
+	return a
+}
+
 func (a *Actions) DeleteByName() *Actions {
 	a.context.T().Helper()
 
