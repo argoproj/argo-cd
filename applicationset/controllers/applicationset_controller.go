@@ -141,13 +141,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	observedGeneration := applicationSet.Generation
-
 	// Every status change this reconciliation makes is recorded on statusWriter and written once,
 	// on the way out. Registering the flush before the metrics defer means it runs first, so the
 	// reconcile duration covers the write. Reconcile has many early returns, and the status must
 	// be persisted on all of them, including the error paths.
 	statusWriter := &statusWriter{}
+	observedGeneration := applicationSetInfo.Generation
+
 	defer func() {
 		if flushErr := statusWriter.Flush(ctx, r.Client, &applicationSet); flushErr != nil {
 			logCtx.Errorf("unable to write application set status: %v", flushErr)
@@ -573,6 +573,27 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationS
 	// Add observedGeneration to each condition
 	for i := range newConditions {
 		newConditions[i].ObservedGeneration = observedGeneration
+	}
+
+	// Update the applicationSet conditions
+	previousConditions := applicationSet.Status.Conditions
+
+	applicationSet.Status.SetConditions(newConditions, evaluatedTypes)
+
+	// Try to not call get/update if nothing has changed
+	needToUpdateConditions := len(applicationSet.Status.Conditions) != len(previousConditions)
+	if !needToUpdateConditions {
+		for i, c := range applicationSet.Status.Conditions {
+			previous := previousConditions[i]
+			if c.Type != previous.Type ||
+				c.Reason != previous.Reason ||
+				c.Status != previous.Status ||
+				c.Message != previous.Message ||
+				c.ObservedGeneration != previous.ObservedGeneration {
+				needToUpdateConditions = true
+				break
+			}
+		}
 	}
 
 	// SetConditions merges newConditions into whichever ApplicationSet it is given, so it is safe

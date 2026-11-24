@@ -72,7 +72,7 @@ type Dependencies interface {
 		parametersGenerated bool,
 		observedGeneration int64,
 		w StatusWriter,
-	)
+	) error
 
 	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
 	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)

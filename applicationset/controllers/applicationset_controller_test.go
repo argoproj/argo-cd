@@ -3144,9 +3144,10 @@ func TestSetApplicationSetStatusConditionObservedGeneration(t *testing.T) {
 			Type:        "RollingSync",
 			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 		}
-		objectMeta := metav1.ObjectMeta{Name: "name", Namespace: "argocd", Generation: 7}
 		appset := v1alpha1.ApplicationSet{
-			ObjectMeta: objectMeta,
+			Name:       "name",
+			Namespace:  "argocd",
+			Generation: 7,
 			Spec:       rollingSyncSpec,
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
@@ -3166,7 +3167,7 @@ func TestSetApplicationSetStatusConditionObservedGeneration(t *testing.T) {
 		r := newReconciler(client)
 
 		w := &statusWriter{}
-		r.setApplicationSetStatusCondition(&appset, []v1alpha1.ApplicationSetCondition{
+		err := r.setApplicationSetStatusCondition(t.Context(), &appset, []v1alpha1.ApplicationSetCondition{
 			{
 				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
 				Message: "unable to generate applications",
