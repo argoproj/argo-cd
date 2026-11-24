@@ -142,11 +142,11 @@ type gitRefCache interface {
 
 // Client is a generic git client interface.
 //
-// Methods that take a context use it for its values only, such as the trace
-// span and logging fields. Its cancellation and deadline are ignored: git
-// commands run until they finish or hit ARGOCD_EXEC_TIMEOUT. Killing a git
-// command part way throws away work that later requests on the same shared
-// clone would reuse, and can leave lock files behind.
+// Methods that write to the clone (Fetch, Checkout*, SetAuthor, GetCommitNote,
+// AddAndPushNote) ignore context cancellation and deadlines, running until
+// they finish or hit ARGOCD_EXEC_TIMEOUT: killing them part way throws away
+// work that later requests on the same shared clone would reuse, and can leave
+// lock files behind (#30953). Read-only methods honour cancellation.
 type Client interface {
 	Root() string
 	RepoURL() string
@@ -636,7 +636,6 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
 func (m *nativeGitClient) IsRevisionPresent(ctx context.Context, revision string) bool {
-	ctx = context.WithoutCancel(ctx)
 	if revision == "" {
 		return false
 	}
@@ -753,7 +752,6 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 
 // LsFiles lists the local working tree, including only files that are under source control
 func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
 
@@ -1373,7 +1371,6 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.runCmd(ctx, "rev-parse", headRevision)
 	if err != nil {
 		return "", err
@@ -1383,7 +1380,6 @@ func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
 
 // RevisionMetadata returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.runCmd(ctx, "show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
@@ -1517,7 +1513,6 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 //
 // Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
 func (m *nativeGitClient) VerifyCommitSignature(ctx context.Context, revision string) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	cmd := m.cmdWithGPG(ctx, "git-verify-wrapper.sh", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -1665,7 +1660,6 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
-	ctx = context.WithoutCancel(ctx)
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -1886,7 +1880,6 @@ func (m *nativeGitClient) getSealRevListFilter(ctx context.Context, revision str
 
 // IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
 func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) bool {
-	ctx = context.WithoutCancel(ctx)
 	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	// a lightweight tag returns "commit" - makes sense in the git world
@@ -1898,7 +1891,6 @@ func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) b
 
 // ChangedFiles returns a list of files changed between two revisions
 func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, targetRevision string) ([]string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if revision == targetRevision {
 		return []string{}, nil
 	}
@@ -2060,7 +2052,6 @@ func (m *nativeGitClient) Push(branch string) (string, error) {
 // for codes; for our purposes "G" (good) and "U" (good but unknown trust) are
 // acceptable and everything else — including "N" — must be rejected.
 func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
-	ctx = context.WithoutCancel(ctx)
 	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", revision, "--")
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -2184,7 +2175,6 @@ func isRetryableNotePushError(errStr string) bool {
 
 // HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
-	ctx = context.WithoutCancel(ctx)
 	// Step 1: Is it UNTRACKED? (file is new to git)
 	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)
 	if err != nil {

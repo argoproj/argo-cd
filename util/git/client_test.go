@@ -708,25 +708,23 @@ func Test_nativeGitClient_runLsRemote_honoursGitRequestTimeout(t *testing.T) {
 // Git commands ignore the caller's cancellation, so a request that was
 // cancelled while it waited for the repository lock still completes its git
 // work.
-func Test_nativeGitClient_cancelledContextIsIgnored(t *testing.T) {
+func Test_nativeGitClient_cancelledContextIsIgnoredByWrites(t *testing.T) {
 	client, revision, _ := newSlowFetchRemote(t, 0)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	require.NoError(t, client.Fetch(ctx, "", 0))
-	assert.True(t, client.IsRevisionPresent(ctx, revision))
 	_, err := client.Checkout(ctx, revision, false, true)
 	require.NoError(t, err)
-	sha, err := client.CommitSHA(ctx)
+
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, revision, sha)
-	_, err = client.RevisionMetadata(ctx, revision)
-	require.NoError(t, err)
-	_, err = client.LsFiles(ctx, "*", true)
-	require.NoError(t, err)
-	_, err = client.ChangedFiles(ctx, revision, revision)
-	require.NoError(t, err)
+
+	// Read-only commands leave nothing behind when killed, so they still honour cancellation.
+	_, err = client.CommitSHA(ctx)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_gitCancelGracePeriod(t *testing.T) {
