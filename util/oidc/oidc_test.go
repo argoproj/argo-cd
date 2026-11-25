@@ -1531,7 +1531,7 @@ userInfoPath: /`,
 			if tt.cacheClaims != nil {
 				cacheClaims, err := json.Marshal(tt.cacheClaims)
 				require.NoError(t, err)
-				encCacheClaims, err := crypto.Encrypt([]byte(cacheClaims), encryptionKey)
+				encCacheClaims, err := crypto.Encrypt(cacheClaims, encryptionKey)
 				require.NoError(t, err, "failed encrypting dummy access token")
 				err = a.clientCache.Set(&cache.Item{
 					Key:    FormatUserInfoResponseCacheKey("randomUser"),

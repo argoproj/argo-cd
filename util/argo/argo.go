@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -64,8 +65,8 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
-func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-	apiResources, err := getAPIResourceInfo()
+func getAPIResourceInfo(group, kind string, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+	apiResources, err := apiResourceInfoGetter()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -1425,8 +1426,9 @@ func IsValidContainerName(name string) bool {
 func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) map[string]string {
 	eventLabels := make(map[string]string)
 
-	// Get all app & app-project labels
-	labels := app.Labels
+	// Get all app & app-project labels. Copy the app labels so that adding the project labels
+	// below does not modify the Application, which may be shared with an informer cache.
+	labels := maps.Clone(app.Labels)
 	if labels == nil {
 		labels = make(map[string]string)
 	}

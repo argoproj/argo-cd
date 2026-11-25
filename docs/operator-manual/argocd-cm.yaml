@@ -56,6 +56,12 @@ data:
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
+  #
+  # By default, Argo CD escapes `$` characters in resolved Dex connector
+  # configuration values because Dex expands environment variables in connector
+  # configuration. If Dex environment-variable expansion is disabled by setting
+  # `DEX_EXPAND_ENV=false` on the Dex server, Argo CD preserves `$` characters
+  # in resolved connector values.
   dex.config: |
     # Optional: configure Dex storage backend to persist sessions and signing keys
     storage:
@@ -378,6 +384,10 @@ data:
   # Optional override for the SSO login button label.
   # ui.loginButtonText: "SSO Login"
 
+  # Redirect the login page to the SSO provider without waiting for the user to click the SSO login button.
+  # Requires an OIDC provider or Dex connector. Open /login?sso_auto_login=false to reach the local login form.
+  # sso.autoLogin: "false"
+
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
   # For the argocd-repo-server this setting defines the expiration
@@ -434,6 +444,18 @@ data:
   # token verification to pass despite the OIDC provider having an invalid certificate. Only set to "true" if you
   # understand the risks.
   oidc.tls.insecure.skip.verify: "false"
+
+  # Global projects: an AppProject whose labels match the selector inherits the source repos, destinations,
+  # resource allow/deny lists, sync windows and destination service accounts of the named project.
+  # See docs/user-guide/projects.md#configuring-global-projects-v18
+  # globalProjects: |
+  #   - projectName: proj-global-test
+  #     labelSelector:
+  #       matchExpressions:
+  #         - key: opt
+  #           operator: In
+  #           values:
+  #             - prod
 
   # Add Deep Links to ArgoCD UI
   # sample project level links

@@ -117,8 +117,14 @@ func TestPreDeleteHookFailureAndRetry(t *testing.T) {
 // error instead of silently creating the resource in the forbidden namespace.
 func TestPreDeleteHookProjectRestriction(t *testing.T) {
 	ctx := Given(t)
+	// Cleanup can still be creating this hook for a previous attempt after the
+	// default project has been opened to every namespace. A name unique to this
+	// attempt keeps that leftover from failing the assertion below.
+	prefix := ctx.ShortID() + "-"
+	hookName := prefix + "restricted-pre-delete-hook"
 	ctx.
 		Path("pre-delete-hook-restricted").
+		NamePrefix(prefix).
 		// Restrict the project to only the app's own destination namespace, so a
 		// delete hook pinned to kube-system is out of bounds.
 		ProjectSpec(AppProjectSpec{
@@ -140,7 +146,7 @@ func TestPreDeleteHookProjectRestriction(t *testing.T) {
 		And(func(_ *Application) {
 			// The forbidden hook must never be created in kube-system.
 			_, err := KubeClientset.CoreV1().Pods("kube-system").Get(
-				t.Context(), "restricted-pre-delete-hook", metav1.GetOptions{},
+				t.Context(), hookName, metav1.GetOptions{},
 			)
 			require.True(t, apierrors.IsNotFound(err),
 				"forbidden PreDelete hook must not be created in kube-system (got err=%v)", err)

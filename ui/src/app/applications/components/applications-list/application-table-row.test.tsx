@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {render, screen} from '@testing-library/react';
 import {AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -52,17 +53,19 @@ const ctx = {
 
 const renderRow = (appsInAnyNamespaceEnabled: boolean) =>
     render(
-        <AuthSettingsCtx.Provider value={{appsInAnyNamespaceEnabled} as models.AuthSettings}>
-            <ApplicationTableRow
-                app={app}
-                selected={false}
-                pref={pref}
-                ctx={ctx}
-                syncApplication={jest.fn()}
-                refreshApplication={jest.fn()}
-                deleteApplication={jest.fn()}
-            />
-        </AuthSettingsCtx.Provider>
+        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+            <AuthSettingsCtx.Provider value={{appsInAnyNamespaceEnabled} as models.AuthSettings}>
+                <ApplicationTableRow
+                    app={app}
+                    selected={false}
+                    pref={pref}
+                    ctx={ctx}
+                    syncApplication={jest.fn()}
+                    refreshApplication={jest.fn()}
+                    deleteApplication={jest.fn()}
+                />
+            </AuthSettingsCtx.Provider>
+        </QueryClientProvider>
     );
 
 describe('ApplicationTableRow', () => {
