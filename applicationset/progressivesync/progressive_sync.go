@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"sort"
@@ -66,6 +67,12 @@ type Dependencies interface {
 
 	// IncRefreshTriggeredCount increments the metric counter when a refresh is triggered for an application
 	IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet)
+
+	// ObserveRolloutDuration records the duration of a completed progressive sync rollout
+	ObserveRolloutDuration(appset *argov1alpha1.ApplicationSet, duration time.Duration)
+
+	// ObserveStepCompletionDuration records the duration of a completed progressive sync step
+	ObserveStepCompletionDuration(appset *argov1alpha1.ApplicationSet, step string, duration time.Duration)
 }
 
 type Manager struct {
@@ -163,6 +170,14 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	invalidConfigCondition := m.getInvalidRolloutConfig(&appset)
 	conditions := []*argov1alpha1.ApplicationSetCondition{invalidConfigCondition, progressingCondition}
 	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, conditions)
+
+	if progressingCondition != nil &&
+		progressingCondition.Reason == argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete &&
+		allAppStatusesHealthy(&appset) {
+		m.observeRolloutCompletion(ctx, logCtx, &appset)
+	}
+
+	m.observeStepCompletions(ctx, logCtx, &appset)
 
 	return appsToSync, nil
 }
@@ -422,6 +437,7 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 // update AppSet status in-memory, controller will persist it
 func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
+	hasNewWaiting := false
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
 	// Build a map of desired applications for quick lookup
@@ -453,6 +469,8 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				Status:             argov1alpha1.ProgressiveSyncWaiting,
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
 			}
+			// New app in Waiting status should record rollout start time in status
+			hasNewWaiting = true
 		} else {
 			// we have an existing AppStatus
 			currentAppStatus = applicationSet.Status.ApplicationStatus[idx]
@@ -507,6 +525,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			}
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now
+			hasNewWaiting = true
 		}
 
 		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting {
@@ -574,6 +593,19 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			}).Info("Progressive sync application changed status")
 		}
 		appStatuses = append(appStatuses, *newAppStatus)
+	}
+
+	if hasNewWaiting {
+		// Reset when there is no prior rollout, or when the previous rollout has already completed
+		// (RolloutFinishedAt is at or after RolloutStartedAt). Comparing against RolloutFinishedAt
+		// directly, rather than against "now", avoids clobbering the start time of a rollout that is
+		// still in progress when more apps transition to Waiting mid-rollout.
+		if applicationSet.Status.RolloutStartedAt == nil ||
+			(applicationSet.Status.RolloutFinishedAt != nil && !applicationSet.Status.RolloutStartedAt.After(applicationSet.Status.RolloutFinishedAt.Time)) {
+			if setErr := m.setRolloutStartedAt(ctx, applicationSet, now.Time); setErr != nil {
+				return nil, fmt.Errorf("failed to set rollout startedAt in status: %w", setErr)
+			}
+		}
 	}
 
 	err = m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
@@ -825,6 +857,8 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 			}
 		}
 
+		newPendingSteps := map[string]bool{}
+
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			statusLogCtx := logCtx.WithFields(log.Fields{
 				"app.name":               appStatus.Application,
@@ -890,9 +924,32 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				}).Info("Progressive sync application changed status")
 
 				updateCountMap[appStepMap[appStatus.Application]]++
+				newPendingSteps[appStatus.Step] = true
 			}
 
 			appStatuses = append(appStatuses, appStatus)
+		}
+
+		if len(newPendingSteps) > 0 {
+			stepStarts := getStepStartTimesFromStatus(applicationSet)
+			needsUpdate := false
+			for step := range newPendingSteps {
+				existingTime, exists := stepStarts[step]
+				finishedAt, finished := applicationSet.Status.StepFinishedAt[step]
+				// Only begin a new measured interval for this step when it has no prior start time,
+				// or when its prior interval has already completed (finishedAt at or after the
+				// existing start time). Otherwise a later Pending batch within the same still-running
+				// step would clobber the step's original start time.
+				if !exists || (finished && !existingTime.After(finishedAt.Time)) {
+					stepStarts[step] = now
+					needsUpdate = true
+				}
+			}
+			if needsUpdate {
+				if setErr := m.setStepStartTimesInStatus(ctx, applicationSet, stepStarts); setErr != nil {
+					return nil, fmt.Errorf("failed to set step start times in status: %w", setErr)
+				}
+			}
 		}
 	}
 
@@ -902,6 +959,112 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 	}
 
 	return appStatuses, nil
+}
+
+func allAppStatusesHealthy(appset *argov1alpha1.ApplicationSet) bool {
+	if len(appset.Status.ApplicationStatus) == 0 {
+		return false
+	}
+	for _, appStatus := range appset.Status.ApplicationStatus {
+		if appStatus.Status != argov1alpha1.ProgressiveSyncHealthy {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *Manager) setRolloutStartedAt(ctx context.Context, appset *argov1alpha1.ApplicationSet, startTime time.Time) error {
+	patch := appset.DeepCopy()
+	t := metav1.NewTime(startTime.UTC())
+	patch.Status.RolloutStartedAt = &t
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
+}
+
+func (m *Manager) setRolloutFinishedAt(ctx context.Context, appset *argov1alpha1.ApplicationSet, finishedAt time.Time) error {
+	patch := appset.DeepCopy()
+	t := metav1.NewTime(finishedAt.UTC())
+	patch.Status.RolloutFinishedAt = &t
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
+}
+
+func (m *Manager) observeRolloutCompletion(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
+	now := time.Now()
+	if appset.Status.RolloutStartedAt == nil || (appset.Status.RolloutFinishedAt != nil &&
+		appset.Status.RolloutFinishedAt.After(appset.Status.RolloutStartedAt.Time)) {
+		return
+	}
+
+	m.dependencies.ObserveRolloutDuration(appset, now.Sub(appset.Status.RolloutStartedAt.Time))
+	if err := m.setRolloutFinishedAt(ctx, appset, now); err != nil {
+		logCtx.WithError(err).Warn("Failed to set rollout finished at in status")
+	}
+}
+
+func (m *Manager) observeStepCompletions(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
+	stepStartTimes := getStepStartTimesFromStatus(appset)
+	if len(stepStartTimes) == 0 {
+		return
+	}
+	completedSteps := getCompletedSteps(appset)
+	newFinishedTimes := map[string]time.Time{}
+	for step, startTime := range stepStartTimes {
+		finishedAt, ok := appset.Status.StepFinishedAt[step]
+		alreadyRecorded := ok && !finishedAt.IsZero() && !finishedAt.Before(&startTime)
+		if completedSteps[step] && !alreadyRecorded {
+			now := time.Now()
+			m.dependencies.ObserveStepCompletionDuration(appset, step, now.Sub(startTime.Time))
+			newFinishedTimes[step] = now
+		}
+	}
+	if len(newFinishedTimes) == 0 {
+		return
+	}
+	if err := m.setStepFinishedAtInStatus(ctx, appset, newFinishedTimes); err != nil {
+		logCtx.WithError(err).Warn("Failed to set step finished at in status")
+	}
+}
+
+func getStepStartTimesFromStatus(appset *argov1alpha1.ApplicationSet) map[string]metav1.Time {
+	if appset.Status.StepStartedAt == nil {
+		return map[string]metav1.Time{}
+	}
+	result := make(map[string]metav1.Time, len(appset.Status.StepStartedAt))
+	maps.Copy(result, appset.Status.StepStartedAt)
+	return result
+}
+
+func getCompletedSteps(appset *argov1alpha1.ApplicationSet) map[string]bool {
+	stepHealthy := map[string]bool{}
+	for _, appStatus := range appset.Status.ApplicationStatus {
+		if v, ok := stepHealthy[appStatus.Step]; !ok {
+			stepHealthy[appStatus.Step] = appStatus.Status == argov1alpha1.ProgressiveSyncHealthy
+		} else {
+			stepHealthy[appStatus.Step] = v && appStatus.Status == argov1alpha1.ProgressiveSyncHealthy
+		}
+	}
+	return stepHealthy
+}
+
+func (m *Manager) setStepStartTimesInStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]metav1.Time) error {
+	patch := appset.DeepCopy()
+	if len(times) > 0 {
+		patch.Status.StepStartedAt = make(map[string]metav1.Time, len(times))
+		for step, t := range times {
+			patch.Status.StepStartedAt[step] = metav1.NewTime(t.UTC())
+		}
+	}
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
+}
+
+func (m *Manager) setStepFinishedAtInStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]time.Time) error {
+	patch := appset.DeepCopy()
+	if patch.Status.StepFinishedAt == nil {
+		patch.Status.StepFinishedAt = make(map[string]metav1.Time, len(times))
+	}
+	for step, t := range times {
+		patch.Status.StepFinishedAt[step] = metav1.NewTime(t.UTC())
+	}
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
 }
 
 func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.ApplicationSet) *argov1alpha1.ApplicationSetCondition {

@@ -466,3 +466,45 @@ func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
 		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
 	}
 }
+
+// ApplicationSetHasRolloutStartedAtStatus checks that the rollout started at status field is set
+func ApplicationSetHasRolloutStartedAtStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.RolloutStartedAt == nil {
+			return pending, "rollout started at status not set"
+		}
+		return succeeded, "rollout started at status is set"
+	}
+}
+
+// ApplicationSetHasStepStartedAtStatus checks that the step started at status field is set and non-empty
+func ApplicationSetHasStepStartedAtStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if len(appSet.Status.StepStartedAt) == 0 {
+			return pending, "step started at status is empty"
+		}
+		return succeeded, fmt.Sprintf("step started at status is set with %d steps", len(appSet.Status.StepStartedAt))
+	}
+}
+
+// ApplicationSetHasRolloutFinishedAtStatus checks that the rollout finished at status field is set
+func ApplicationSetHasRolloutFinishedAtStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.RolloutFinishedAt == nil {
+			return pending, "rollout finished at status not set"
+		}
+		return succeeded, "rollout finished at status is set"
+	}
+}

@@ -391,6 +391,18 @@ message ApplicationSetStatus {
 
   // Health contains information about the applicationset's current health status based on the applicationset conditions
   optional HealthStatus health = 5;
+
+  // RolloutStartedAt records when the current progressive sync rollout was initiated.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time rolloutStartedAt = 6;
+
+  // RolloutFinishedAt records when the current progressive sync rollout completed.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time rolloutFinishedAt = 7;
+
+  // StepStartedAt maps step identifiers to when each step was initiated in the current progressive sync rollout.
+  map<string, .k8s.io.apimachinery.pkg.apis.meta.v1.Time> stepStartedAt = 8;
+
+  // StepFinishedAt maps step identifiers to when each step completed in the current progressive sync rollout.
+  map<string, .k8s.io.apimachinery.pkg.apis.meta.v1.Time> stepFinishedAt = 9;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.

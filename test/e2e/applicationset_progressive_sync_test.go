@@ -291,6 +291,14 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 			t.Log("Checking Dev app should be stuck in Progressing (invalid image)")
 			t.Log("Verifying staging and prod are Waiting")
 		}).
+		ExpectWithDuration(ApplicationSetHasRolloutStartedAtStatus(), TransitionTimeout).
+		And(func() {
+			t.Log("Rollout started at status verified")
+		}).
+		ExpectWithDuration(ApplicationSetHasStepStartedAtStatus(), TransitionTimeout).
+		And(func() {
+			t.Log("Step started at status verified")
+		}).
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectedStatusWave1), TransitionTimeout).
 		And(func() {
 			// Patch deployment to use valid image
@@ -325,6 +333,11 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 			t.Log("Dev progressed first")
 			t.Log("Staging waited until Dev was Healthy")
 			t.Log("Prod waited until Staging was Healthy")
+		}).
+		ExpectWithDuration(ApplicationSetHasRolloutFinishedAtStatus(), TransitionTimeout).
+		And(func() {
+			t.Log("Rollout complete - rollout finished at status is set")
+			t.Log("Rollout completion triggers ObserveRolloutDuration and ObserveStepCompletionDuration")
 		}).
 		// Cleanup
 		When().
