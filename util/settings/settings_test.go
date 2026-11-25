@@ -912,6 +912,45 @@ func Test_GetKustomizeBinaryPath(t *testing.T) {
 	})
 }
 
+func Test_GetKustomizeBuildOptions(t *testing.T) {
+	ko := &v1alpha1.KustomizeOptions{
+		BuildOptions: "--opt1 val1",
+		Versions: []v1alpha1.KustomizeVersion{
+			{Name: "v1", Path: "path_v1"},
+			{Name: "v2", Path: "path_v2", BuildOptions: "--opt2 val2"},
+		},
+	}
+
+	t.Run("NilOptions", func(t *testing.T) {
+		assert.Empty(t, GetKustomizeBuildOptions(nil, v1alpha1.ApplicationSource{}))
+	})
+
+	t.Run("NoVersionRequested", func(t *testing.T) {
+		assert.Equal(t, "--opt1 val1", GetKustomizeBuildOptions(ko, v1alpha1.ApplicationSource{}))
+	})
+
+	t.Run("VersionWithBuildOptions", func(t *testing.T) {
+		got := GetKustomizeBuildOptions(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
+		})
+		assert.Equal(t, "--opt2 val2", got)
+	})
+
+	t.Run("VersionWithoutBuildOptions", func(t *testing.T) {
+		got := GetKustomizeBuildOptions(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v1"},
+		})
+		assert.Equal(t, "--opt1 val1", got)
+	})
+
+	t.Run("UnknownVersion", func(t *testing.T) {
+		got := GetKustomizeBuildOptions(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v99"},
+		})
+		assert.Equal(t, "--opt1 val1", got)
+	})
+}
+
 func TestGetGoogleAnalytics(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"ga.trackingid": "123",

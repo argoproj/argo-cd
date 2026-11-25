@@ -1819,7 +1819,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
-		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, kustomizeOptionsWithResolvedBuildOptions(q.KustomizeOptions, q.ApplicationSource), env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
@@ -2795,6 +2795,21 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 	}
 }
 
+// kustomizeOptionsWithResolvedBuildOptions selects the build options for source without mutating
+// the shared settings object. Version-specific options replace the global options.
+func kustomizeOptionsWithResolvedBuildOptions(ks *v1alpha1.KustomizeOptions, source *v1alpha1.ApplicationSource) *v1alpha1.KustomizeOptions {
+	if ks == nil || source == nil {
+		return ks
+	}
+	resolved := settings.GetKustomizeBuildOptions(ks, *source)
+	if resolved == ks.BuildOptions {
+		return ks
+	}
+	copied := *ks
+	copied.BuildOptions = resolved
+	return &copied
+}
+
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
@@ -2809,7 +2824,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		ApplicationSource: q.Source,
 	}
 	env := newEnv(&fakeManifestRequest, reversion)
-	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
+	_, images, _, err := k.Build(q.Source.Kustomize, kustomizeOptionsWithResolvedBuildOptions(q.KustomizeOptions, q.Source), env, nil)
 	if err != nil {
 		return err
 	}
