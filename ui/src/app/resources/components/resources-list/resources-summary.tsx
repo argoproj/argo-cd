@@ -3,7 +3,8 @@ const PieChart = require('react-svg-piechart').default;
 
 import {Tooltip} from 'argo-ui';
 
-import {ClusterCtx, COLORS, DataLoader} from '../../../shared/components';
+import {COLORS, useClusterList} from '../../../shared/components';
+import {loadFailed, loading} from '../../../shared/query-client';
 import {getClusterLegendDisplay, getResourceClusterLabel} from '../../../shared/utils';
 import {
     ARGO_FAILED_COLOR,
@@ -275,10 +276,13 @@ const ResourcesSummaryContent = ({resources, clusters}: {resources: models.Resou
     );
 };
 
-export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) => (
-    <ClusterCtx.Consumer>
-        {clusters => (
-            <DataLoader load={() => clusters}>{(clusterList: models.Cluster[]) => <ResourcesSummaryContent resources={resources} clusters={clusterList || []} />}</DataLoader>
-        )}
-    </ClusterCtx.Consumer>
-);
+export const ResourcesSummary = ({resources}: {resources: models.Resource[]}) => {
+    const clusters = useClusterList();
+    if (clusters.isError && !clusters.data) {
+        return loadFailed(clusters.refetch);
+    }
+    if (!clusters.data) {
+        return loading;
+    }
+    return <ResourcesSummaryContent resources={resources} clusters={clusters.data} />;
+};

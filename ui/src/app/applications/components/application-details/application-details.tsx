@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp, ValidatedLink} from '../../../shared/components';
 import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -465,14 +465,16 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         <div className='columns small-9'>
                                             {aSource.chart}&nbsp;
                                             {m.home && (
-                                                <a
+                                                <ValidatedLink
+                                                    url={m.home}
+                                                    target='_blank'
+                                                    rel='noopener noreferrer'
                                                     title={m.home}
                                                     onClick={e => {
                                                         e.stopPropagation();
-                                                        window.open(m.home);
                                                     }}>
                                                     <i className='fa fa-external-link-alt' />
-                                                </a>
+                                                </ValidatedLink>
                                             )}
                                         </div>
                                     </div>
@@ -926,7 +928,15 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: (
+                                                        <ApplicationsDetailsAppDropdown
+                                                            appName={props.match.params.name}
+                                                            objectListKind={objectListKind}
+                                                            application={isApplication ? (application as appModels.Application) : undefined}
+                                                        />
+                                                    )
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication

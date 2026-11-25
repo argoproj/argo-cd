@@ -1,11 +1,17 @@
 import {queryOptions} from '@tanstack/react-query';
 
+import * as models from './models';
 import {services} from './services';
 
 // Keys are hierarchical so invalidating a prefix (e.g. projectQueries.byName) refreshes everything under it.
 // Per-item keys sit under 'detail' so an item named "list" can't share a prefix with the list query.
 export const projectQueries = {
     list: () => queryOptions({queryKey: ['projects', 'list'], queryFn: () => services.projects.list()}),
+    names: () =>
+        queryOptions({
+            queryKey: ['projects', 'list', 'names'],
+            queryFn: () => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())
+        }),
     byName: (name: string) => ['projects', 'detail', name] as const,
     detailed: (name: string) => queryOptions({queryKey: [...projectQueries.byName(name), 'detailed'], queryFn: () => services.projects.getDetailed(name)}),
     links: (name: string) => queryOptions({queryKey: [...projectQueries.byName(name), 'links'], queryFn: () => services.projects.getLinks(name)}),
@@ -15,16 +21,58 @@ export const projectQueries = {
 
 export const applicationQueries = {
     list: (projects: string[], objectListKind: string) =>
-        queryOptions({queryKey: ['applications', 'list', projects, objectListKind], queryFn: () => services.applications.list(projects, objectListKind)})
+        queryOptions({queryKey: ['applications', 'list', projects, objectListKind], queryFn: () => services.applications.list(projects, objectListKind)}),
+    names: (projects: string[], objectListKind: string) =>
+        queryOptions({
+            queryKey: ['applications', 'list', projects, objectListKind, 'names'],
+            queryFn: () => services.applications.list(projects, objectListKind, {fields: ['items.metadata.name']}).then(list => list.items)
+        })
 };
 
 export const repoQueries = {
-    list: () => queryOptions({queryKey: ['repos', 'list'], queryFn: () => services.repos.list()})
+    all: ['repos'] as const,
+    list: () => queryOptions({queryKey: ['repos', 'list'], queryFn: () => services.repos.list()}),
+    // Repositories and credential templates, read and (with the hydrator) write, as the repositories page lists them.
+    connections: (hydratorEnabled: boolean) =>
+        queryOptions({
+            queryKey: ['repos', 'connections', hydratorEnabled],
+            queryFn: () =>
+                Promise.all([
+                    services.repos.list(),
+                    services.repocreds.list(),
+                    hydratorEnabled ? services.repos.listWrite() : Promise.resolve([]),
+                    hydratorEnabled ? services.repocreds.listWrite() : Promise.resolve([])
+                ])
+        }),
+    // Best-effort, for revision suggestions: a failure shows no error notification, and the revision field still
+    // accepts any value. Keyed without the branches/tags filter, so switching it reuses the result.
+    refs: (repoURL: string, appProject?: string) =>
+        queryOptions({
+            queryKey: ['repos', 'refs', repoURL, appProject ?? ''],
+            queryFn: () => services.repos.revisions(repoURL, appProject),
+            meta: {silent: true}
+        }),
+    ociTags: (repoURL: string, appProject?: string) =>
+        queryOptions({
+            queryKey: ['repos', 'oci-tags', repoURL, appProject ?? ''],
+            queryFn: () => services.repos.ociTags(repoURL, appProject),
+            meta: {silent: true}
+        })
 };
 
 export const clusterQueries = {
     list: () => queryOptions({queryKey: ['clusters', 'list'], queryFn: () => services.clusters.list()}),
-    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')})
+    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')}),
+    // Best-effort lookup for showing a cluster's name: a failure yields null, and callers fall back to the server URL.
+    lookup: (server: string, name?: string) =>
+        queryOptions({
+            queryKey: ['clusters', 'lookup', server ?? '', name ?? ''],
+            queryFn: () => services.clusters.get(server, name).catch((): models.Cluster => null)
+        })
+};
+
+export const certQueries = {
+    list: () => queryOptions({queryKey: ['certs', 'list'], queryFn: () => services.certs.list()})
 };
 
 export const gpgkeyQueries = {
@@ -34,4 +82,28 @@ export const gpgkeyQueries = {
 export const accountQueries = {
     list: () => queryOptions({queryKey: ['accounts', 'list'], queryFn: () => services.accounts.list()}),
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
+};
+
+export const userQueries = {
+    // Not kept once unused: a login after a 401 doesn't reload the page, so a cached value could show the previous user.
+    info: () => queryOptions({queryKey: ['userinfo'], queryFn: () => services.users.get(), gcTime: 0})
+};
+
+export const settingsQueries = {
+    get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
+};
+
+export const notificationQueries = {
+    triggers: () => queryOptions({queryKey: ['notifications', 'triggers'], queryFn: () => services.notification.listTriggers()}),
+    services: () => queryOptions({queryKey: ['notifications', 'services'], queryFn: () => services.notification.listServices()})
+};
+
+export const versionQueries = {
+    get: () => queryOptions({queryKey: ['version'], queryFn: () => services.version.version(), meta: {silent: true}})
+};
+
+export const helpQueries = {
+    // Best-effort: the version only labels the download link, so a failure yields an empty Platform instead of an
+    // error notification. Kept under 'help' so other version readers don't get the cached fallback.
+    version: () => queryOptions({queryKey: ['help', 'version'], queryFn: () => services.version.version().catch(() => ({Platform: ''}))})
 };
