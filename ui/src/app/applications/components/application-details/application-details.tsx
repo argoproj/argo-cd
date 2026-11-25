@@ -934,6 +934,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             appName={props.match.params.name}
                                                             objectListKind={objectListKind}
                                                             application={isApplication ? (application as appModels.Application) : undefined}
+                                                            appLabelKey={appLabelKey}
+                                                            trackingMethod={trackingMethod}
                                                         />
                                                     )
                                                 }

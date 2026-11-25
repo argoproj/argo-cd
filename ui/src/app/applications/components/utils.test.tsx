@@ -20,6 +20,7 @@ import {
     getAppHydratorSyncSource,
     getAppOfAppsParentRef,
     getApplicationParentRef,
+    getSiblingApplications,
     getApplicationDetailsContainerClass,
     hydrationStatusMessage,
     getAppOperationState,
@@ -1307,6 +1308,55 @@ describe('getApplicationParentRef', () => {
             }
         } as any;
         expect(getApplicationParentRef(appSet)).toEqual({name: 'parent-app', kind: 'Application'});
+    });
+});
+
+describe('getSiblingApplications', () => {
+    const appSetChild = (name: string, appSet = 'my-appset', namespace = 'argocd') =>
+        ({metadata: {name, namespace, ownerReferences: [{kind: 'ApplicationSet', name: appSet}]}}) as unknown as Application;
+    const appOfAppsChild = (name: string, instance: string, namespace = 'argocd') =>
+        ({metadata: {name, namespace, annotations: {'argocd.argoproj.io/tracking-id': `${instance}:argoproj.io/Application:${namespace}/${name}`}}}) as unknown as Application;
+
+    it('returns apps owned by the same ApplicationSet', () => {
+        const current = appSetChild('a');
+        const apps = [current, appSetChild('b'), appSetChild('c', 'other-appset'), appSetChild('d', 'my-appset', 'other-ns')];
+        const result = getSiblingApplications(current, apps);
+        expect(result.parent).toEqual({name: 'my-appset', namespace: 'argocd', kind: 'ApplicationSet'});
+        expect(result.siblings.map(a => a.metadata.name)).toEqual(['a', 'b']);
+    });
+
+    it('returns apps with the same app-of-apps parent', () => {
+        const current = appOfAppsChild('a', 'parent');
+        const apps = [current, appOfAppsChild('b', 'parent'), appOfAppsChild('c', 'other-parent')];
+        const result = getSiblingApplications(current, apps);
+        expect(result.parent).toEqual({name: 'parent', kind: 'Application'});
+        expect(result.siblings.map(a => a.metadata.name)).toEqual(['a', 'b']);
+    });
+
+    it('distinguishes app-of-apps parents by encoded namespace', () => {
+        const current = appOfAppsChild('a', 'ns1_parent');
+        const apps = [current, appOfAppsChild('b', 'ns1_parent'), appOfAppsChild('c', 'ns2_parent'), appOfAppsChild('d', 'parent')];
+        expect(getSiblingApplications(current, apps).siblings.map(a => a.metadata.name)).toEqual(['a', 'b']);
+    });
+
+    it('uses the instance label when the tracking method is label', () => {
+        const withLabel = (name: string, instance: string) => ({metadata: {name, namespace: 'argocd', labels: {'app.kubernetes.io/instance': instance}}}) as unknown as Application;
+        const current = withLabel('a', 'parent');
+        const apps = [current, withLabel('b', 'parent'), withLabel('c', 'other')];
+        expect(getSiblingApplications(current, apps, undefined, 'label').siblings.map(a => a.metadata.name)).toEqual(['a', 'b']);
+    });
+
+    it('gives ApplicationSet ownership precedence over app-of-apps tracking', () => {
+        const current = {
+            metadata: {...appSetChild('a').metadata, annotations: {'argocd.argoproj.io/tracking-id': 'parent:argoproj.io/Application:argocd/a'}}
+        } as unknown as Application;
+        const apps = [current, appSetChild('b'), appOfAppsChild('c', 'parent')];
+        expect(getSiblingApplications(current, apps).siblings.map(a => a.metadata.name)).toEqual(['a', 'b']);
+    });
+
+    it('returns null when the app has no parent', () => {
+        const current = {metadata: {name: 'a', namespace: 'argocd'}} as Application;
+        expect(getSiblingApplications(current, [current, appSetChild('b')])).toBeNull();
     });
 });
 

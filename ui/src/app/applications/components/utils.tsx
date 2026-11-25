@@ -1398,6 +1398,25 @@ export function getApplicationParentRef(
     return null;
 }
 
+// getSiblingApplications returns the applications from `apps` that share the same parent (ApplicationSet or
+// app-of-apps parent Application) as `application`, including `application` itself when it is listed.
+export function getSiblingApplications(
+    application: appModels.Application,
+    apps: appModels.Application[],
+    appLabelKey?: string,
+    trackingMethod?: string
+): {parent: NonNullable<ReturnType<typeof getApplicationParentRef>>; siblings: appModels.Application[]} | null {
+    const parent = getApplicationParentRef(application, appLabelKey, trackingMethod);
+    if (!parent) {
+        return null;
+    }
+    const siblings = apps.filter(app => {
+        const ref = getApplicationParentRef(app, appLabelKey, trackingMethod);
+        return ref?.kind === parent.kind && ref.name === parent.name && (ref.namespace ?? '') === (parent.namespace ?? '');
+    });
+    return {parent, siblings};
+}
+
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     // ApplicationSets don't have overrides
     if (!isApp(app)) {
