@@ -397,13 +397,15 @@ func (repo *Repository) StringForLogging() string {
 }
 
 // Sanitized returns a copy of the Repository with sensitive information removed.
+// Insecure flags are kept separate so clients can send them back unchanged on update.
 func (repo *Repository) Sanitized() *Repository {
 	return &Repository{
 		Repo:                          repo.Repo,
 		Type:                          repo.Type,
 		Name:                          repo.Name,
 		Username:                      repo.Username,
-		Insecure:                      repo.IsInsecure(),
+		Insecure:                      repo.Insecure || repo.InsecureIgnoreHostKey,
+		InsecureOCIForceHttp:          repo.InsecureOCIForceHttp,
 		EnableLFS:                     repo.EnableLFS,
 		EnableOCI:                     repo.EnableOCI,
 		Proxy:                         repo.Proxy,
