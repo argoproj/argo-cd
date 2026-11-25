@@ -362,7 +362,9 @@ export const ApplicationParameters = (props: {
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {({details, error}: SourceDetails, retry) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error, retry, editingSources.has(index))}
+                            {({details, error}: SourceDetails, retry) =>
+                                getEditablePanelForOneSource(details, index, app.spec.sources[index], error, retry, editingSources.has(index))
+                            }
                         </SourceDetailsLoader>
                     )}
                 </div>
