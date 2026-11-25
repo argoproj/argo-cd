@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 )
 
 // PushEventInfo is the provider-independent view of a push event that both the
@@ -112,6 +113,10 @@ func ParsePushEvent(payload any) *PushEventInfo {
 			info.ChangedFiles = append(info.ChangedFiles, commit.Modified...)
 			info.ChangedFiles = append(info.ChangedFiles, commit.Removed...)
 		}
+	case scmmanager.PushEventPayload:
+		info.WebURLs = []string{payload.Repository.SourceUrl}
+		info.Revision = payload.Branch.Name
+		info.TouchedHead = payload.Branch.DefaultBranch
 	default:
 		return nil
 	}

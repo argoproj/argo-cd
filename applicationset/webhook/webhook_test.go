@@ -233,6 +233,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from an SCM-Manager repository via pull request event",
+			headerKey:          "X-SCM-Event",
+			headerValue:        "PullRequest",
+			payloadFile:        "scm-manager-pull-request.json",
+			effectedAppSets:    []string{"scm-manager-pull-request", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook from GHCR via package published event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "package",
@@ -288,6 +297,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithScmManagerGenerator("scm-manager-pull-request", "scmadmin", "argocd-test", "https://scm-manager.org/scm/api/v2"),
 			).Build()
 			set := argosettings.NewSettingsManager(t.Context(), fakeClient, namespace)
 			h, err := NewWebhookHandler(webhookParallelism, set, fc, mockGenerators())
@@ -1015,6 +1025,36 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 			},
 		},
 	}
+}
+
+func fakeAppWithScmManagerGenerator(name, namespace, reponame, api string) *v1alpha1.ApplicationSet {
+	appSet := &v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								List: &v1alpha1.ListGenerator{},
+							},
+							{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									ScmManager: &v1alpha1.PullRequestGeneratorScmManager{
+										Namespace: namespace,
+										Name:      reponame,
+										API:       api,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	appSet.Name = name
+	appSet.Namespace = namespace
+	return appSet
 }
 
 func newFakeClient(ns string) *kubefake.Clientset {

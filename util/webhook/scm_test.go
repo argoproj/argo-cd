@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -63,6 +64,19 @@ func TestNewParsers(t *testing.T) {
 		// The request is unsigned, so it must be rejected once the Bitbucket Server secret is set.
 		_, err := parsers[0].Parse(req)
 		require.ErrorIs(t, err, bitbucketserver.ErrMissingHubSignatureHeader)
+	})
+	t.Run("registers SCM-Manager for configured events", func(t *testing.T) {
+		parsers := NewParsers(&settings.ArgoCDSettings{}, ParserOptions{
+			SCMManagerEvents: []scmmanager.Event{scmmanager.PushEvent},
+		})
+		require.Len(t, parsers, 1)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{"repository":{"sourceUrl":"https://scm.example/org/repo"},"branch":{"name":"main","defaultBranch":true}}`))
+		req.Header.Set("X-SCM-Event", string(scmmanager.PushEvent))
+		require.True(t, parsers[0].CanHandle(req))
+		payload, err := parsers[0].Parse(req)
+		require.NoError(t, err)
+		assert.IsType(t, scmmanager.PushEventPayload{}, payload)
 	})
 }
 
@@ -194,6 +208,22 @@ func TestHandleRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandleRequestRejectsInvalidSCMManagerSignature(t *testing.T) {
+	parsers := NewParsers(&settings.ArgoCDSettings{WebhookScmmSecret: "secret"}, ParserOptions{
+		SCMManagerEvents: []scmmanager.Event{scmmanager.PushEvent},
+	})
+	queue := make(chan any, 1)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{}`))
+	req.Header.Set("X-SCM-Event", string(scmmanager.PushEvent))
+	req.Header.Set("X-SCM-Signature", "sha1=invalid")
+	w := httptest.NewRecorder()
+
+	HandleRequest(w, req, parsers, 1024, queue)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Empty(t, queue)
 }
 
 func TestStartWorkers(t *testing.T) {

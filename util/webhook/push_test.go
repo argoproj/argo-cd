@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,6 +138,18 @@ func TestParsePushEvent(t *testing.T) {
 				SHAAfter:     "0a05129851238652bf806a400af89fa974ade739",
 				TouchedHead:  true,
 				ChangedFiles: []string{"cm.yaml"},
+			},
+		},
+		{
+			name: "SCM-Manager push",
+			payload: scmmanager.PushEventPayload{
+				Repository: scmmanager.Repository{SourceUrl: "https://scm.example/org/repo"},
+				Branch:     scmmanager.Branch{Name: "main", DefaultBranch: true},
+			},
+			want: &PushEventInfo{
+				WebURLs:     []string{"https://scm.example/org/repo"},
+				Revision:    "main",
+				TouchedHead: true,
 			},
 		},
 		{

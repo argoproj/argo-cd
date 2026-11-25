@@ -407,6 +407,51 @@ All AWS roles must have repo discovery related permissions.
 * `codecommit:GetFolder`
 * `codecommit:ListBranches`
 
+## SCM-Manager
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - scmProvider:
+      cloneProtocol: https
+      scmManager:
+        # The SCM-Manager server url
+        api: https://scm-manager.org/scm
+        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        allBranches: true
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: scmm-token
+          key: token
+  template:
+    metadata:
+      name: '{{.repository}}-{{.branchNormalized}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{.url}}'
+        targetRevision: '{{.sha}}'
+        path: manifests
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+* `api`: The URL of the SCM-Manager instance you are using.
+* `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
+* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token. If omitted, Argo CD uses `SCMM_TOKEN` when set. Anonymous requests can only access public repositories.
+* `insecure`: Allow for self-signed TLS certificates.
+
+SCM-Manager SCM provider does not yet support label filtering.
+
+Available clone protocols are `ssh` and `https`. For SSH access the SSH plugin must be installed on your SCM-Manager server.
+
 ## Filters
 
 Filters allow selecting which repositories to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all repositories will be processed.

@@ -91,6 +91,7 @@ require (
 	github.com/r3labs/diff/v3 v3.0.2
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
+	github.com/scm-manager/goscm v0.0.9
 	github.com/sirupsen/logrus v1.10.2
 	github.com/skeema/knownhosts v1.3.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
