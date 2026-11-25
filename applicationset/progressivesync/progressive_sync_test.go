@@ -2608,7 +2608,8 @@ func TestResolveMaxUpdate(t *testing.T) {
 	}{
 		{"zero percent admits none", intstrPtr(intstr.FromString("0%")), 10, 0, true},
 		{"double-zero percent admits none", intstrPtr(intstr.FromString("00%")), 10, 0, true},
-		{"fractional percent admits none", intstrPtr(intstr.FromString("0.5%")), 10, 0, true},
+		{"fractional percent admits one", intstrPtr(intstr.FromString("0.5%")), 10, 1, true},
+		{"quoted integer admits one", intstrPtr(intstr.FromString("2")), 10, 1, true},
 		{"one percent admits one", intstrPtr(intstr.FromString("1%")), 10, 1, true},
 		{"fifty percent scales", intstrPtr(intstr.FromString("50%")), 10, 5, true},
 		{"zero count admits none", intstrPtr(intstr.FromInt(0)), 10, 0, true},

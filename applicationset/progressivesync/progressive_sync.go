@@ -452,14 +452,20 @@ func (m *Manager) resolveMaxUpdate(statusLogCtx *log.Entry, applicationSet *argo
 				})
 			}
 		}
+
+		// A value that failed to parse (for example "0.5%" or a quoted
+		// "2") still admits one application at a time: resolving it to
+		// zero would leave every application in the step that needs a
+		// sync stuck forever, and the docs promise values above 0% are
+		// floored at one application. The misconfiguration stays
+		// visible through the validation issue recorded above.
+		return 1, true
 	}
 
 	// ensure that percentage values greater than 0% always result in at least 1 Application being selected.
 	// Compare the parsed percentage, not its spelling: "00%" parses to zero
-	// just like "0%" and must not gain the one-slot minimum. A value that
-	// failed to parse at all (for example "0.5%") keeps the zero limit from
-	// the error path above instead of gaining a slot here.
-	if err == nil && maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
+	// just like "0%" and must not gain the one-slot minimum.
+	if maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
 		if percent, err := strconv.ParseFloat(strings.TrimSuffix(maxUpdate.StrVal, "%"), 64); err == nil && percent > 0 {
 			maxUpdateVal = 1
 		}
