@@ -361,7 +361,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 		{
 			name:                       "GetBranches when no branches returned returns error",
 			allBranches:                true,
-			expectedProcessingErrorMsg: "empty branch result",
+			expectedProcessingErrorMsg: "the Azure DevOps API returned no branches",
 		},
 		{
 			name:        "GetBranches when git client retrievel fails returns error",
@@ -396,6 +396,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 
 			if testCase.expectedProcessingErrorMsg != "" {
 				require.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
+				assert.NotContains(t, err.Error(), "%!w")
 				assert.Nil(t, branches)
 
 				return
