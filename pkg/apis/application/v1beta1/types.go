@@ -101,6 +101,8 @@ type SyncPolicy struct {
 	Retry *v1alpha1.RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *v1alpha1.ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// ManualDefaults controls the default behavior of a manual sync
+	ManualDefaults *v1alpha1.SyncPolicyManualDefaults `json:"manualDefaults,omitempty" protobuf:"bytes,5,opt,name=manualDefaults"`
 }
 
 // SyncOptions provides structured sync options for an application.

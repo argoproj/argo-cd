@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -254,6 +255,41 @@ func TestConvertSyncOptions_AllFields(t *testing.T) {
 	assert.Contains(t, stringOpts, "RespectIgnoreDifferences=true")
 	assert.Contains(t, stringOpts, "FailOnSharedResource=true")
 	assert.Contains(t, stringOpts, "ClientSideApplyMigration=true")
+}
+
+func TestConvertRoundTrip_SyncPolicyManualDefaults(t *testing.T) {
+	manualDefaults := &v1alpha1.SyncPolicyManualDefaults{
+		Prune:     new(true),
+		DryRun:    new(true),
+		ApplyOnly: new(false),
+		Force:     new(true),
+	}
+	src := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Sources:    v1alpha1.ApplicationSources{{RepoURL: "https://github.com/example/repo"}},
+			SyncPolicy: &v1alpha1.SyncPolicy{ManualDefaults: manualDefaults},
+		},
+	}
+
+	beta := ConvertFromV1alpha1(src)
+	require.NotNil(t, beta.Spec.SyncPolicy)
+	assert.Equal(t, manualDefaults, beta.Spec.SyncPolicy.ManualDefaults)
+
+	back := ConvertToV1alpha1(beta)
+	require.NotNil(t, back.Spec.SyncPolicy)
+	assert.Equal(t, manualDefaults, back.Spec.SyncPolicy.ManualDefaults)
+}
+
+// v1beta1.SyncPolicy is a copy of the v1alpha1 struct, so a field added to v1alpha1 is
+// silently dropped on conversion unless it is mirrored here (as manualDefaults was).
+func TestSyncPolicy_FieldParityWithV1alpha1(t *testing.T) {
+	betaFields := map[string]bool{}
+	for f := range reflect.TypeFor[SyncPolicy]().Fields() {
+		betaFields[f.Name] = true
+	}
+	for f := range reflect.TypeFor[v1alpha1.SyncPolicy]().Fields() {
+		assert.True(t, betaFields[f.Name], "v1alpha1.SyncPolicy.%s has no v1beta1 counterpart; add it to v1beta1.SyncPolicy and the conversion functions", f.Name)
+	}
 }
 
 func TestConvertSyncOptions_ValidateTrueRoundTrip(t *testing.T) {

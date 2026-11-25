@@ -134,6 +134,7 @@ func convertSyncPolicyFromV1alpha1(src *v1alpha1.SyncPolicy) *SyncPolicy {
 		Automated:                src.Automated,
 		Retry:                    src.Retry,
 		ManagedNamespaceMetadata: src.ManagedNamespaceMetadata,
+		ManualDefaults:           src.ManualDefaults,
 	}
 
 	// Convert []string SyncOptions to structured SyncOptions
@@ -359,6 +360,7 @@ func convertSyncPolicyToV1alpha1(src *SyncPolicy) *v1alpha1.SyncPolicy {
 		Automated:                src.Automated,
 		Retry:                    src.Retry,
 		ManagedNamespaceMetadata: src.ManagedNamespaceMetadata,
+		ManualDefaults:           src.ManualDefaults,
 	}
 
 	// Convert structured SyncOptions back to []string

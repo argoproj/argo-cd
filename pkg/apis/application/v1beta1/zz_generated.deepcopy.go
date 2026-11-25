@@ -310,6 +310,11 @@ func (in *SyncPolicy) DeepCopyInto(out *SyncPolicy) {
 		*out = new(v1alpha1.ManagedNamespaceMetadata)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ManualDefaults != nil {
+		in, out := &in.ManualDefaults, &out.ManualDefaults
+		*out = new(v1alpha1.SyncPolicyManualDefaults)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

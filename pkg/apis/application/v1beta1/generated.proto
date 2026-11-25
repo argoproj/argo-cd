@@ -183,5 +183,8 @@ message SyncPolicy {
 
   // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
   optional .github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ManagedNamespaceMetadata managedNamespaceMetadata = 4;
+
+  // ManualDefaults controls the default behavior of a manual sync
+  optional .github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncPolicyManualDefaults manualDefaults = 5;
 }
 
