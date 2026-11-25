@@ -1,0 +1,37 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  labels:
+    app: myroute
+  name: myroute
+  namespace: development
+spec:
+  host: >-
+    myroute-development.apps.example.com
+  to:
+    kind: Service
+    name: svc
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+status:
+  ingress:
+    - host: >-
+        myroute-development.apps.example.com
+      routerName: default
+      conditions:
+        - type: Admitted
+          status: 'True'
+          lastTransitionTime: '2022-07-15T09:54:54Z'
+        - type: Admitted
+          status: 'True'
+          reason: ClaimedInInfoblox
+          message: >-
+            myroute-development.apps.example.com
+            successfully claimed in Infoblox
+      wildcardPolicy: None
+      routerCanonicalHostname: router-default.apps.example.com
