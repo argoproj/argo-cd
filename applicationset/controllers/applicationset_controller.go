@@ -497,10 +497,6 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 	return parametersGeneratedCondition
 }
 
-// setApplicationSetStatusCondition records the given conditions on the ApplicationSet.
-// observedGeneration is the generation the caller reconciled against and is recorded on every
-// condition this call derives. The change is written to the API server when the reconciliation
-// flushes w.
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool, observedGeneration int64, w progressivesync.ApplicationSetWriter) {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
@@ -585,7 +581,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(applicationS
 
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
-func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSet argov1alpha1.ApplicationSet) (map[string]error, error) {
+func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[string]error, error) {
 	errorsByApp := map[string]error{}
 	namesSet := map[string]bool{}
 	for i := range desiredApplications {
@@ -595,11 +591,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		// assign a random name that subsequent reconciles could never match back to the desired app.
 		// A missing name commonly happens when the name is only set via a templatePatch that renders empty.
 		if app.Name == "" {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSet.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSetInfo.Name)
 			continue
 		}
 		if namesSet[app.Name] {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSet.Name, app.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
 		namesSet[app.Name] = true
@@ -622,9 +618,9 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	return errorsByApp, nil
 }
 
-func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSet *argov1alpha1.ApplicationSet) time.Duration {
+func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
 	var res time.Duration
-	for _, requestedGenerator := range applicationSet.Spec.Generators {
+	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
 		relevantGenerators := generators.GetRelevantGenerators(&requestedGenerator, r.Generators)
 
 		for _, g := range relevantGenerators {
@@ -636,8 +632,8 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSet *argov1alph
 		}
 	}
 
-	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSet) {
-		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSet); latest != nil {
+	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSetInfo) {
+		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSetInfo); latest != nil {
 			remaining := time.Duration(r.RefreshGracePeriodSeconds)*time.Second - time.Since(latest.Time)
 			if remaining <= 0 {
 				remaining = time.Second // grace period already elapsed; force a near-immediate recheck rather than falling through to no-requeue
