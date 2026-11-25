@@ -181,6 +181,10 @@
 
     .chart {
         justify-content: space-evenly;
+
+        svg {
+            overflow: visible;
+        }
     }
 }
 i.menu_icon {
