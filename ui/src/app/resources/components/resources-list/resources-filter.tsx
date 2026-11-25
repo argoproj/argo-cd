@@ -85,7 +85,7 @@ const optionsFrom = (options: string[], filter: string[]) => {
 interface ResourcesFilterProps {
     apps: FilteredResource[];
     pref: ResourcesListPreferences;
-    onChange: (newPrefs: ResourcesListPreferences) => void;
+    onChange: (newPrefs: ResourcesListPreferences, clearAll?: boolean) => void;
     children?: React.ReactNode;
     collapsed?: boolean;
 }
@@ -251,7 +251,7 @@ export const ResourcesFilter = (props: ResourcesFilterProps) => {
     const onClearFilter = () => {
         const newPref: ResourcesListPreferences = {...props.pref};
         ResourcesListPreferences.clearFilters(newPref);
-        props.onChange(newPref);
+        props.onChange(newPref, true);
     };
 
     return (
