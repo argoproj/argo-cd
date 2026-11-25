@@ -1,0 +1,150 @@
+# Same as rollout-podspec-openapi-v2.yaml but WITHOUT the legacy
+# x-kubernetes-patch-strategy / x-kubernetes-patch-merge-key extensions on
+# containers and initContainers. This matches the real Argo Rollouts CRD (and
+# CRDs in general): they declare x-kubernetes-list-type: map with
+# x-kubernetes-list-map-keys, which strategicpatch.NewPatchMetaFromOpenAPI does
+# not read, so the strategic-merge path treats these lists as atomic.
+# See https://github.com/argoproj/argo-cd/issues/23283#issuecomment-5758898568 and
+# the following comments for the discussion of why Rollouts cannot add them.
+# Minimal OpenAPI v2 document for argoproj.io/v1alpha1 Rollout, limited to the
+# pod-template fields exercised by the RespectIgnoreDifferences semantics tests.
+# The x-kubernetes-* extensions mirror what the API server publishes for the
+# real Rollout CRD, which embeds the core PodTemplateSpec schema:
+#   - containers/initContainers: list-type map keyed by name, which the
+#     apiextensions OpenAPI v2 publisher also exposes as patch-strategy merge
+#   - tolerations: atomic list
+#   - nodeSelector, selector.matchLabels: atomic maps
+swagger: "2.0"
+info:
+  title: Rollout
+  version: v1alpha1
+paths: {}
+definitions:
+  io.argoproj.v1alpha1.Rollout:
+    type: object
+    x-kubernetes-group-version-kind:
+      - group: argoproj.io
+        version: v1alpha1
+        kind: Rollout
+    properties:
+      apiVersion:
+        type: string
+      kind:
+        type: string
+      metadata:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+      spec:
+        type: object
+        properties:
+          replicas:
+            type: integer
+          selector:
+            type: object
+            properties:
+              matchLabels:
+                type: object
+                additionalProperties:
+                  type: string
+                x-kubernetes-map-type: atomic
+          template:
+            type: object
+            properties:
+              metadata:
+                type: object
+                properties:
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
+              spec:
+                type: object
+                properties:
+                  nodeSelector:
+                    type: object
+                    additionalProperties:
+                      type: string
+                    x-kubernetes-map-type: atomic
+                  tolerations:
+                    type: array
+                    x-kubernetes-list-type: atomic
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        value:
+                          type: string
+                        effect:
+                          type: string
+                  initContainers:
+                    type: array
+                    x-kubernetes-list-type: map
+                    x-kubernetes-list-map-keys:
+                      - name
+                    items:
+                      $ref: "#/definitions/io.argoproj.v1alpha1.Container"
+                  containers:
+                    type: array
+                    x-kubernetes-list-type: map
+                    x-kubernetes-list-map-keys:
+                      - name
+                    items:
+                      $ref: "#/definitions/io.argoproj.v1alpha1.Container"
+      status:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+  io.argoproj.v1alpha1.Container:
+    type: object
+    properties:
+      name:
+        type: string
+      image:
+        type: string
+      imagePullPolicy:
+        type: string
+      ports:
+        type: array
+        x-kubernetes-list-type: map
+        x-kubernetes-list-map-keys:
+          - containerPort
+          - protocol
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            containerPort:
+              type: integer
+            protocol:
+              type: string
+      env:
+        type: array
+        x-kubernetes-list-type: map
+        x-kubernetes-list-map-keys:
+          - name
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+      args:
+        type: array
+        x-kubernetes-list-type: atomic
+        items:
+          type: string
+      resources:
+        type: object
+        properties:
+          limits:
+            type: object
+            additionalProperties:
+              type: string
+          requests:
+            type: object
+            additionalProperties:
+              type: string

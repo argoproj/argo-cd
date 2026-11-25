@@ -17,6 +17,9 @@ It is possible for an application to be `OutOfSync` even immediately after a suc
 In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.
 
+For rules that handle common situations, such as fields set by an HPA, injected sidecars or webhook certificates, and
+for the mistakes that make a rule do nothing, see [Common Cases and Pitfalls](ignore-differences-recipes.md).
+
 ## Application Level Configuration
 
 Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](<https://stedolan.github.io/jq/manual/#path(path_expression)>). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
