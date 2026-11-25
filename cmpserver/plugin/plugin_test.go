@@ -384,6 +384,26 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	assert.Less(t, after.Sub(before), 2*time.Second)
 }
 
+func TestRunCommand_execTimeoutStopsLongCommand(t *testing.T) {
+	old := pluginExecTimeout
+	pluginExecTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { pluginExecTimeout = old })
+
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, err := runCommand(t.Context(), Command{Command: []string{"sleep", "30"}}, "", nil)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		require.Less(t, time.Since(start), 4*time.Second)
+	case <-time.After(4 * time.Second):
+		t.Fatal("plugin command ignored ARGOCD_EXEC_TIMEOUT")
+	}
+}
+
 func TestRunCommandEmptyCommand(t *testing.T) {
 	t.Parallel()
 	_, err := runCommand(t.Context(), Command{}, "", nil)
