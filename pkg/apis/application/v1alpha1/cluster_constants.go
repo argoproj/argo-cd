@@ -14,6 +14,7 @@ const (
 	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
 
 	// EnvK8sClientQPS is the QPS value used for the kubernetes client (default: 50)
+	// Set to -1 to disable client-side rate limiting and rely on API Priority and Fairness
 	EnvK8sClientQPS = "ARGOCD_K8S_CLIENT_QPS"
 
 	// EnvK8sClientBurst is the burst value used for the kubernetes client (default: twice the client QPS)
@@ -42,10 +43,12 @@ const (
 var (
 
 	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs
-	K8sClientConfigQPS float32 = env.ParseFloatFromEnv(EnvK8sClientQPS, 50, 0, math.MaxFloat32)
+	// A negative value (-1) disables client-side rate limiting: client-go only creates
+	// a token bucket rate limiter when QPS > 0
+	K8sClientConfigQPS float32 = k8sClientQPSFromEnv()
 
 	// K8sClientConfigBurst controls the burst to be used in K8s REST client configs
-	K8sClientConfigBurst int = env.ParseNumFromEnv(EnvK8sClientBurst, int(2*K8sClientConfigQPS), 0, math.MaxInt32)
+	K8sClientConfigBurst int = k8sClientBurstFromEnv(K8sClientConfigQPS)
 
 	// K8sMaxIdleConnections controls the number of max idle connections in K8s REST client HTTP transport
 	K8sMaxIdleConnections = env.ParseNumFromEnv(EnvK8sClientMaxIdleConnections, 500, 0, math.MaxInt32)
@@ -65,3 +68,19 @@ var (
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
 	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sServerSideTimeout, 0, 0, math.MaxInt32*time.Second)
 )
+
+// k8sClientQPSFromEnv reads EnvK8sClientQPS. Values from -1 upwards are accepted; -1 disables
+// client-side rate limiting. 0 is still passed through and results in client-go's own default
+func k8sClientQPSFromEnv() float32 {
+	return env.ParseFloatFromEnv(EnvK8sClientQPS, 50, -1, math.MaxFloat32)
+}
+
+// k8sClientBurstFromEnv reads EnvK8sClientBurst, defaulting to twice the QPS. When client-side
+// rate limiting is disabled (negative QPS) burst is unused, so it defaults to 0
+func k8sClientBurstFromEnv(qps float32) int {
+	defaultBurst := 0
+	if qps > 0 {
+		defaultBurst = int(2 * qps)
+	}
+	return env.ParseNumFromEnv(EnvK8sClientBurst, defaultBurst, 0, math.MaxInt32)
+}
