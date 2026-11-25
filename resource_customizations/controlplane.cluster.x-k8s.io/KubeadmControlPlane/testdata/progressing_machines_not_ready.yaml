@@ -1,0 +1,25 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: test-kcp
+  namespace: default
+spec:
+  replicas: 3
+status:
+  replicas: 3
+  updatedReplicas: 3
+  readyReplicas: 2
+  v1beta2:
+    conditions:
+    - type: MachinesReady
+      status: "False"
+      reason: MachinesNotReady
+    - type: MachinesUpToDate
+      status: "True"
+    - type: RollingOut
+      status: "False"
+  conditions:
+  - type: ControlPlaneComponentsHealthy
+    status: "True"
+  - type: EtcdClusterHealthy
+    status: "True"
