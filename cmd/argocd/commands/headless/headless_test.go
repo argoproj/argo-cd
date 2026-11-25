@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 )
@@ -84,7 +85,7 @@ users:
 
 		clientConfig := newClientConfig(&clientcmd.ConfigOverrides{
 			CurrentContext: "target-context",
-		}, "")
+		})
 		require.NotNil(t, clientConfig)
 
 		restConfig, err := clientConfig.ClientConfig()
@@ -96,44 +97,25 @@ users:
 		require.NoError(t, err)
 		assert.Equal(t, "target-ns", namespace)
 	})
+}
 
-	t.Run("namespace argument overrides the kube context namespace", func(t *testing.T) {
-		tempDir := t.TempDir()
-		kubeconfigPath := filepath.Join(tempDir, "kubeconfig")
-		kubeconfigContent := `
-apiVersion: v1
-kind: Config
-clusters:
-- name: current-cluster
-  cluster:
-    server: https://current.example.com
-contexts:
-- name: current-context
-  context:
-    cluster: current-cluster
-    user: current-user
-    namespace: current-ns
-current-context: current-context
-users:
-- name: current-user
-  user:
-    token: current-token
-`
-		require.NoError(t, os.WriteFile(kubeconfigPath, []byte(kubeconfigContent), 0o600))
-		t.Setenv("KUBECONFIG", kubeconfigPath)
+func TestResolveNamespace(t *testing.T) {
+	clientConfig := clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
+		Clusters:       map[string]*clientcmdapi.Cluster{"current-cluster": {Server: "https://current.example.com"}},
+		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"current-user": {Token: "current-token"}},
+		Contexts:       map[string]*clientcmdapi.Context{"current-context": {Cluster: "current-cluster", AuthInfo: "current-user", Namespace: "current-ns"}},
+		CurrentContext: "current-context",
+	}, &clientcmd.ConfigOverrides{})
 
-		overrides := &clientcmd.ConfigOverrides{}
-		namespace, _, err := newClientConfig(overrides, "argocd-ns").Namespace()
+	t.Run("core namespace overrides the kube context namespace", func(t *testing.T) {
+		namespace, err := resolveNamespace(clientConfig, "argocd-ns")
 		require.NoError(t, err)
 		assert.Equal(t, "argocd-ns", namespace)
-		assert.Empty(t, overrides.Context.Namespace)
+	})
 
-		namespace, _, err = newClientConfig(overrides, "").Namespace()
+	t.Run("kube context namespace is used when core namespace is empty", func(t *testing.T) {
+		namespace, err := resolveNamespace(clientConfig, "")
 		require.NoError(t, err)
 		assert.Equal(t, "current-ns", namespace)
-
-		namespace, _, err = newClientConfig(nil, "argocd-ns").Namespace()
-		require.NoError(t, err)
-		assert.Equal(t, "argocd-ns", namespace)
 	})
 }

@@ -179,7 +179,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 // not start the local server.
 func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error) {
 	if clientConfig == nil {
-		clientConfig = newClientConfig(clientOpts.KubeOverrides, clientOpts.CoreNamespace)
+		clientConfig = newClientConfig(clientOpts.KubeOverrides)
 	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
@@ -256,7 +256,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	controllerClientset = client.NewDryRunClient(controllerClientset)
 
-	namespace, _, err := clientConfig.Namespace()
+	namespace, err := resolveNamespace(clientConfig, clientOpts.CoreNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting namespace: %w", err)
 	}
@@ -334,16 +334,13 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 }
 
 // newClientConfig creates a new clientcmd.ClientConfig based on the provided overrides.
-func newClientConfig(overrides *clientcmd.ConfigOverrides, namespace string) clientcmd.ClientConfig {
+func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 
 	configOverrides := clientcmd.ConfigOverrides{}
 	if overrides != nil {
 		configOverrides = *overrides
-	}
-	if namespace != "" {
-		configOverrides.Context.Namespace = namespace
 	}
 
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(
@@ -374,4 +371,12 @@ func resolveAndApplyKubeContext(opts *apiclient.ClientOptions, c *cobra.Command)
 	}
 
 	return ""
+}
+
+func resolveNamespace(clientConfig clientcmd.ClientConfig, coreNamespace string) (string, error) {
+	if coreNamespace != "" {
+		return coreNamespace, nil
+	}
+	namespace, _, err := clientConfig.Namespace()
+	return namespace, err
 }

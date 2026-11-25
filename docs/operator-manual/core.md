@@ -104,7 +104,8 @@ export ARGOCD_OPTS="--core-namespace argocd"
 
 > [!NOTE]
 > The `--core-namespace` flag sets the namespace where Argo CD is installed. It is not the namespace of the
-> `Application`, which is set with `-N`/`--app-namespace`.
+> `Application`, which is set with `-N`/`--app-namespace`. The `argocd admin` commands that read from the cluster,
+> except `argocd admin dashboard`, ignore it and use their own `-n`/`--namespace` flag instead.
 
 Similarly, users can also run the Web UI locally if they prefer to
 interact with Argo CD using this method. The Web UI can be started
