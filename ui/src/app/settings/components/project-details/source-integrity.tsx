@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {EditablePanel} from '../../../shared/components';
 import {helpTip} from '../../../applications/components/utils';
-import {Project, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
+import {Project, ProjectSignatureKey, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
 import {AutocompleteField, FormApi, FormField} from 'argo-ui';
 import {useQuery} from '@tanstack/react-query';
 import {gpgkeyQueries} from '../../../shared/queries';
@@ -56,15 +56,18 @@ const SourceIntegrityPanel = ({proj}: {proj: Project}) => (
     <EditablePanel
         values={proj}
         title={<React.Fragment>SOURCE INTEGRITY {helpTip('Verification criteria that application sources must meet before they can be synced and applied.')}</React.Fragment>}
-        view={<SourceIntegrityContent sourceIntegrity={proj.spec.sourceIntegrity} />}
+        view={<SourceIntegrityContent sourceIntegrity={proj.spec.sourceIntegrity} signatureKeys={proj.spec.signatureKeys} />}
         items={[]}
     />
 );
 
-const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSourceIntegrity}) => {
+const SourceIntegrityContent = ({sourceIntegrity, signatureKeys}: {sourceIntegrity?: ProjectSourceIntegrity; signatureKeys?: ProjectSignatureKey[]}) => {
     const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
 
     if (configuredSections.length === 0) {
+        if ((signatureKeys?.length ?? 0) > 0) {
+            return <p>No Source Integrity policies are configured. Legacy GPG signature keys below are still enforced.</p>;
+        }
         return <p>Source Integrity is not configured.</p>;
     }
 
