@@ -6,9 +6,9 @@ import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import List from 'react-virtualized/dist/commonjs/List';
 import WindowScroller from 'react-virtualized/dist/commonjs/WindowScroller';
 import type {ListRowProps} from 'react-virtualized';
-import {take} from 'rxjs/operators';
-import {ActionMenu, CellLink, Cluster, DataLoader} from '../../../shared/components';
-import {Consumer, Context, ContextApis} from '../../../shared/context';
+import {ActionMenu, CellLink, Cluster} from '../../../shared/components';
+import {Context, ContextApis} from '../../../shared/context';
+import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
@@ -37,24 +37,15 @@ import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-toolti
 import {RESOURCE_SORT_KEY_TO_TITLE, RESOURCE_SORT_TITLE_TO_KEY, RESOURCES_LIST_SORT_KEY, ResourceSortKey} from './resources-sort';
 
 function handleSort(ctx: ContextApis, key: ResourceSortKey) {
-    services.viewPreferences
-        .getPreferences()
-        .pipe(take(1))
-        .subscribe(pref => {
-            if (!pref.sortOptions) {
-                pref.sortOptions = {};
-            }
-            if (!pref.sortDirections) {
-                pref.sortDirections = {};
-            }
-            const title = RESOURCE_SORT_KEY_TO_TITLE[key];
-            const currentTitle = pref.sortOptions[RESOURCES_LIST_SORT_KEY] || 'Name';
-            const currentDir = pref.sortDirections[RESOURCES_LIST_SORT_KEY] || 'asc';
-            pref.sortOptions[RESOURCES_LIST_SORT_KEY] = title;
-            pref.sortDirections[RESOURCES_LIST_SORT_KEY] = currentTitle === title && currentDir === 'asc' ? 'desc' : 'asc';
-            services.viewPreferences.updatePreferences(pref);
-            ctx.navigation.goto('.', {page: 0}, {replace: true});
-        });
+    const {sortOptions, sortDirections} = services.viewPreferences.getCurrentPreferences();
+    const title = RESOURCE_SORT_KEY_TO_TITLE[key];
+    const currentTitle = sortOptions?.[RESOURCES_LIST_SORT_KEY] || 'Name';
+    const currentDir = sortDirections?.[RESOURCES_LIST_SORT_KEY] || 'asc';
+    services.viewPreferences.updatePreferences({
+        sortOptions: {...sortOptions, [RESOURCES_LIST_SORT_KEY]: title},
+        sortDirections: {...sortDirections, [RESOURCES_LIST_SORT_KEY]: currentTitle === title && currentDir === 'asc' ? 'desc' : 'asc'}
+    });
+    ctx.navigation.goto('.', {page: 0}, {replace: true});
 }
 
 function resourceRowKey(resource: models.Resource): string {
@@ -68,18 +59,21 @@ export const ResourcesTable = (props: {
     statusBarVisible?: boolean;
 }) => {
     const [selectedResource, navResource, reset] = useNav(props.resources.length);
-    const ctxh = React.useContext(Context);
+    const ctx = React.useContext(Context);
+    const sortTitle = useViewPreferences(pref => pref.sortOptions?.[RESOURCES_LIST_SORT_KEY] || 'Name');
+    const sortDirection = useViewPreferences(pref => pref.sortDirections?.[RESOURCES_LIST_SORT_KEY] || 'asc');
+    const activeSortKey = RESOURCE_SORT_TITLE_TO_KEY[sortTitle] || 'name';
     const listRef = React.useRef<List>(null);
     const windowScrollerRef = React.useRef<WindowScroller>(null);
     const shouldVirtualize = shouldUseVirtualScroll(props.useVirtualScrolling, props.resources.length);
 
     const {registerKeybinding} = React.useContext(KeybindingContext);
 
-    const getSortArrow = (activeKey: ResourceSortKey, direction: 'asc' | 'desc', key: ResourceSortKey) => {
-        if (activeKey !== key) {
+    const getSortArrow = (key: ResourceSortKey) => {
+        if (activeSortKey !== key) {
             return null;
         }
-        const isAsc = direction === 'asc';
+        const isAsc = sortDirection === 'asc';
         const style: React.CSSProperties = {
             position: 'relative',
             top: isAsc ? '2px' : '-2px'
@@ -108,7 +102,7 @@ export const ResourcesTable = (props: {
                 if (props.onOpenDetails) {
                     props.onOpenDetails(resource);
                 } else {
-                    openResourceDetails(ctxh, resource);
+                    openResourceDetails(ctx, resource);
                 }
                 return true;
             }
@@ -131,143 +125,125 @@ export const ResourcesTable = (props: {
     const layoutKey = React.useMemo(() => (shouldVirtualize ? resourcesLayoutKey(props.resources) : ''), [shouldVirtualize, props.resources]);
     useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!props.statusBarVisible}`);
 
-    const navigateToApplication = (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => {
-        navigateToManagingApplication(ctx, resource, e);
+    const renderRow = (resource: models.Resource, i: number) => {
+        const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
+        return (
+            <ResourceTableRow
+                key={resourceRowKey(resource)}
+                resource={resource}
+                groupKind={groupKind}
+                index={i}
+                selectedResource={selectedResource}
+                ctx={ctx}
+                navigateToApplication={navigateToManagingApplication}
+            />
+        );
     };
 
+    const tableHead = (
+        <div className='argo-table-list__head'>
+            <div className='row'>
+                <div
+                    className='columns small-1 large-2 resources-table__col-group-kind resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'group-kind')}
+                    style={{cursor: 'pointer'}}
+                    title='GROUP/KIND'>
+                    <span className='resources-table__head-text'>GROUP/KIND {getSortArrow('group-kind')}</span>
+                </div>
+                <div
+                    className='columns small-2 large-1 resources-table__col-namespace resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'namespace')}
+                    style={{cursor: 'pointer'}}
+                    title='NAMESPACE'>
+                    <span className='resources-table__head-text'>NAMESPACE {getSortArrow('namespace')}</span>
+                </div>
+                <div
+                    className='columns small-3 resources-table__col-name resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'name')}
+                    style={{cursor: 'pointer'}}
+                    title='NAME'>
+                    <span className='resources-table__head-text'>NAME {getSortArrow('name')}</span>
+                </div>
+                <div
+                    className='columns small-1 large-2 resources-table__col-cluster resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'cluster')}
+                    style={{cursor: 'pointer'}}
+                    title='CLUSTER'>
+                    <span className='resources-table__head-text'>CLUSTER {getSortArrow('cluster')}</span>
+                </div>
+                <div
+                    className='columns small-2 resources-table__col-application resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'application')}
+                    style={{cursor: 'pointer'}}
+                    title='Application (opens application page)'>
+                    <span className='resources-table__head-text resources-table__head-text--application'>
+                        <span className='resources-table__head-label'>APPLICATION</span>
+                        <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
+                        {getSortArrow('application')}
+                    </span>
+                </div>
+                <div
+                    className='columns small-3 large-2 resources-table__status-col resources-table__head-col'
+                    onClick={() => handleSort(ctx, 'status')}
+                    style={{cursor: 'pointer'}}
+                    title='STATUS'>
+                    <span className='resources-table__head-text'>STATUS {getSortArrow('status')}</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (shouldVirtualize) {
+        const rowRenderer = ({index, key, style}: ListRowProps) => {
+            const resource = props.resources[index];
+            if (!resource) {
+                return null;
+            }
+            return (
+                <div key={key} style={style} className='resources-table__virtual-row'>
+                    {renderRow(resource, index)}
+                </div>
+            );
+        };
+
+        return (
+            <div className='application-details resources-table'>
+                <div className='argo-table-list argo-table-list--clickable'>
+                    {tableHead}
+                    <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
+                        {({height, isScrolling, onChildScroll, scrollTop}) => (
+                            <AutoSizer disableHeight={true}>
+                                {({width}) => (
+                                    <List
+                                        ref={listRef}
+                                        autoHeight={true}
+                                        height={height}
+                                        width={width}
+                                        isScrolling={isScrolling}
+                                        onScroll={onChildScroll}
+                                        scrollTop={scrollTop}
+                                        rowCount={props.resources.length}
+                                        rowHeight={TABLE_ROW_HEIGHT}
+                                        rowRenderer={rowRenderer}
+                                        overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
+                                        overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
+                                    />
+                                )}
+                            </AutoSizer>
+                        )}
+                    </WindowScroller>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <Consumer>
-            {ctx => (
-                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {pref => {
-                        const sortTitle = pref.sortOptions?.[RESOURCES_LIST_SORT_KEY] || 'Name';
-                        const sortDirection = pref.sortDirections?.[RESOURCES_LIST_SORT_KEY] || 'asc';
-                        const activeSortKey = RESOURCE_SORT_TITLE_TO_KEY[sortTitle] || 'name';
-
-                        const renderRow = (resource: models.Resource, i: number) => {
-                            const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
-                            return (
-                                <ResourceTableRow
-                                    key={resourceRowKey(resource)}
-                                    resource={resource}
-                                    groupKind={groupKind}
-                                    index={i}
-                                    selectedResource={selectedResource}
-                                    ctx={ctx}
-                                    navigateToApplication={navigateToApplication}
-                                />
-                            );
-                        };
-
-                        const tableHead = (
-                            <div className='argo-table-list__head'>
-                                <div className='row'>
-                                    <div
-                                        className='columns small-1 large-2 resources-table__col-group-kind resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'group-kind')}
-                                        style={{cursor: 'pointer'}}
-                                        title='GROUP/KIND'>
-                                        <span className='resources-table__head-text'>GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}</span>
-                                    </div>
-                                    <div
-                                        className='columns small-2 large-1 resources-table__col-namespace resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'namespace')}
-                                        style={{cursor: 'pointer'}}
-                                        title='NAMESPACE'>
-                                        <span className='resources-table__head-text'>NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}</span>
-                                    </div>
-                                    <div
-                                        className='columns small-3 resources-table__col-name resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'name')}
-                                        style={{cursor: 'pointer'}}
-                                        title='NAME'>
-                                        <span className='resources-table__head-text'>NAME {getSortArrow(activeSortKey, sortDirection, 'name')}</span>
-                                    </div>
-                                    <div
-                                        className='columns small-1 large-2 resources-table__col-cluster resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'cluster')}
-                                        style={{cursor: 'pointer'}}
-                                        title='CLUSTER'>
-                                        <span className='resources-table__head-text'>CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}</span>
-                                    </div>
-                                    <div
-                                        className='columns small-2 resources-table__col-application resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'application')}
-                                        style={{cursor: 'pointer'}}
-                                        title='Application (opens application page)'>
-                                        <span className='resources-table__head-text resources-table__head-text--application'>
-                                            <span className='resources-table__head-label'>APPLICATION</span>
-                                            <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
-                                            {getSortArrow(activeSortKey, sortDirection, 'application')}
-                                        </span>
-                                    </div>
-                                    <div
-                                        className='columns small-3 large-2 resources-table__status-col resources-table__head-col'
-                                        onClick={() => handleSort(ctx, 'status')}
-                                        style={{cursor: 'pointer'}}
-                                        title='STATUS'>
-                                        <span className='resources-table__head-text'>STATUS {getSortArrow(activeSortKey, sortDirection, 'status')}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-
-                        if (shouldVirtualize) {
-                            const rowRenderer = ({index, key, style}: ListRowProps) => {
-                                const resource = props.resources[index];
-                                if (!resource) {
-                                    return null;
-                                }
-                                return (
-                                    <div key={key} style={style} className='resources-table__virtual-row'>
-                                        {renderRow(resource, index)}
-                                    </div>
-                                );
-                            };
-
-                            return (
-                                <div className='application-details resources-table'>
-                                    <div className='argo-table-list argo-table-list--clickable'>
-                                        {tableHead}
-                                        <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
-                                            {({height, isScrolling, onChildScroll, scrollTop}) => (
-                                                <AutoSizer disableHeight={true}>
-                                                    {({width}) => (
-                                                        <List
-                                                            ref={listRef}
-                                                            autoHeight={true}
-                                                            height={height}
-                                                            width={width}
-                                                            isScrolling={isScrolling}
-                                                            onScroll={onChildScroll}
-                                                            scrollTop={scrollTop}
-                                                            rowCount={props.resources.length}
-                                                            rowHeight={TABLE_ROW_HEIGHT}
-                                                            rowRenderer={rowRenderer}
-                                                            overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
-                                                            overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
-                                                        />
-                                                    )}
-                                                </AutoSizer>
-                                            )}
-                                        </WindowScroller>
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div className='application-details resources-table'>
-                                <div className='argo-table-list argo-table-list--clickable'>
-                                    {tableHead}
-                                    {props.resources.map((resource, i) => renderRow(resource, i))}
-                                </div>
-                            </div>
-                        );
-                    }}
-                </DataLoader>
-            )}
-        </Consumer>
+        <div className='application-details resources-table'>
+            <div className='argo-table-list argo-table-list--clickable'>
+                {tableHead}
+                {props.resources.map((resource, i) => renderRow(resource, i))}
+            </div>
+        </div>
     );
 };
 
