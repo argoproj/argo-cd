@@ -583,7 +583,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		updatedAppset := &argov1alpha1.ApplicationSet{}
 		if err := r.Get(ctx, types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}, updatedAppset); err != nil {
-			if client.IgnoreNotFound(err) != nil {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("error fetching updated application set: %w", err)
@@ -1098,7 +1098,7 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 			namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 			updatedAppset := &argov1alpha1.ApplicationSet{}
 			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
-				if client.IgnoreNotFound(err) != nil {
+				if apierrors.IsNotFound(err) {
 					return nil
 				}
 				return fmt.Errorf("error fetching updated application set: %w", err)
@@ -1144,7 +1144,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 		updatedAppset := &argov1alpha1.ApplicationSet{}
 		if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
-			if client.IgnoreNotFound(err) != nil {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			return fmt.Errorf("error fetching updated application set: %w", err)
@@ -1227,7 +1227,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			updatedAppset := &argov1alpha1.ApplicationSet{}
 			if err := r.Get(ctx, types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}, updatedAppset); err != nil {
-				if client.IgnoreNotFound(err) != nil {
+				if apierrors.IsNotFound(err) {
 					return nil
 				}
 				return fmt.Errorf("error fetching updated application set: %w", err)
