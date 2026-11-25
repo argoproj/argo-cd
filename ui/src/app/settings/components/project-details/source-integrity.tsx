@@ -74,6 +74,8 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
 const SIGNATURE_KEYS_DEPRECATION_MESSAGE = 'This feature is deprecated. Migrate to Source Integrity instead.';
 
 const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => {
+    const signatureKeysMessage = getSignatureKeysMessage(proj);
+
     return (
         <EditablePanel
             save={saveProject}
@@ -82,6 +84,7 @@ const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; savePr
             view={
                 <React.Fragment>
                     <p>{SIGNATURE_KEYS_DEPRECATION_MESSAGE}</p>
+                    {signatureKeysMessage && <p>{signatureKeysMessage}</p>}
                     {(proj.spec.signatureKeys?.length ?? 0) > 0 ? (
                         proj.spec.signatureKeys.map((key, i) => (
                             <div className='row white-box__details-row' key={i}>
@@ -93,17 +96,18 @@ const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; savePr
                     )}
                 </React.Fragment>
             }
-            edit={formApi => <SignatureKeysEdit formApi={formApi} />}
+            edit={formApi => <SignatureKeysEdit formApi={formApi} signatureKeysMessage={signatureKeysMessage} />}
             items={[]}
         />
     );
 };
 
-const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
+const SignatureKeysEdit = ({formApi, signatureKeysMessage}: {formApi: FormApi; signatureKeysMessage: React.ReactNode}) => {
     const {data: keys = []} = useQuery(gpgkeyQueries.list());
     return (
         <React.Fragment>
             <p>{SIGNATURE_KEYS_DEPRECATION_MESSAGE}</p>
+            {signatureKeysMessage && <p>{signatureKeysMessage}</p>}
             {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
                     <div className='columns small-12'>
@@ -125,6 +129,34 @@ const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
                 ADD KEY
             </button>
         </React.Fragment>
+    );
+};
+
+const SIGNATURE_KEYS_UPGRADE_GUIDE_URL = 'https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity-git-gpg/#upgrade-to-source-integrity-verification';
+
+const UpgradeGuideLink = () => (
+    <a target='_blank' rel='noopener noreferrer' href={SIGNATURE_KEYS_UPGRADE_GUIDE_URL}>
+        Upgrade to Source Integrity
+    </a>
+);
+
+const getSignatureKeysMessage = (proj: Project): React.ReactNode => {
+    if ((proj.spec.signatureKeys?.length ?? 0) === 0) {
+        return null;
+    }
+
+    if (proj.spec.sourceIntegrity?.git !== undefined) {
+        return (
+            <>
+                These keys are <strong>not used for sync</strong> because Source Integrity Git policies are configured. See <UpgradeGuideLink />.
+            </>
+        );
+    }
+
+    return (
+        <>
+            These keys are still enforced for all Git repositories, same as a Source Integrity Git policy in head mode. See <UpgradeGuideLink />.
+        </>
     );
 };
 

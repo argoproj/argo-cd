@@ -1,12 +1,13 @@
 import * as React from 'react';
 import {render, screen} from '@testing-library/react';
+import '@testing-library/jest-dom';
 
 jest.mock('../../../../applications/components/utils', () => ({
     helpTip: (text: string) => React.createElement('span', {title: text}, '?')
 }));
 
 import {SourceIntegrityTab} from '../source-integrity';
-import {Project, SourceIntegrityGitPolicy} from '../../../../shared/models';
+import {Project, ProjectSourceIntegrity, SourceIntegrityGitPolicy} from '../../../../shared/models';
 import {Context} from '../../../../shared/context';
 
 const emptyProject = {
@@ -35,10 +36,19 @@ function projectWithGitPolicies(policies: SourceIntegrityGitPolicy[]): Project {
     } as unknown as Project;
 }
 
+function projectWithSignatureKeys(keyIDs: string[], sourceIntegrity?: ProjectSourceIntegrity | undefined): Project {
+    return {
+        spec: {
+            signatureKeys: keyIDs.map(keyID => ({keyID})),
+            sourceIntegrity
+        }
+    } as unknown as Project;
+}
+
 function renderTab(proj: Project) {
     return render(
         <Context.Provider value={mockContext}>
-            <SourceIntegrityTab proj={proj} loadSignatureKeys={jest.fn()} saveProject={jest.fn()} />
+            <SourceIntegrityTab proj={proj} saveProject={jest.fn()} />
         </Context.Provider>
     );
 }
@@ -135,21 +145,48 @@ describe('SourceIntegrityTab', () => {
         expect(screen.getByText(/\[DEPRECATED\] GPG SIGNATURE KEYS/)).toBeTruthy();
         expect(screen.getByText('This feature is deprecated. Migrate to Source Integrity instead.')).toBeTruthy();
         expect(screen.getByText('Project has no signature keys')).toBeTruthy();
+        expect(screen.queryByText(/not used for sync/)).toBeFalsy();
+        expect(screen.queryByText(/still enforced/)).toBeFalsy();
     });
 
-    test('lists deprecated GPG signature keys', () => {
-        const project = {
-            spec: {
-                signatureKeys: [{keyID: '1234567890'}, {keyID: '1234567891'}]
-            }
-        } as unknown as Project;
-
-        renderTab(project);
+    test('lists deprecated GPG signature keys and explains they are still enforced', () => {
+        renderTab(projectWithSignatureKeys(['1234567890', '1234567891']));
 
         expect(screen.getByText(/\[DEPRECATED\] GPG SIGNATURE KEYS/)).toBeTruthy();
         expect(screen.getByText('This feature is deprecated. Migrate to Source Integrity instead.')).toBeTruthy();
         expect(screen.getByText('1234567890')).toBeTruthy();
         expect(screen.getByText('1234567891')).toBeTruthy();
         expect(screen.queryByText('Project has no signature keys')).toBeFalsy();
+        expect(screen.getByText(/still enforced for all Git repositories/)).toBeTruthy();
+        expect(screen.getByText(/same as a Source Integrity Git policy in head mode/)).toBeTruthy();
+        expect(screen.getByRole('link', {name: 'Upgrade to Source Integrity'})).toHaveAttribute(
+            'href',
+            'https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity-git-gpg/#upgrade-to-source-integrity-verification'
+        );
+        expect(screen.queryByText(/not used for sync/)).toBeFalsy();
+    });
+
+    test('explains signature keys are not used for sync when Source Integrity Git policies are configured', () => {
+        renderTab(
+            projectWithSignatureKeys(['1234567890'], {
+                git: {
+                    policies: [
+                        {
+                            repos: [{url: 'https://github.com/example/app.git'}],
+                            gpg: {mode: 'strict', keys: ['ABCD1234']}
+                        }
+                    ]
+                }
+            })
+        );
+
+        expect(screen.getByText('1234567890')).toBeTruthy();
+        expect(screen.getByText(/not used for sync/)).toBeTruthy();
+        expect(screen.getByText(/because Source Integrity Git policies are configured/)).toBeTruthy();
+        expect(screen.getByRole('link', {name: 'Upgrade to Source Integrity'})).toHaveAttribute(
+            'href',
+            'https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity-git-gpg/#upgrade-to-source-integrity-verification'
+        );
+        expect(screen.queryByText(/still enforced/)).toBeFalsy();
     });
 });
