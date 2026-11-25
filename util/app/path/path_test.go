@@ -36,6 +36,17 @@ func TestPathDotDotSlash(t *testing.T) {
 	require.EqualError(t, err, "../: app path outside root")
 }
 
+func TestPathSiblingWithSharedPrefix(t *testing.T) {
+	t.Parallel()
+	parent := t.TempDir()
+	root := path.Join(parent, "repo")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	require.NoError(t, os.MkdirAll(path.Join(parent, "repo-other", "app"), 0o755))
+
+	_, err := Path(root, "../repo-other/app")
+	require.EqualError(t, err, "../repo-other/app: app path outside root")
+}
+
 func TestPathDot(t *testing.T) {
 	t.Parallel()
 	_, err := Path("./testdata", ".")
