@@ -1,0 +1,42 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"postgresql.cnpg.io/v1","kind":"Cluster","metadata":{"annotations":{},"name":"cluster-example","namespace":"default"},"spec":{"imageName":"ghcr.io/cloudnative-pg/postgresql:13","instances":3,"storage":{"size":"1Gi"}}}
+  creationTimestamp: "2025-04-25T19:59:15Z"
+  generation: 1
+  name: cluster-example
+  namespace: default
+  resourceVersion: "12300"
+  uid: ec7a9e21-a2fe-46cb-a7a3-d5c72e3fa9d4
+spec:
+  affinity:
+    podAntiAffinityType: preferred
+  bootstrap:
+    initdb:
+      database: app
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+      owner: app
+  enablePDB: true
+  enableSuperuserAccess: false
+  failoverDelay: 0
+  imageName: ghcr.io/cloudnative-pg/postgresql:13
+  instances: 3
+  logLevel: info
+  maxSyncReplicas: 0
+  minSyncReplicas: 0
+  postgresGID: 26
+  postgresUID: 26
+  primaryUpdateMethod: restart
+  primaryUpdateStrategy: unsupervised
+  resources: {}
+  smartShutdownTimeout: 180
+  startDelay: 3600
+  stopDelay: 1800
+  storage:
+    resizeInUseVolumes: true
+    size: 1Gi
+  switchoverDelay: 3600
