@@ -22,6 +22,7 @@ export interface ApplicationParametersPanelProps<T> {
     itemsTop?: EditablePanelItem[];
     itemsBottom?: EditablePanelItem[];
     onModeSwitch?: () => any;
+    onEditingChange?: (editing: boolean) => void;
     viewTop?: string | ReactNode;
     viewBottom?: string | ReactNode;
     editTop?: (formApi: FormApi) => ReactNode;
@@ -40,7 +41,17 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
     const [savingTop] = useState(false);
     const ctx = useContext(Context);
 
+    const [editing, setEditing] = useState(false);
+    const onEditingChangeRef = React.useRef(props.onEditingChange);
+    React.useEffect(() => {
+        onEditingChangeRef.current = props.onEditingChange;
+    });
+    React.useEffect(() => () => onEditingChangeRef.current?.(false), []);
+
     const onModeSwitch = () => {
+        const nextEditing = !editing;
+        setEditing(nextEditing);
+        props.onEditingChange?.(nextEditing);
         if (props.onModeSwitch) {
             props.onModeSwitch();
         }

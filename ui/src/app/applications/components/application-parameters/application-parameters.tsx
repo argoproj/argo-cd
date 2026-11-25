@@ -167,7 +167,20 @@ export const ApplicationParameters = (props: {
     const [isAddingSource, setIsAddingSource] = React.useState(false);
     const [isSavingSource, setIsSavingSource] = React.useState(false);
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
-    const [sourceEditing, setSourceEditing] = React.useState(false);
+    const [editingSources, setEditingSources] = React.useState<Set<number>>(() => new Set());
+    const setSourceEditing = (index: number, editing: boolean) =>
+        setEditingSources(current => {
+            if (current.has(index) === editing) {
+                return current;
+            }
+            const next = new Set(current);
+            if (editing) {
+                next.add(index);
+            } else {
+                next.delete(index);
+            }
+            return next;
+        });
 
     if (app.spec.sources?.length > 0 && !props.details) {
         // For multi-source case only
@@ -282,18 +295,15 @@ export const ApplicationParameters = (props: {
             // For single source field, details page where we have to do the load to retrieve repo details
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <SourceDetailsLoader
-                    input={app}
-                    inputKey={JSON.stringify([app.metadata.name, app.spec.project, app.spec.source, app.spec.sourceHydrator])}
-                    load={application => getSingleSource(application)}>
-                    {({details, error}: SourceDetails, retry, pending) => {
+                <SourceDetailsLoader input={app} load={application => getSingleSource(application)}>
+                    {({details, error}: SourceDetails, retry) => {
                         if (!details) {
                             return null;
                         }
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return (
                             <>
-                                <SourceDetailsWarning error={error} onRetry={retry} disabled={pending || sourceEditing} />
+                                <SourceDetailsWarning error={error} onRetry={retry} disabled={editingSources.has(0)} />
                                 {getEditablePanel(attr, details)}
                             </>
                         );
@@ -351,11 +361,8 @@ export const ApplicationParameters = (props: {
                         <SourceDetailsLoader
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
-                            inputKey={JSON.stringify([app.metadata.name, app.spec.project, index, app.spec.sources[index]])}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {({details, error}: SourceDetails, retry, pending) =>
-                                getEditablePanelForOneSource(details, index, app.spec.sources[index], error, retry, pending || sourceEditing)
-                            }
+                            {({details, error}: SourceDetails, retry) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error, retry, editingSources.has(index))}
                         </SourceDetailsLoader>
                     )}
                 </div>
@@ -374,11 +381,11 @@ export const ApplicationParameters = (props: {
             <div className='application-parameters'>
                 <EditablePanel
                     onModeSwitch={() => {
-                        setSourceEditing(current => !current);
                         if (repoAppDetails?.plugin) {
                             setAppParamsDeletedState([]);
                         }
                     }}
+                    onEditingChange={editing => setSourceEditing(isMulti ? ind : 0, editing)}
                     save={
                         props.save &&
                         (async (input: models.Application) => {
@@ -536,11 +543,11 @@ export const ApplicationParameters = (props: {
                 index={ind}
                 banner={<SourceDetailsWarning error={detailsError} onRetry={onRetry} disabled={retryDisabled} />}
                 onModeSwitch={() => {
-                    setSourceEditing(current => !current);
                     if (repoAppDetails?.plugin) {
                         setAppParamsDeletedState([]);
                     }
                 }}
+                onEditingChange={editing => setSourceEditing(ind, editing)}
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
@@ -1181,49 +1188,19 @@ const SourceDetailsWarning = ({error, onRetry, disabled}: {error?: Error; onRetr
 
 const SourceDetailsLoader = ({
     input,
-    inputKey,
     load,
     children
 }: {
     input: any;
-    inputKey: string;
     load: (input: any) => Promise<SourceDetails>;
-    children: (result: SourceDetails, retry: () => void, pending: boolean) => React.ReactNode;
+    children: (result: SourceDetails, retry: () => void) => React.ReactNode;
 }) => {
     const [attempt, setAttempt] = React.useState(0);
-    const [result, setResult] = React.useState<SourceDetails | null>(null);
-    const [pending, setPending] = React.useState(false);
-    const loadRef = React.useRef(load);
-    loadRef.current = load;
-    const inputRef = React.useRef(input);
-    inputRef.current = input;
-    React.useEffect(() => {
-        let active = true;
-        setPending(true);
-        loadRef
-            .current(inputRef.current)
-            .then(next => {
-                if (active) {
-                    setResult(next);
-                    setPending(false);
-                }
-            })
-            .catch(error => {
-                if (active) {
-                    setResult({details: null, error: error as Error});
-                    setPending(false);
-                }
-            });
-        return () => {
-            active = false;
-        };
-    }, [inputKey, attempt]);
-
-    if (!result) {
-        return null;
-    }
-
-    return <>{children(result, () => setAttempt(current => current + 1), pending)}</>;
+    return (
+        <DataLoader key={attempt} noLoaderOnInputChange={true} input={input} load={load}>
+            {(result: SourceDetails) => children(result, () => setAttempt(current => current + 1))}
+        </DataLoader>
+    );
 };
 
 function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
