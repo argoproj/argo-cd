@@ -12,6 +12,11 @@ spec:
     protocol: TCP
     port: 80
     targetPort: 8080
+  - name: http2
+    protocol: TCP
+    appProtocol: kubernetes.io/h2c
+    port: 8008
+    targetPort: 8080
   - name: https
     protocol: TCP
     port: 443
