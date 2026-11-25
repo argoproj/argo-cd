@@ -1172,7 +1172,54 @@ func GitRevList(t *testing.T, args []string) string {
 	return result
 }
 
-func Patch(t *testing.T, path string, jsonPatch string) {
+func Git(t *testing.T, args ...string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("git")
+	result, err := Run(repoDirectory(), "git", args...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return strings.TrimSpace(result)
+}
+
+// PromoteBranch fast-forwards a target branch to a source branch, simulating an external promotion system.
+func PromoteBranch(t *testing.T, sourceBranch, targetBranch string) string {
+	t.Helper()
+
+	sourceRevision := sourceBranch
+	if IsRemote() {
+		Git(t, "fetch", "origin", sourceBranch)
+		sourceRevision = "origin/" + sourceBranch
+	}
+
+	revision := Git(t, "rev-parse", sourceRevision)
+	if IsRemote() {
+		Git(t, "push", "--force", "origin", revision+":refs/heads/"+targetBranch)
+	} else {
+		Git(t, "branch", "--force", targetBranch, revision)
+	}
+	return revision
+}
+
+func GitChangedFiles(t *testing.T, before, after string) []string {
+	t.Helper()
+	output := Git(t, "diff", "--name-only", before, after)
+	if output == "" {
+		return nil
+	}
+	return strings.Split(output, "\n")
+}
+
+func PushChanges(t *testing.T) {
+	t.Helper()
+	log.Info("pushing changes")
+
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "push changes"))
+
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
+func WritePatch(t *testing.T, path, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -1202,6 +1249,12 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 	}
 
 	require.NoError(t, os.WriteFile(filename, bytes, 0o644))
+}
+
+func Patch(t *testing.T, path string, jsonPatch string) {
+	t.Helper()
+	WritePatch(t, path, jsonPatch)
+
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {

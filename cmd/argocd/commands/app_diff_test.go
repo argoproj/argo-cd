@@ -534,13 +534,13 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
-		service := createTestUnstructured(&corev1.Service{
+		secret := createTestUnstructured(&corev1.Secret{
 			APIVersion: "v1",
-			Kind:       "Service",
-			Name:       "test-service",
+			Kind:       "Secret",
+			Name:       "test-secret",
 			Namespace:  "default",
 		})
-		serviceBytes, _ := json.Marshal(service)
+		secretBytes, _ := json.Marshal(secret)
 
 		liveState := &applicationpkg.ManagedResourcesResponse{
 			Items: []*v1alpha1.ResourceDiff{
@@ -548,18 +548,18 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 					TargetState: string(deploymentBytes),
 				},
 				{
-					TargetState: string(serviceBytes),
+					TargetState: string(secretBytes),
 				},
 			},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 		assert.Equal(t, "Deployment", result[0].GetKind())
-		assert.Equal(t, "Service", result[1].GetKind())
+		assert.Equal(t, "Secret", result[1].GetKind())
 	})
 
 	t.Run("Empty items", func(t *testing.T) {
@@ -567,7 +567,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 			Items: []*v1alpha1.ResourceDiff{},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
@@ -583,11 +583,51 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 			},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.Error(t, err)
 		assert.Nil(t, result)
+	})
+
+	t.Run("Secret excluded", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
+		})
+		deploymentBytes, _ := json.Marshal(deployment)
+
+		secret := createTestUnstructured(&corev1.Secret{
+			APIVersion: "v1",
+			Kind:       "Secret",
+			Name:       "test-secret",
+			Namespace:  "default",
+		})
+		secretBytes, _ := json.Marshal(secret)
+
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					Kind:        "Deployment",
+					Group:       "apps",
+					TargetState: string(deploymentBytes),
+				},
+				{
+					Kind:        "Secret",
+					Group:       "",
+					TargetState: string(secretBytes),
+				},
+			},
+		}
+
+		provider := newTargetManifestProvider(liveState, true)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
 	})
 }
 
