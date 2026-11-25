@@ -51,11 +51,14 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/test"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cache"
@@ -1448,6 +1451,186 @@ func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
 	require.NotEmpty(t, ws.sent)
 	for _, event := range ws.sent {
 		assert.Equal(t, "argocd-1", event.Application.Namespace)
+	}
+}
+
+// listThenPublishLister returns the informer snapshot and then publishes a newer
+// application. That is the update Watch must not miss between subscribing and listing.
+type listThenPublishLister struct {
+	applisters.ApplicationLister
+	publish func()
+}
+
+func (l *listThenPublishLister) List(selector labels.Selector) ([]*v1alpha1.Application, error) {
+	apps, err := l.ApplicationLister.List(selector)
+	if err != nil {
+		return nil, err
+	}
+	l.publish()
+	return apps, nil
+}
+
+// publishThenReturnLister publishes while Watch is inside List, then returns a
+// fixed snapshot. Events published here are already buffered when the snapshot
+// resource versions are recorded.
+type publishThenReturnLister struct {
+	applisters.ApplicationLister
+	publish func()
+	apps    []*v1alpha1.Application
+}
+
+func (l *publishThenReturnLister) List(labels.Selector) ([]*v1alpha1.Application, error) {
+	l.publish()
+	return l.apps, nil
+}
+
+type recordingWatchServer struct {
+	googlegrpc.ServerStream
+	ctx context.Context
+	got chan *v1alpha1.ApplicationWatchEvent
+}
+
+func (s *recordingWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	s.got <- event
+	return nil
+}
+
+func (s *recordingWatchServer) Context() context.Context {
+	return s.ctx
+}
+
+// TestWatchDeliversUpdatePublishedDuringInitialList reproduces the application
+// watch race that made `argocd app sync` time out after the controller had
+// already synced. The completion is published while Watch is listing the
+// informer. The watch must deliver that completion, because a later
+// reconciliation that does not change the application never sends another event.
+func TestWatchDeliversUpdatePublishedDuringInitialList(t *testing.T) {
+	app := newTestApp(func(app *v1alpha1.Application) {
+		app.ResourceVersion = "1"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	})
+	appServer := newTestAppServer(t, app)
+
+	broadcaster := broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+		func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+			return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+		},
+		applog.GetAppLogFields,
+	)
+	appServer.appBroadcaster = broadcaster
+	appServer.appLister = &listThenPublishLister{
+		ApplicationLister: appServer.appLister,
+		publish: func() {
+			updated := app.DeepCopy()
+			updated.ResourceVersion = "2"
+			updated.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			updated.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded}
+			broadcaster.OnUpdate(app, updated)
+		},
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	ws := &recordingWatchServer{ctx: ctx, got: make(chan *v1alpha1.ApplicationWatchEvent, 8)}
+	watchDone := make(chan error, 1)
+	go func() {
+		name := app.Name
+		resourceVersion := "1"
+		watchDone <- appServer.Watch(&application.ApplicationQuery{
+			Name:            &name,
+			ResourceVersion: &resourceVersion,
+		}, ws)
+	}()
+	defer func() {
+		cancel()
+		require.NoError(t, <-watchDone)
+	}()
+
+	var seen []v1alpha1.SyncStatusCode
+	deadline := time.Now().Add(time.Second)
+	for {
+		select {
+		case event := <-ws.got:
+			seen = append(seen, event.Application.Status.Sync.Status)
+			if slices.Contains(seen, v1alpha1.SyncStatusCodeSynced) {
+				return
+			}
+		default:
+			if time.Now().After(deadline) {
+				t.Fatalf("watch missed the sync completion published while the initial application list was in progress; got %v", seen)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
+// TestWatchSuppressesEventsBufferedBeforeNewerSnapshot covers the resource-version
+// guard. List observes version 3 while versions 2 and 3 are already buffered, and
+// version 4 follows them. The watch must send the snapshot and version 4, and must
+// not move the client back to version 2 or repeat version 3.
+func TestWatchSuppressesEventsBufferedBeforeNewerSnapshot(t *testing.T) {
+	app := newTestApp(func(app *v1alpha1.Application) {
+		app.ResourceVersion = "1"
+	})
+	appServer := newTestAppServer(t, app)
+
+	broadcaster := broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+		func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+			return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+		},
+		applog.GetAppLogFields,
+	)
+	appServer.appBroadcaster = broadcaster
+	snapshot := app.DeepCopy()
+	snapshot.ResourceVersion = "3"
+	appServer.appLister = &publishThenReturnLister{
+		ApplicationLister: appServer.appLister,
+		publish: func() {
+			for _, rv := range []string{"2", "3", "4"} {
+				updated := app.DeepCopy()
+				updated.ResourceVersion = rv
+				broadcaster.OnUpdate(app, updated)
+			}
+		},
+		apps: []*v1alpha1.Application{snapshot},
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	ws := &recordingWatchServer{ctx: ctx, got: make(chan *v1alpha1.ApplicationWatchEvent, 8)}
+	watchDone := make(chan error, 1)
+	go func() {
+		name := app.Name
+		resourceVersion := "1"
+		watchDone <- appServer.Watch(&application.ApplicationQuery{
+			Name:            &name,
+			ResourceVersion: &resourceVersion,
+		}, ws)
+	}()
+	defer func() {
+		cancel()
+		require.NoError(t, <-watchDone)
+	}()
+
+	var seen []string
+	deadline := time.Now().Add(time.Second)
+	for len(seen) < 2 {
+		select {
+		case event := <-ws.got:
+			seen = append(seen, event.Application.ResourceVersion)
+		default:
+			if time.Now().After(deadline) {
+				t.Fatalf("watch did not deliver the snapshot and the newer event; got %v", seen)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	for {
+		select {
+		case event := <-ws.got:
+			seen = append(seen, event.Application.ResourceVersion)
+		default:
+			require.Equal(t, []string{"3", "4"}, seen)
+			return
+		}
 	}
 }
 
