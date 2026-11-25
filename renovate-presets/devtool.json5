@@ -102,12 +102,13 @@
       "enabled": false
     },
     {
-      "description": "Allow digest updates for tagless busybox pin",
+      "description": "Allow digest updates for the tagless busybox pin, and for ubuntu, whose LTS tag (e.g. 26.04) stays fixed while Canonical republishes it with security fixes",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
-        "docker.io/library/busybox"
+        "docker.io/library/busybox",
+        "docker.io/library/ubuntu"
       ],
       "matchUpdateTypes": [
         "digest"
