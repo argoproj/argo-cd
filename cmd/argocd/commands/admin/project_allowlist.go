@@ -169,5 +169,9 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	globalProj.Spec.NamespaceResourceWhitelist = resourceList
+	if len(resourceList) == 0 {
+		// NamespaceResourceWhitelist uses omitempty, so an empty slice serializes as nil (unrestricted).
+		globalProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "*"}}
+	}
 	return &globalProj, nil
 }

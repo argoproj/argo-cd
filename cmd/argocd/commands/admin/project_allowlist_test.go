@@ -8,6 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestProjectAllowListGen(t *testing.T) {
@@ -153,4 +157,44 @@ rules:
 		{Group: "apps", Kind: "Deployment"},
 	}
 	assert.ElementsMatch(t, expected, proj.Spec.NamespaceResourceWhitelist)
+}
+
+func TestProjectAllowListGen_EmptyMatchRemainsDenyAllAfterYAML(t *testing.T) {
+	serverResources := []*metav1.APIResourceList{
+		{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{Name: "namespaces", Kind: "Namespace", Namespaced: false},
+				{Name: "pods", Kind: "Pod", Namespaced: true},
+			},
+		},
+	}
+
+	crYAML := `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-cr-cluster-only
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - create
+`
+	tmpFile := filepath.Join(t.TempDir(), "cr.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(crYAML), 0o600))
+
+	proj, err := generateProjectAllowList(serverResources, tmpFile, "testproj")
+	require.NoError(t, err)
+	assert.Empty(t, proj.Spec.NamespaceResourceWhitelist)
+
+	yamlBytes, err := yaml.Marshal(proj)
+	require.NoError(t, err)
+
+	var roundTripped v1alpha1.AppProject
+	require.NoError(t, yaml.Unmarshal(yamlBytes, &roundTripped))
+
+	assert.False(t, roundTripped.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Pod"}, "", true))
+	assert.False(t, roundTripped.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, "", true))
 }
