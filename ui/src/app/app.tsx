@@ -16,6 +16,7 @@ import {newQueryClient} from './shared/query-client';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
+import {resumeAutoLoginForSession} from './shared/sso-auto-login';
 import {Banner} from './ui-banner/ui-banner';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
@@ -194,9 +195,11 @@ export class App extends React.Component<
     }
 
     private async bootstrapAppSession(): Promise<void> {
+        const sessionCheckStartedAt = Date.now();
         const [authSettings, userInfoResult, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
 
         const {loggedIn, isSSO} = sessionFromBootstrap(userInfoResult, authSettings, versionInfo);
+        resumeAutoLoginForSession(userInfoResult, sessionCheckStartedAt);
 
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
