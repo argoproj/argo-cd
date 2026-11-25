@@ -71,16 +71,14 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
 };
 
-const SIGNATURE_KEYS_DEPRECATION_MESSAGE = 'This feature is deprecated, migrate to Source Integrity instead.';
+const SIGNATURE_KEYS_DEPRECATION_MESSAGE = 'This feature is deprecated. Migrate to Source Integrity instead.';
 
 const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => {
     return (
         <EditablePanel
             save={saveProject}
             values={proj}
-            title={
-                <React.Fragment>[DEPRECATED] GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>
-            }
+            title={<React.Fragment>[DEPRECATED] GPG SIGNATURE KEYS {helpTip('GnuPG key IDs that Git commits must be signed with before they can be synced.')}</React.Fragment>}
             view={
                 <React.Fragment>
                     <p>{SIGNATURE_KEYS_DEPRECATION_MESSAGE}</p>

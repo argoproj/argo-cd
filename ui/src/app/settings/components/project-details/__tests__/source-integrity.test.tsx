@@ -133,7 +133,7 @@ describe('SourceIntegrityTab', () => {
         renderTab(emptyProject);
 
         expect(screen.getByText(/\[DEPRECATED\] GPG SIGNATURE KEYS/)).toBeTruthy();
-        expect(screen.getByText('This feature is deprecated, migrate to Source Integrity instead.')).toBeTruthy();
+        expect(screen.getByText('This feature is deprecated. Migrate to Source Integrity instead.')).toBeTruthy();
         expect(screen.getByText('Project has no signature keys')).toBeTruthy();
     });
 
@@ -147,7 +147,7 @@ describe('SourceIntegrityTab', () => {
         renderTab(project);
 
         expect(screen.getByText(/\[DEPRECATED\] GPG SIGNATURE KEYS/)).toBeTruthy();
-        expect(screen.getByText('This feature is deprecated, migrate to Source Integrity instead.')).toBeTruthy();
+        expect(screen.getByText('This feature is deprecated. Migrate to Source Integrity instead.')).toBeTruthy();
         expect(screen.getByText('1234567890')).toBeTruthy();
         expect(screen.getByText('1234567891')).toBeTruthy();
         expect(screen.queryByText('Project has no signature keys')).toBeFalsy();
