@@ -286,21 +286,19 @@ func TestPrintDiff_CleansUpTempDir(t *testing.T) {
 		},
 	}
 
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
 	t.Setenv("KUBECTL_EXTERNAL_DIFF", "")
 
-	pattern := filepath.Join(os.TempDir(), "argocd-diff*")
-	beforeMatches, err := filepath.Glob(pattern)
-	require.NoError(t, err)
-
 	// PrintDiff will run `diff` and return an error because files differ (exit status 1)
-	err = PrintDiff("my-cm", live, target)
+	err := PrintDiff("my-cm", live, target)
 	var exitErr *exec.ExitError
-	if assert.ErrorAs(t, err, &exitErr) {
-		assert.Equal(t, 1, exitErr.ExitCode())
-	}
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, 1, exitErr.ExitCode())
 
-	afterMatches, err := filepath.Glob(pattern)
+	entries, err := os.ReadDir(tempRoot)
 	require.NoError(t, err)
-
-	assert.Len(t, afterMatches, len(beforeMatches), "PrintDiff should clean up its temporary directory")
+	assert.Empty(t, entries, "PrintDiff should clean up its temporary directory")
 }
