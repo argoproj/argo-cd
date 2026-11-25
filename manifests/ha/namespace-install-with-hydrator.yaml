@@ -1634,6 +1634,7 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
   type: ClusterIP
