@@ -10,6 +10,8 @@ import (
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	workloadidentitymocks "github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
@@ -453,4 +455,149 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestPullRequestAzureDevOpsWorkloadIdentity(t *testing.T) {
+	t.Parallel()
+
+	newAppSet := func(cfg *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) *argoprojiov1alpha1.ApplicationSet {
+		return &argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{AzureDevOps: cfg},
+				}},
+			},
+		}
+	}
+	// newGenerator returns a generator whose token provider factory counts its calls. The mock has no
+	// expectations, so the test fails if a token is requested while the service is selected.
+	newGenerator := func(t *testing.T, allowedSCMProviders []string) (*PullRequestGenerator, *int) {
+		t.Helper()
+		calls := 0
+		g := NewPullRequestGenerator(nil, NewSCMConfig("", allowedSCMProviders, true, false, nil, true)).(*PullRequestGenerator)
+		g.newAzureTokenProvider = func() workloadidentity.TokenProvider {
+			calls++
+			return workloadidentitymocks.NewTokenProvider(t)
+		}
+		return g, &calls
+	}
+
+	t.Run("uses one workload identity token provider for all reconciliations", func(t *testing.T) {
+		t.Parallel()
+		g, calls := newGenerator(t, nil)
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization:             "myorg",
+			Project:                  "myproject",
+			Repo:                     "myrepo",
+			UseAzureWorkloadIdentity: true,
+		})
+
+		for range 3 {
+			svc, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+			require.NoError(t, err)
+			assert.IsType(t, &pullrequest.AzureDevOpsService{}, svc)
+		}
+		assert.Equal(t, 1, *calls, "the token provider must be created once and reused")
+	})
+
+	t.Run("does not create a token provider without the option", func(t *testing.T) {
+		t.Parallel()
+		g, calls := newGenerator(t, nil)
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization: "myorg",
+			Project:      "myproject",
+			Repo:         "myrepo",
+		})
+
+		svc, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+		require.NoError(t, err)
+		assert.IsType(t, &pullrequest.AzureDevOpsService{}, svc)
+		assert.Zero(t, *calls)
+	})
+
+	t.Run("rejects tokenRef combined with workload identity", func(t *testing.T) {
+		t.Parallel()
+		g, calls := newGenerator(t, nil)
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization:             "myorg",
+			Project:                  "myproject",
+			Repo:                     "myrepo",
+			TokenRef:                 &argoprojiov1alpha1.SecretRef{SecretName: "pat", Key: "token"},
+			UseAzureWorkloadIdentity: true,
+		})
+
+		_, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+		require.ErrorContains(t, err, "tokenRef and useAzureWorkloadIdentity are mutually exclusive")
+		assert.Zero(t, *calls)
+	})
+
+	apiCases := []struct {
+		name                string
+		api                 string
+		allowedSCMProviders []string
+		expectedErr         string
+		expectDisallowedErr bool
+	}{
+		{name: "explicit public api without allow list", api: "https://dev.azure.com/"},
+		{name: "explicit public api without trailing slash", api: "https://dev.azure.com"},
+		{
+			name:        "custom api without allow list",
+			api:         "https://my-service.my-namespace.svc.cluster.local",
+			expectedErr: "requires the URL to be listed in the allowed SCM providers",
+		},
+		{
+			name:                "custom api in allow list",
+			api:                 "https://devops.example.com/tfs",
+			allowedSCMProviders: []string{"https://devops.example.com/tfs"},
+		},
+		{
+			name:                "custom api not in allow list",
+			api:                 "https://my-service.my-namespace.svc.cluster.local",
+			allowedSCMProviders: []string{"https://devops.example.com/tfs"},
+			expectDisallowedErr: true,
+		},
+		{
+			name:                "plain http api in allow list",
+			api:                 "http://devops.example.com/tfs",
+			allowedSCMProviders: []string{"http://devops.example.com/tfs"},
+			expectedErr:         "requires an https:// Azure DevOps api URL",
+		},
+	}
+	for _, tc := range apiCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g, _ := newGenerator(t, tc.allowedSCMProviders)
+			appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				Organization:             "myorg",
+				Project:                  "myproject",
+				Repo:                     "myrepo",
+				API:                      tc.api,
+				UseAzureWorkloadIdentity: true,
+			})
+
+			svc, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+			switch {
+			case tc.expectDisallowedErr:
+				var disallowed ErrDisallowedSCMProvider
+				require.ErrorAs(t, err, &disallowed)
+			case tc.expectedErr != "":
+				require.ErrorContains(t, err, tc.expectedErr)
+			default:
+				require.NoError(t, err)
+				assert.IsType(t, &pullrequest.AzureDevOpsService{}, svc)
+			}
+		})
+	}
+}
+
+func TestIsDefaultAzureDevOpsAPI(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isDefaultAzureDevOpsAPI(""))
+	assert.True(t, isDefaultAzureDevOpsAPI("https://dev.azure.com"))
+	assert.True(t, isDefaultAzureDevOpsAPI("https://dev.azure.com/"))
+	assert.True(t, isDefaultAzureDevOpsAPI("HTTPS://DEV.AZURE.COM/"))
+	assert.False(t, isDefaultAzureDevOpsAPI("http://dev.azure.com"))
+	assert.False(t, isDefaultAzureDevOpsAPI("https://dev.azure.com.evil.example"))
+	assert.False(t, isDefaultAzureDevOpsAPI("https://dev.azure.com/myorg"))
 }
