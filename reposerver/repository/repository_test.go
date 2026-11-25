@@ -594,13 +594,45 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --include-crds`},
+		Commands:   []string{`helm template . --include-crds`},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 0,
 	})
 	gitMocks.AssertNotCalled(t, "LsRemote", mock.Anything)
+}
+
+// TestHelmManifestFromChartRepo_InvalidReleaseName asserts that a release name
+// containing Go template syntax is rejected, and that the error identifies the
+// offending field. Helm evaluates --name-template as a Go template with sprig
+// loaded, so such a value must never reach the helm binary.
+func TestHelmManifestFromChartRepo_InvalidReleaseName(t *testing.T) {
+	root := t.TempDir()
+	service, _, _ := newServiceWithMocks(t, root)
+
+	for _, releaseName := range []string{
+		`{{ env "REDIS_PASSWORD" }}`,
+		`{{ printf "%x" (env "REDIS_PASSWORD") }}`,
+		"UPPERCASE",
+		"has_underscore",
+	} {
+		t.Run(releaseName, func(t *testing.T) {
+			source := &v1alpha1.ApplicationSource{
+				Chart:          "my-chart",
+				TargetRevision: ">= 1.0.0",
+				Helm:           &v1alpha1.ApplicationSourceHelm{ReleaseName: releaseName},
+			}
+			request := &apiclient.ManifestRequest{
+				Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true,
+				ProjectName: "something", ProjectSourceRepos: []string{"*"},
+			}
+			_, err := service.GenerateManifest(t.Context(), request)
+			require.Error(t, err)
+			require.ErrorContains(t, err, "invalid spec.source.helm.releaseName")
+			assert.NotContains(t, err.Error(), "REDIS_PASSWORD=")
+		})
+	}
 }
 
 func TestHelmChartReferencingExternalValues(t *testing.T) {
@@ -632,7 +664,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Commands:   []string{`helm template . --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -1551,7 +1583,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Commands:   []string{`helm template . --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -6542,7 +6574,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
 
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
@@ -6554,7 +6586,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			res, err = service.GenerateManifest(t.Context(), &q)
 
 			require.NoError(t, err)
-			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
+			assert.Equal(t, []string{"helm template different-release-name . --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
 		})
 	})
 
@@ -6587,7 +6619,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --namespace test-namespace --include-crds"}, res.Commands)
 	})
 
 	t.Run("kustomize", func(t *testing.T) {
@@ -6698,7 +6730,7 @@ func Test_SkipSchemaValidation(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --include-crds --skip-schema-validation"}, res.Commands)
 	})
 	t.Run("helm", func(t *testing.T) {
 		service := newService(t, "testdata/broken-schema-verification")

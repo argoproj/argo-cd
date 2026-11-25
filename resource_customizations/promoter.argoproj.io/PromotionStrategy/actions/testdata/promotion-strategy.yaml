@@ -1,0 +1,18 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: example-promotion-strategy
+  namespace: gitops-promoter
+spec: {}
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      observedGeneration: 1
+      reason: ReconciliationSuccess
+      message: Reconciliation succeeded
+  environments:
+    - branch: environment/production
+      active:
+        dry:
+          sha: "3333333333333333333333333333333333333333"

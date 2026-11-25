@@ -22,6 +22,7 @@ with at least one value for `hostname` or `IP`.
 
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+* A job that was suspended and then resumed is marked as progressing until it completes or fails.
 
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
