@@ -2,6 +2,7 @@ package rbacpolicy
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +20,14 @@ type RBACPolicyEnforcer struct {
 	enf        *rbac.Enforcer
 	projLister applister.AppProjectNamespaceLister
 	scopes     []string
+	// projectPolicies holds a *projectPolicy for each project name.
+	projectPolicies sync.Map
+}
+
+// projectPolicy is the policy built from the roles of an AppProject, with the project object it was built from.
+type projectPolicy struct {
+	proj   *v1alpha1.AppProject
+	policy string
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
@@ -72,7 +81,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 		if IsProjectSubject(subject) {
 			return p.enforceProjectToken(subject, proj, rvals...)
 		}
-		runtimePolicy = proj.ProjectPoliciesString()
+		runtimePolicy = p.projectPoliciesString(proj)
 		projName = proj.Name
 	}
 
@@ -158,5 +167,20 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.
 	}
 
 	vals := append([]any{subject}, rvals[1:]...)
-	return p.enf.EnforceRuntimePolicy(proj.Name, proj.ProjectPoliciesString(), vals...)
+	return p.enf.EnforceRuntimePolicy(proj.Name, p.projectPoliciesString(proj), vals...)
+}
+
+// projectPoliciesString returns proj.ProjectPoliciesString(), reusing the policy built for the same project object.
+// Enforcement gets projects from the informer's lister, which returns the same object until the project changes,
+// and a List call enforces once for every Application, so building the policy each time dominated its cost for
+// projects with many roles.
+func (p *RBACPolicyEnforcer) projectPoliciesString(proj *v1alpha1.AppProject) string {
+	if v, ok := p.projectPolicies.Load(proj.Name); ok {
+		if cached := v.(*projectPolicy); cached.proj == proj {
+			return cached.policy
+		}
+	}
+	policy := proj.ProjectPoliciesString()
+	p.projectPolicies.Store(proj.Name, &projectPolicy{proj: proj, policy: policy})
+	return policy
 }

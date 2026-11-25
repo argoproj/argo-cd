@@ -175,3 +175,100 @@ func BenchmarkListAppsSSOUser(b *testing.B) {
 		}
 	}
 }
+
+// listProjectRolesBenchmarkFixture returns listSSOBenchmarkProjects projects with the given number of roles, each
+// with policiesPerRole policy lines and bound to one SSO group, and listSSOBenchmarkApps applications spread evenly
+// over them. The first role of each project is bound to the same groups as the read-only role of
+// listSSOBenchmarkFixture, so listSSOBenchmarkClaims gives a user who can see the applications of the first
+// listSSOBenchmarkUserProjects projects.
+func listProjectRolesBenchmarkFixture(roles int, policiesPerRole int) []runtime.Object {
+	actions := []string{"get", "sync", "update", "delete", "override", "action/*", "create"}
+	objects := make([]runtime.Object, 0, listSSOBenchmarkProjects+listSSOBenchmarkApps)
+	for i := range listSSOBenchmarkProjects {
+		name := listSSOBenchmarkProjectName(i)
+		proj := &v1alpha1.AppProject{
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+		proj.Name = name
+		proj.Namespace = testNamespace
+		for r := range roles {
+			role := v1alpha1.ProjectRole{Name: fmt.Sprintf("role-%02d", r)}
+			for p := range policiesPerRole {
+				// Spread the policies over application name prefixes, as roles that each cover a part of the
+				// project's applications do.
+				role.Policies = append(role.Policies, fmt.Sprintf("p, proj:%s:%s, applications, %s, %s/app-*, allow", name, role.Name, actions[p%len(actions)], name))
+			}
+			if r == 0 {
+				role.Groups = []string{listSSOBenchmarkGroupName(i) + "/developers"}
+			} else {
+				role.Groups = []string{fmt.Sprintf("%s/role-%02d", listSSOBenchmarkGroupName(i), r)}
+			}
+			proj.Spec.Roles = append(proj.Spec.Roles, role)
+		}
+		objects = append(objects, proj)
+	}
+	for i := range listSSOBenchmarkApps {
+		objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
+			app.Name = fmt.Sprintf("app-%05d", i)
+			app.Spec.Project = listSSOBenchmarkProjectName(i % listSSOBenchmarkProjects)
+		}))
+	}
+	return objects
+}
+
+// benchmarkListAppsProjectRoles measures an Application List call by an SSO user with 20 groups, on an instance
+// whose AppProjects have the given number of roles and policy lines per role. RBAC rebuilds a project's policy
+// from its roles for every Application in the list, so a warm call still grows with the size of the project
+// policies.
+func benchmarkListAppsProjectRoles(b *testing.B, roles int, policiesPerRole int, cold bool) {
+	b.Helper()
+	// The informers log at info level while the server starts, which splits the benchmark's result lines.
+	level := log.GetLevel()
+	log.SetLevel(log.WarnLevel)
+	b.Cleanup(func() { log.SetLevel(level) })
+
+	appServer := newTestAppServerWithEnforcerConfigureWithBenchmark(b, func(enf *rbac.Enforcer) {
+		require.NoError(b, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+	}, listProjectRolesBenchmarkFixture(roles, policiesPerRole)...)
+
+	//nolint:staticcheck
+	ctx := context.WithValue(b.Context(), "claims", listSSOBenchmarkClaims(b, 20))
+	visibleApps := 0
+	for i := range listSSOBenchmarkApps {
+		if i%listSSOBenchmarkProjects < listSSOBenchmarkUserProjects {
+			visibleApps++
+		}
+	}
+
+	list := func() {
+		res, err := appServer.List(ctx, &application.ApplicationQuery{})
+		require.NoError(b, err)
+		require.Len(b, res.Items, visibleApps)
+	}
+	if !cold {
+		list()
+	}
+	b.ReportMetric(float64(roles*(policiesPerRole+2)), "lines/project")
+	b.ReportAllocs()
+	for b.Loop() {
+		if cold {
+			b.StopTimer()
+			require.NoError(b, appServer.enf.SetUserPolicy(""))
+			b.StartTimer()
+		}
+		list()
+	}
+}
+
+func BenchmarkListAppsProjectRoles(b *testing.B) {
+	for _, size := range []struct{ roles, policies int }{{3, 3}, {10, 5}, {30, 5}, {30, 20}} {
+		for _, state := range []string{"cold", "warm"} {
+			b.Run(fmt.Sprintf("roles=%d/policies=%d/%s", size.roles, size.policies, state), func(b *testing.B) {
+				benchmarkListAppsProjectRoles(b, size.roles, size.policies, state == "cold")
+			})
+		}
+	}
+}
