@@ -45,6 +45,7 @@ describe('computeAppsListFacets', () => {
         expect(facets.totalBySyncStatus).toEqual({Synced: 2, OutOfSync: 2});
         expect(facets.totalByHealthStatus).toEqual({Healthy: 2, Degraded: 2});
         expect(facets.totalByAutoSyncStatus).toEqual({Disabled: 4});
+        expect(facets.totalBySyncSourceStatus).toEqual({None: 4});
     });
 
     test("a group's counts ignore its own filter but honour the others", () => {

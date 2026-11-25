@@ -321,6 +321,11 @@ spec:
 In this example, the hydrated manifests will be pushed to the `environments/dev-next` branch, and Argo CD will not sync
 the changes until something moves them to the `environments/dev` branch.
 
+On the Applications page, the "Sync Source Status" filter selects applications by whether the manifests synced from
+`syncSource` are "Behind" or "Up to date" with the last ones hydrated to `hydrateTo`. Applications that are behind are
+also marked with a branch icon next to their sync status. Applications without `hydrateTo`, or for which this is not yet
+known, are listed under "None".
+
 You could use a CI action to move the hydrated manifests from the `hydrateTo` branch to the `syncSource` branch. To
 introduce a gating mechanism, you could require a Pull Request to be opened to merge the changes from the `hydrateTo`
 branch to the `syncSource` branch.

@@ -1,5 +1,5 @@
 import {Application, ApplicationDestination, SyncPolicy} from '../../../shared/models';
-import {getAppAllSources, getOperationStateTitle} from '../utils';
+import {getAppAllSources, getOperationStateTitle, getSyncSourceStatus} from '../utils';
 import type {FilteredApp, FilterResult} from './applications-filter';
 
 // The applications list views (filter sidebar, status bar, summary) render from these precomputed
@@ -38,6 +38,8 @@ export interface AppsListFacets {
     totalByHealthStatus: StatusCounts;
     /** Keyed by getHydrationStatus. */
     totalByHydrationStatus: StatusCounts;
+    /** Keyed by getSyncSourceStatus. */
+    totalBySyncSourceStatus: StatusCounts;
     /** Keyed by getOperationStateTitle. */
     totalByOperationStatus: StatusCounts;
     /** Keyed by getAutoSyncStatus. */
@@ -124,6 +126,7 @@ export function computeAppsListFacets(apps: FilteredApp[]): AppsListFacets {
         totalBySyncStatus: {},
         totalByHealthStatus: {},
         totalByHydrationStatus: {},
+        totalBySyncSourceStatus: {},
         totalByOperationStatus: {},
         totalByAutoSyncStatus: {},
         destinations: [],
@@ -160,6 +163,7 @@ export function computeAppsListFacets(apps: FilteredApp[]): AppsListFacets {
         count('sync', facets.totalBySyncStatus, app.status.sync.status);
         count('health', facets.totalByHealthStatus, app.status.health.status);
         count('hydration', facets.totalByHydrationStatus, getHydrationStatus(app));
+        count('syncSource', facets.totalBySyncSourceStatus, getSyncSourceStatus(app));
         count('operation', facets.totalByOperationStatus, getOperationStateTitle(app));
         count('autosync', facets.totalByAutoSyncStatus, getAutoSyncStatus(app.spec.syncPolicy));
     });

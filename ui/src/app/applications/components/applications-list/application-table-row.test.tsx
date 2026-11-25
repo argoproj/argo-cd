@@ -51,12 +51,12 @@ const ctx = {
     }
 } as any;
 
-const renderRow = (appsInAnyNamespaceEnabled: boolean) =>
+const renderRow = (appsInAnyNamespaceEnabled: boolean, rowApp = app) =>
     render(
         <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
             <AuthSettingsCtx.Provider value={{appsInAnyNamespaceEnabled} as models.AuthSettings}>
                 <ApplicationTableRow
-                    app={app}
+                    app={rowApp}
                     selected={false}
                     pref={pref}
                     ctx={ctx}
@@ -80,5 +80,25 @@ describe('ApplicationTableRow', () => {
         renderRow(true);
 
         expect(screen.getAllByText('team-a/guestbook').length).toBeGreaterThan(0);
+    });
+
+    it('marks the sync status only when the sync source is behind hydrateTo', () => {
+        const title = 'environment/dev is behind environment/dev-next';
+        const {unmount} = renderRow(false);
+        expect(screen.queryByTitle(title)).not.toBeInTheDocument();
+        unmount();
+
+        const sourceHydrator = {
+            drySource: {repoURL: 'https://github.com/example/repo', targetRevision: 'main', path: '.'},
+            syncSource: {targetBranch: 'environment/dev', path: '.'},
+            hydrateTo: {targetBranch: 'environment/dev-next'}
+        };
+        const behindApp = {
+            ...app,
+            spec: {...app.spec, source: undefined, sourceHydrator},
+            status: {...app.status, sourceHydrator: {syncedDrySHA: 'dry-old', lastSuccessfulOperation: {hydratedDrySHA: 'dry-new'}}}
+        } as unknown as models.Application;
+        renderRow(false, behindApp);
+        expect(screen.getByTitle(title)).toBeInTheDocument();
     });
 });

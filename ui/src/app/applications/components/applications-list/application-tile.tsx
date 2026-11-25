@@ -118,6 +118,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                     </>
                                 )}
                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
+                                <AppUtils.SyncSourceBehindIcon app={app} />
                                 &nbsp;
                                 <OperationState app={app} quiet={true} />
                             </div>

@@ -141,7 +141,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             </>
                         )}
                         <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                        <span>{app.status.sync.status}</span>
+                        <AppUtils.SyncSourceBehindIcon app={app} /> <OperationState app={app} quiet={true} />
                     </CellLink>
                     <ActionMenu
                         items={[

@@ -81,3 +81,51 @@ describe('favorites filter', () => {
         expect(results.map(result => result.filterResult.favourite)).toEqual([true, true]);
     });
 });
+
+describe('sync source filter', () => {
+    const hydratorApp = (hydrateTo: boolean, hydratedDrySHA?: string, syncedDrySHA?: string) =>
+        ({
+            metadata: {name: 'guestbook', namespace: 'argocd'},
+            spec: {
+                destination: {},
+                sourceHydrator: {drySource: {}, syncSource: {targetBranch: 'env/dev'}, ...(hydrateTo && {hydrateTo: {targetBranch: 'env/dev-next'}})}
+            },
+            status: {sync: {status: 'Synced'}, health: {status: 'Healthy'}, sourceHydrator: {syncedDrySHA, lastSuccessfulOperation: {hydratedDrySHA}}}
+        }) as unknown as Application;
+
+    const apps = [hydratorApp(true, 'new', 'old'), hydratorApp(true, 'new', 'new'), hydratorApp(true, undefined, 'old'), hydratorApp(false, 'new', 'old')];
+
+    const prefWithSyncSource = (syncSourceFilter: string[]) =>
+        ({
+            syncFilter: [],
+            autoSyncFilter: [],
+            healthFilter: [],
+            namespacesFilter: [],
+            clustersFilter: [],
+            reposFilter: [],
+            targetRevisionFilter: [],
+            labelsFilter: [],
+            annotationsFilter: [],
+            operationFilter: [],
+            syncSourceFilter
+        }) as unknown as AppsListPreferences;
+
+    const syncSourceResults = (syncSourceFilter: string[], hydratorEnabled = true) =>
+        getAppFilterResults(apps, prefWithSyncSource(syncSourceFilter), hydratorEnabled).map(result => result.filterResult.syncSource);
+
+    test('matches only apps whose synced dry SHA differs from the last hydrated one', () => {
+        expect(syncSourceResults(['Behind'])).toEqual([true, false, false, false]);
+    });
+
+    test('matches apps whose dry SHAs are equal', () => {
+        expect(syncSourceResults(['Up to date'])).toEqual([false, true, false, false]);
+    });
+
+    test('matches apps without hydrateTo or with an unknown dry SHA', () => {
+        expect(syncSourceResults(['None'])).toEqual([false, false, true, true]);
+    });
+
+    test('is ignored when the hydrator is disabled', () => {
+        expect(syncSourceResults(['Behind'], false)).toEqual([true, true, true, true]);
+    });
+});
