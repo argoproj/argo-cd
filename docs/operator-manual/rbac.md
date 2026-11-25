@@ -165,6 +165,23 @@ p, example-user, applications, update/*, default/prod-app, deny
 ```
 
 > [!NOTE]
+> **Deleting child Applications from the resource tree (Since v3.2.0)**
+>
+> In the app-of-apps pattern, deleting a child Application from the parent Application's resource tree in the UI
+> checks the `delete` permission on the child Application, in the child's own project. A fine-grained permission on
+> the parent, such as `delete/*` or `delete/argoproj.io/Application/*/*`, is not enough for this action.
+>
+> For instance, to allow `example-user` to delete the child Applications of `parent-app` that belong to the
+> `child-project` project, the policy could be:
+>
+> ```csv
+> p, example-user, applications, delete, child-project/*, allow
+> ```
+>
+> This grants `delete` on every Application in `child-project`, in any namespace, so the user can also delete any of
+> them from the Applications list.
+
+> [!NOTE]
 > **Preserve Application permission Inheritance (Since v3.0.0)**
 >
 > Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
