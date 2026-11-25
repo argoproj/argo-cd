@@ -40,8 +40,7 @@ func listSSOBenchmarkFixture() []runtime.Object {
 	for i := range listSSOBenchmarkProjects {
 		name := listSSOBenchmarkProjectName(i)
 		group := listSSOBenchmarkGroupName(i)
-		objects = append(objects, &v1alpha1.AppProject{
-			Name: name, Namespace: testNamespace,
+		proj := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -74,7 +73,11 @@ func listSSOBenchmarkFixture() []runtime.Object {
 					},
 				},
 			},
-		})
+		}
+		// Set after the literal: a promoted field in a struct literal needs Go 1.27, which release branches don't use.
+		proj.Name = name
+		proj.Namespace = testNamespace
+		objects = append(objects, proj)
 	}
 	for i := range listSSOBenchmarkApps {
 		objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
