@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -8,6 +9,47 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMapClaims(t *testing.T) {
+	t.Parallel()
+	claims := jwt.MapClaims{"sub": "alice", "groups": []any{"team-a"}}
+
+	t.Run("MapClaims value is returned without a copy", func(t *testing.T) {
+		t.Parallel()
+		got, err := MapClaims(claims)
+		require.NoError(t, err)
+		// The same map, not one that went through JSON.
+		assert.Equal(t, reflect.ValueOf(claims).UnsafePointer(), reflect.ValueOf(got).UnsafePointer())
+	})
+
+	t.Run("MapClaims pointer is returned without a copy", func(t *testing.T) {
+		t.Parallel()
+		got, err := MapClaims(&claims)
+		require.NoError(t, err)
+		assert.Equal(t, reflect.ValueOf(claims).UnsafePointer(), reflect.ValueOf(got).UnsafePointer())
+	})
+
+	t.Run("other claims are converted through JSON", func(t *testing.T) {
+		t.Parallel()
+		got, err := MapClaims(&jwt.RegisteredClaims{Subject: "alice", IssuedAt: jwt.NewNumericDate(time.Unix(1606831200, 0))})
+		require.NoError(t, err)
+		assert.Equal(t, jwt.MapClaims{"sub": "alice", "iat": float64(1606831200)}, got)
+	})
+}
+
+// RBAC converts the claims once for every enforcement, which is once for every Application in a List call, so the
+// conversion of the claims type that the API server puts in the request context must not allocate.
+func TestMapClaims_DoesNotAllocateForMapClaims(t *testing.T) {
+	claims := jwt.MapClaims{"sub": "alice", "groups": []any{"team-a", "team-b"}}
+	var claimsIface jwt.Claims = claims
+	var claimsPtrIface jwt.Claims = &claims
+	assert.Zero(t, testing.AllocsPerRun(100, func() {
+		_, _ = MapClaims(claimsIface)
+	}))
+	assert.Zero(t, testing.AllocsPerRun(100, func() {
+		_, _ = MapClaims(claimsPtrIface)
+	}))
+}
 
 func TestGetSingleStringScope(t *testing.T) {
 	t.Parallel()

@@ -10,10 +10,16 @@ import (
 	jwtgo "github.com/golang-jwt/jwt/v5"
 )
 
-// MapClaims converts a jwt.Claims to a MapClaims
+// MapClaims converts a jwt.Claims to a MapClaims. A MapClaims, or a pointer to one, is returned as is, without a
+// copy; other claims are converted through JSON.
 func MapClaims(claims jwtgo.Claims) (jwtgo.MapClaims, error) {
-	if mapClaims, ok := claims.(*jwtgo.MapClaims); ok {
-		return *mapClaims, nil
+	// The API server puts the claims of a verified token in the request context as a MapClaims value, and RBAC
+	// converts them once for every enforcement, so a List call converts them once for every Application.
+	switch c := claims.(type) {
+	case jwtgo.MapClaims:
+		return c, nil
+	case *jwtgo.MapClaims:
+		return *c, nil
 	}
 	claimsBytes, err := json.Marshal(claims)
 	if err != nil {
