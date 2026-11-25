@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -2313,6 +2314,61 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnsureApplicationsReconciled_LogsApplicationNamesNotFullObjects(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-5 * time.Minute))
+
+	appset := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-appset",
+			Namespace: "argocd",
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "my-test-app",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					LastTransitionTime: &now,
+					Message:            "pending changes",
+				},
+			},
+		},
+	}
+	apps := []v1alpha1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-test-app",
+				Namespace: "argocd",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				ReconciledAt: &before,
+			},
+		},
+	}
+
+	initObjs := []client.Object{&appset, &apps[0]}
+	appObjs := []runtime.Object{&apps[0]}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+	appclientSet := appfake.NewSimpleClientset(appObjs...)
+	manager := NewManager(fakeClient, fakeClient, appclientSet, testDeps{})
+
+	logger, hook := logtest.NewNullLogger()
+	logEntry := log.NewEntry(logger)
+
+	reconciled, err := manager.ensureApplicationsReconciled(logEntry, &appset, apps, &now, 0)
+	require.NoError(t, err)
+	assert.False(t, reconciled)
+
+	require.NotEmpty(t, hook.Entries)
+	lastEntry := hook.LastEntry()
+	assert.Equal(t, "Finished adding refresh annotations to [my-test-app], waiting for application controller to reconcile them", lastEntry.Message)
+	assert.NotContains(t, lastEntry.Message, "ObjectMeta")
 }
 
 func TestAddRefreshAnnotationToApplications(t *testing.T) {

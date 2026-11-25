@@ -798,7 +798,11 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	if len(appsNeedReconcile) > 0 {
-		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", appsNeedReconcile))
+		appNames := make([]string, 0, len(appsNeedReconcile))
+		for _, app := range appsNeedReconcile {
+			appNames = append(appNames, app.Name)
+		}
+		logCtx.Infof("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", appNames)
 	}
 	return false, nil
 }
