@@ -108,7 +108,7 @@ func NewRunDexCommand() *cobra.Command {
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
 				} else {
-					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0o644)
+					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0o600)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.CommandContext(ctx, "dex", "serve", "/tmp/dex.yaml")
@@ -185,10 +185,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 						for i := range staticClients {
 							staticClient := staticClients[i]
 							if mappings, ok := staticClient.(map[string]any); ok {
-								for key := range mappings {
-									if key == "secret" {
-										mappings[key] = "******"
-									}
+								if _, ok := mappings["secret"]; ok {
+									mappings["secret"] = "******"
 								}
 								staticClients[i] = mappings
 							}
@@ -201,7 +199,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				fmt.Print(string(maskedDexCfgBytes))
 			} else {
-				err = os.WriteFile(out, dexCfgBytes, 0o644)
+				err = os.WriteFile(out, dexCfgBytes, 0o600)
 				errors.CheckError(err)
 			}
 			return nil

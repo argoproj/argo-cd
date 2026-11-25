@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {type Observable} from 'rxjs';
 
-import {useQuery, useObservableQuery} from '../hooks/query';
+import {useSearchParams, useObservableQuery} from '../hooks/query';
 
 export interface QueryProps {
     children: (params: URLSearchParams) => React.ReactNode;
@@ -12,7 +12,7 @@ export interface ObservableQueryProps {
 }
 
 function Query({children}: QueryProps) {
-    const query = useQuery();
+    const query = useSearchParams();
 
     return <>{children(query)}</>;
 }

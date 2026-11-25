@@ -110,6 +110,9 @@ func OperationMessageContains(text string) Expectation {
 func OperationRetriedMinimumTimes(minRetries int64) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
+		if operationState == nil {
+			return pending, "no operation state yet"
+		}
 		actual := operationState.RetryCount
 		message := fmt.Sprintf("operation state retry count should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
 		return simple(actual >= minRetries, message)

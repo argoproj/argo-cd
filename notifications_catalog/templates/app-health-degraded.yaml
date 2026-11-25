@@ -30,7 +30,7 @@ slack:
           {{end}}
           ]
         }]
-teams:
+teams-workflows:
     themeColor: "#FF0000"
     title: Application {{.app.metadata.name}} has degraded.
     facts: |

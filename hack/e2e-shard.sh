@@ -8,8 +8,8 @@
 # based splitting leaves stragglers, because the slow tests cluster together in the same
 # file and so sit next to each other in `go test -list` order.
 #
-# Durations come from test/e2e/shard-weights.txt, regenerated from CI artifacts by
-# hack/e2e-shard-weights.sh. Tests missing from that file, including every test when the
+# Durations come from test/e2e/shard-weights.txt, refreshed from CI artifacts by the
+# e2e-shard-weights.yaml workflow. Tests missing from that file, including every test when the
 # file does not exist yet, get the mean weight, so the split stays sane between refreshes.
 #
 # Requires a running e2e environment. `go test -list` links and starts the test binary,
@@ -21,7 +21,10 @@
 # Only top-level test names are matched. `go test` splits a -run pattern on "/" and
 # applies each element to one nesting level, so a pattern with no "/" filters top-level
 # tests only and every subtest of a selected test still runs.
+#
+# The locale is pinned so that `sort` breaks weight ties the same way on every machine.
 set -eu -o pipefail
+export LC_ALL=C
 
 pkg="$1"
 shard="$2"
@@ -34,7 +37,17 @@ if ! [[ "$shard" =~ ^[0-9]+$ ]] || ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -l
 fi
 
 # `go test -list` emits the matching names followed by a trailing "ok <pkg> <time>" line.
-names=$(go test -list '.*' "$pkg" | grep -E '^Test[A-Za-z0-9_]*$')
+listed=$(go test -list '.*' "$pkg")
+names=$(echo "$listed" | grep -E '^Test[A-Za-z0-9_]*$' || true)
+
+# A test whose name the filter above rejects (Go identifiers may contain non-ASCII
+# letters) would be selected by no shard and so never run, without any failure.
+rejected=$(echo "$listed" | grep -E '^Test' | grep -vE '^Test[A-Za-z0-9_]*$' || true)
+if [ -n "$rejected" ]; then
+	echo "e2e-shard: test names that no shard can select:" >&2
+	echo "$rejected" >&2
+	exit 1
+fi
 
 if [ -z "$names" ]; then
 	echo "e2e-shard: no tests found in $pkg" >&2

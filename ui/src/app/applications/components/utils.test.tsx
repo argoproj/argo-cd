@@ -2,6 +2,7 @@ import * as React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.node';
 import {
     Application,
+    Cluster,
     HealthStatus,
     HealthStatuses,
     OperationPhases,
@@ -23,6 +24,7 @@ import {
     hydrationStatusMessage,
     getAppOperationState,
     getAppSpecDefaultSource,
+    getClusterOptions,
     getHydratorSyncSourceRepoURL,
     getOperationType,
     getPodStateReason,
@@ -1350,5 +1352,26 @@ describe('formatCreationTimestamp', () => {
         expect(html).toMatch(/2020/);
         expect(html).toMatch(/ago/i);
         expect(html).not.toContain('<time');
+    });
+});
+
+describe('getClusterOptions', () => {
+    const clusters = [
+        {name: 'zeta-prod', server: 'https://zeta.example.com'},
+        {name: 'alpha-dev', server: 'https://alpha.example.com'},
+        {name: 'mike-staging', server: 'https://mike.example.com'}
+    ] as Cluster[];
+
+    it('sorts cluster names', () => {
+        expect(getClusterOptions(clusters, 'name')).toEqual(['alpha-dev', 'mike-staging', 'zeta-prod']);
+    });
+
+    it('sorts cluster server URLs', () => {
+        expect(getClusterOptions(clusters, 'server')).toEqual(['https://alpha.example.com', 'https://mike.example.com', 'https://zeta.example.com']);
+    });
+
+    it('does not reorder the input', () => {
+        getClusterOptions(clusters, 'name');
+        expect(clusters.map(cluster => cluster.name)).toEqual(['zeta-prod', 'alpha-dev', 'mike-staging']);
     });
 });

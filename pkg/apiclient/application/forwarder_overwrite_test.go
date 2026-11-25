@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	//nolint:staticcheck
@@ -22,7 +24,6 @@ import (
 	argohttp "github.com/argoproj/pkg/v2/grpc/http"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
@@ -35,12 +36,7 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	val, ok, err := unstructured.NestedString(item, "operation", "sync", "revision")
 	require.NoError(t, err)
@@ -57,14 +53,9 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
+	item := processedItem(t, res, 0)
 
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
-
-	_, ok, err = unstructured.NestedString(item, "operation")
+	_, ok, err := unstructured.NestedString(item, "operation")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -86,12 +77,7 @@ func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
@@ -119,12 +105,7 @@ func TestProcessApplicationListField_OperationStateOperationSyncMultiSource(t *t
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
@@ -144,14 +125,9 @@ func TestProcessApplicationListField_OperationStateOperationSyncMissing(t *testi
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
+	item := processedItem(t, res, 0)
 
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
-
-	_, ok, err = unstructured.NestedMap(item, "status")
+	_, ok, err := unstructured.NestedMap(item, "status")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -459,8 +435,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 
 // TestSelectAppFields_OverlappingFields ensures that selecting both a field and
 // its descendants (e.g. "spec" and "spec.destination", as appFields contains on
-// master) keeps only the ancestor, so processAppFields neither fails with
-// "field ... is not a map" nor depends on map iteration order.
+// master) keeps only the ancestor, so "spec" is written once, deterministically.
 func TestSelectAppFields_OverlappingFields(t *testing.T) {
 	// Inject descendant entries unless already present (master defines them).
 	overlapping := map[string]func(app *v1alpha1.Application) any{
@@ -501,10 +476,7 @@ func TestSelectAppFields_OverlappingFields(t *testing.T) {
 			assert.NotEqual(t, "spec.destination", spec.field)
 			assert.NotEqual(t, "spec.project", spec.field)
 		}
-		converted, err := processAppFields(app, specs)
-		require.NoError(t, err)
-		convertedJSON, err := json.Marshal(converted)
-		require.NoError(t, err)
+		convertedJSON := encodeApp(t, app, specs)
 		if firstJSON == nil {
 			firstJSON = convertedJSON
 		} else {
@@ -688,4 +660,59 @@ type failingResponseWriter struct {
 
 func (f *failingResponseWriter) Write(p []byte) (int, error) {
 	return f.Writer.Write(p)
+}
+
+func TestLogsForwarder_DownloadFileName(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		query    string
+		expected string
+	}{
+		{"pod", "namespace=default&podName=guestbook-ui-5d7f9c8b4-x2k9p&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-x2k9p-guestbook-ui.log"},
+		{"deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook-ui&container=guestbook-ui", "default-guestbook-ui-guestbook-ui.log"},
+		{"replicaset", "namespace=default&group=apps&kind=ReplicaSet&resourceName=guestbook-ui-5d7f9c8b4&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-guestbook-ui.log"},
+		{"invalid part", "namespace=default&podName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"empty", "", "log.log"},
+		{"dotted deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook.ui.v2&container=guestbook-ui", "default-guestbook.ui.v2-guestbook-ui.log"},
+		{"long deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 100) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 100) + "-guestbook-ui.log"},
+		{"253 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 253) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 253) + "-guestbook-ui.log"},
+		{"254 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 254) + "&container=guestbook-ui", "log.log"},
+		{"deployment traversal", "namespace=default&group=apps&kind=Deployment&resourceName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"deployment slash", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook%2Fui&container=guestbook-ui", "log.log"},
+		{"dotted pod", "namespace=default&podName=guestbook.ui&container=guestbook-ui", "log.log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications/guestbook/logs?download=true&"+tt.query, http.NoBody)
+			recv := func() (proto.Message, error) {
+				return &LogEntry{Content: proto.String(""), Last: proto.Bool(true)}, nil
+			}
+			forward_ApplicationService_PodLogs_1(t.Context(), runtime.NewServeMux(), nil, rec, req, recv)
+			assert.Equal(t, `attachment;filename="`+tt.expected+`"`, rec.Header().Get("Content-Disposition"))
+		})
+	}
+}
+
+// processedItem decodes item i of a processor result as argoproj/pkg serves it.
+func processedItem(t *testing.T, res any, i int) map[string]any {
+	t.Helper()
+	b, err := json.Marshal(res)
+	require.NoError(t, err)
+	var decoded struct {
+		Items []map[string]any `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(b, &decoded))
+	require.Greater(t, len(decoded.Items), i)
+	return decoded.Items[i]
+}
+
+func encodeApp(t *testing.T, app *v1alpha1.Application, specs []appFieldSpec) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	enc := jsontext.NewEncoder(&buf, json.DefaultOptionsV1())
+	require.NoError(t, encodeSelectedFields(enc, app, specs))
+	return buf.Bytes()
 }

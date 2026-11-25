@@ -81,6 +81,9 @@ func TestJob(t *testing.T) {
 	assertAppHealth(t, "./testdata/job-suspended.yaml", HealthStatusSuspended)
 	// A suspended Job should surface its Suspended condition message, not an empty string.
 	assert.Equal(t, "Job suspended", getHealthStatus(t, "./testdata/job-suspended.yaml").Message)
+	// A resumed Job keeps its Suspended condition with status False while it runs.
+	assertAppHealth(t, "./testdata/job-resumed.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/job-resumed-succeeded.yaml", HealthStatusHealthy)
 }
 
 func TestHPA(t *testing.T) {

@@ -374,12 +374,20 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
-    public async revisions(repo: string): Promise<models.RefsInfo> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
+    // appProject lets the server resolve a project-scoped repository and check the
+    // project-scoped `repositories, get` permission instead of the global one.
+    public async revisions(repo: string, appProject?: string): Promise<models.RefsInfo> {
+        return requests
+            .get(`/repositories/${encodeURIComponent(repo)}/refs`)
+            .query(appProject ? {appProject} : {})
+            .then(res => res.body as models.RefsInfo);
     }
 
-    public async ociTags(repo: string): Promise<models.RefsInfo> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/oci-tags`).then(res => res.body as models.RefsInfo);
+    public async ociTags(repo: string, appProject?: string): Promise<models.RefsInfo> {
+        return requests
+            .get(`/repositories/${encodeURIComponent(repo)}/oci-tags`)
+            .query(appProject ? {appProject} : {})
+            .then(res => res.body as models.RefsInfo);
     }
 
     public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {
@@ -391,8 +399,11 @@ export class RepositoriesService {
             .then(res => (res.body.items as models.AppInfo[]) || []);
     }
 
-    public charts(repo: string): Promise<models.HelmChart[]> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
+    public charts(repo: string, appProject?: string): Promise<models.HelmChart[]> {
+        return requests
+            .get(`/repositories/${encodeURIComponent(repo)}/helmcharts`)
+            .query(appProject ? {appProject} : {})
+            .then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
     public appDetails(source: models.ApplicationSource, appName: string, appProject: string, sourceIndex: number, versionId: number | null): Promise<models.RepoAppDetails> {

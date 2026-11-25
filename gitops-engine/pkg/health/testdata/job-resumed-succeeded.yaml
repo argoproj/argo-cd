@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  creationTimestamp: 2018-12-02T08:19:13Z
+  labels:
+    controller-uid: f3fe3a46-f60a-11e8-aa53-42010a80021b
+    job-name: resumed
+  name: resumed
+  namespace: argoci-workflows
+  resourceVersion: "46535949"
+  selfLink: /apis/batch/v1/namespaces/argoci-workflows/jobs/resumed
+  uid: f3fe3a46-f60a-11e8-aa53-42010a80021b
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  selector:
+    matchLabels:
+      controller-uid: f3fe3a46-f60a-11e8-aa53-42010a80021b
+  suspend: false
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        controller-uid: f3fe3a46-f60a-11e8-aa53-42010a80021b
+        job-name: resumed
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - sleep 10
+        image: alpine:latest
+        imagePullPolicy: Always
+        name: resumed
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  completionTime: "2022-12-08T22:30:52Z"
+  conditions:
+  - lastProbeTime: "2022-12-08T22:30:41Z"
+    lastTransitionTime: "2022-12-08T22:30:41Z"
+    message: Job resumed
+    reason: JobResumed
+    status: "False"
+    type: Suspended
+  - lastProbeTime: "2022-12-08T22:30:52Z"
+    lastTransitionTime: "2022-12-08T22:30:52Z"
+    status: "True"
+    type: Complete
+  startTime: "2022-12-08T22:30:41Z"
+  succeeded: 1

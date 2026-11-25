@@ -172,6 +172,23 @@ export const ApplicationNodeInfo = (props: {
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
             attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
+        } else if (props.node.kind === 'Gateway' && props.node.group === 'gateway.networking.k8s.io') {
+            let hostNames = '';
+            const status = props.live.status;
+            if (status && status.addresses) {
+                hostNames = (status.addresses || []).map((item: any) => item.value).join(', ');
+            }
+            attributes.push({title: 'HOSTNAMES', value: hostNames});
+        } else if (props.node.kind === 'CronJob' && props.node.group === 'batch') {
+            const {lastScheduleTime, lastSuccessfulTime} = props.live.status || {};
+            const health = props.controlled?.summary.health || (props.node as ResourceTreeNode).health;
+            const isHealthy = health?.status === models.HealthStatuses.Healthy;
+            if (lastSuccessfulTime) {
+                attributes.push({title: 'LAST SUCCESSFUL', value: formatCreationTimestamp(lastSuccessfulTime)});
+            }
+            if (lastScheduleTime && (!isHealthy || !lastSuccessfulTime)) {
+                attributes.push({title: 'LAST SCHEDULED', value: formatCreationTimestamp(lastScheduleTime)});
+            }
         }
     }
 
@@ -348,12 +365,13 @@ export const ApplicationNodeInfo = (props: {
                                 ) : (
                                     <div className='application-node-info__err_msg'>
                                         Resource not found in cluster:{' '}
-                                        {typeof props?.controlled?.state?.targetState !== 'undefined' && (
+                                        {props?.controlled?.state?.targetState && (
                                             <span>{`${props.controlled.state.targetState.apiVersion}/${props.controlled.state.targetState.kind}:`}</span>
                                         )}
                                         {`${props.node.name}`}
                                         <br />
-                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion &&
+                                        {props?.controlled?.state?.targetState &&
+                                            props?.controlled?.state?.normalizedLiveState?.apiVersion &&
                                             `${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}` !==
                                                 `${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}` && (
                                                 <span>

@@ -5,7 +5,7 @@ import {ProgressPopup} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSelector} from '../../../shared/components';
+import {ApplicationSelector, getSelectedApps} from '../../../shared/components';
 import {isApp} from '../utils';
 
 interface Progress {
@@ -17,15 +17,14 @@ const RefreshTypes = ['normal', 'hard'];
 
 export const ApplicationsRefreshPanelBody = ({apps, getApi}: {apps: models.Application[]; getApi: (api: FormApi) => void}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
-    const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
 
     return (
         <Consumer>
             {ctx => (
                 <Form
-                    defaultValues={{refreshType: 'normal'}}
+                    defaultValues={{refreshType: 'normal', selectedApps: []}}
                     onSubmit={async (params: any) => {
-                        const selectedApps = getSelectedApps(params);
+                        const selectedApps = getSelectedApps(apps, params);
                         if (selectedApps.length === 0) {
                             ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                             return;

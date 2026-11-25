@@ -545,6 +545,23 @@ func TestDeleteAppSet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &applicationset.ApplicationSetResponse{}, res)
 	})
+
+	t.Run("Delete in not allowed namespace", func(t *testing.T) {
+		// https://github.com/argoproj/argo-cd/security/advisories/GHSA-rvmf-gjc9-wjgq
+		appSetInOtherNamespace := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "AppSet1"
+			appset.Namespace = "NOT-ALLOWED"
+		})
+		appSetServer := newTestAppSetServer(t, appSetInOtherNamespace)
+
+		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.Delete(t.Context(), &appsetQuery)
+		require.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+
+		_, err = appSetServer.appclientset.ArgoprojV1alpha1().ApplicationSets("NOT-ALLOWED").Get(t.Context(), "AppSet1", metav1.GetOptions{})
+		require.NoError(t, err, "the ApplicationSet must not have been deleted")
+	})
 }
 
 func TestUpdateAppSet(t *testing.T) {

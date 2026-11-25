@@ -424,6 +424,9 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 
 func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDeleteRequest) (*applicationset.ApplicationSetResponse, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
 
 	appset, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
 	if err != nil {
