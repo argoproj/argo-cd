@@ -1,0 +1,44 @@
+name: "Trivy Scan"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_REPO: argoproj
+
+jobs:
+  images:
+    name: Image Scan
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        target: [ argocd ]
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+
+      - name: Build image
+        run: |
+          make image
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          vuln-type: 'os,library'
+          image-ref: '${{ matrix.target }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
