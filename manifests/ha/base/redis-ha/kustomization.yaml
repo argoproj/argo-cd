@@ -300,6 +300,13 @@ patches:
       kind: Role
       name: argocd-redis-ha-haproxy
   path: overlays/haproxy-role.yaml
+# listen on IPv6 when the pod's primary IP is IPv6
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-initContainers-ipv6.yaml
 - target:
     group: apps
     version: v1
