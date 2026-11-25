@@ -12,8 +12,9 @@ import (
 
 func TestProjectAllowListGen(t *testing.T) {
 	res := metav1.APIResource{
-		Name: "services",
-		Kind: "Service",
+		Name:       "services",
+		Kind:       "Service",
+		Namespaced: true,
 	}
 	resourceList := []*metav1.APIResourceList{{APIResources: []metav1.APIResource{res}}}
 
@@ -27,13 +28,13 @@ func TestProjectAllowListGen_MultiAPIGroupsAndDeduplication(t *testing.T) {
 		{
 			GroupVersion: "networking.k8s.io/v1",
 			APIResources: []metav1.APIResource{
-				{Name: "ingresses", Kind: "Ingress"},
+				{Name: "ingresses", Kind: "Ingress", Namespaced: true},
 			},
 		},
 		{
 			GroupVersion: "extensions/v1beta1",
 			APIResources: []metav1.APIResource{
-				{Name: "ingresses", Kind: "Ingress"},
+				{Name: "ingresses", Kind: "Ingress", Namespaced: true},
 			},
 		},
 	}
@@ -75,8 +76,8 @@ func TestProjectAllowListGen_WildcardVerbAndResource(t *testing.T) {
 		{
 			GroupVersion: "apps/v1",
 			APIResources: []metav1.APIResource{
-				{Name: "deployments", Kind: "Deployment"},
-				{Name: "statefulsets", Kind: "StatefulSet"},
+				{Name: "deployments", Kind: "Deployment", Namespaced: true},
+				{Name: "statefulsets", Kind: "StatefulSet", Namespaced: true},
 			},
 		},
 	}
@@ -102,6 +103,54 @@ rules:
 	expected := []metav1.GroupKind{
 		{Group: "apps", Kind: "Deployment"},
 		{Group: "apps", Kind: "StatefulSet"},
+	}
+	assert.ElementsMatch(t, expected, proj.Spec.NamespaceResourceWhitelist)
+}
+
+func TestProjectAllowListGen_WildcardAPIGroupAndSkipsClusterScoped(t *testing.T) {
+	serverResources := []*metav1.APIResourceList{
+		{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{Name: "services", Kind: "Service", Namespaced: true},
+				{Name: "namespaces", Kind: "Namespace", Namespaced: false},
+			},
+		},
+		{
+			GroupVersion: "apps/v1",
+			APIResources: []metav1.APIResource{
+				{Name: "deployments", Kind: "Deployment", Namespaced: true},
+			},
+		},
+		{
+			GroupVersion: "rbac.authorization.k8s.io/v1",
+			APIResources: []metav1.APIResource{
+				{Name: "clusterroles", Kind: "ClusterRole", Namespaced: false},
+			},
+		},
+	}
+
+	crYAML := `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-cr-wildcard-all
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+`
+	tmpFile := filepath.Join(t.TempDir(), "cr.yaml")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(crYAML), 0o600))
+
+	proj, err := generateProjectAllowList(serverResources, tmpFile, "testproj")
+	require.NoError(t, err)
+
+	expected := []metav1.GroupKind{
+		{Group: "", Kind: "Service"},
+		{Group: "apps", Kind: "Deployment"},
 	}
 	assert.ElementsMatch(t, expected, proj.Spec.NamespaceResourceWhitelist)
 }

@@ -146,6 +146,9 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 					}
 					if ruleAPIGroup == "*" || ruleAPIGroup == gv.Group {
 						for _, apiResource := range apiResourcesList.APIResources {
+							if !apiResource.Namespaced {
+								continue
+							}
 							if ruleResource == "*" || apiResource.Name == ruleResource {
 								gk := metav1.GroupKind{Group: gv.Group, Kind: apiResource.Kind}
 								if !seen[gk] {
