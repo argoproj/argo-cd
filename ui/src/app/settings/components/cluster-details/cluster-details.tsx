@@ -12,7 +12,6 @@ import {services} from '../../../shared/services';
 import {useClusterMutations} from '../../../shared/mutations';
 import {applicationQueries, clusterQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
-import {formatClusterQueryParam} from '../../../shared/utils';
 
 function isRefreshRequested(cluster: Cluster): boolean {
     return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
@@ -36,6 +35,10 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
     if (!cluster) {
         return loading;
     }
+    const applicationQuery = `cluster IN (${[cluster.server, cluster.name]
+        .filter(Boolean)
+        .map(value => JSON.stringify(value))
+        .join(', ')})`;
     return (
         <Page
             title='Clusters'
@@ -93,7 +96,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                             view: (
                                 <div>
                                     {apps && (
-                                        <Link to={`/applications?cluster=${formatClusterQueryParam(cluster)}`}>
+                                        <Link to={`/applications?${new URLSearchParams({q: applicationQuery})}`}>
                                             {apps.items.filter(app => app.spec.destination.name === cluster.name || app.spec.destination.server === cluster.server).length}
                                         </Link>
                                     )}

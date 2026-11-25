@@ -61,7 +61,8 @@ describe('ClusterDetails', () => {
 
         expect(screen.getByText('Loading...')).toBeInTheDocument();
         expect(await screen.findByText('v1.33.0')).toBeInTheDocument();
-        expect(await screen.findByRole('link', {name: '1'})).toBeInTheDocument();
+        const applicationLink = await screen.findByRole('link', {name: '1'});
+        expect(new URL(applicationLink.getAttribute('href'), 'http://localhost').searchParams.get('q')).toBe('cluster IN ("https://kubernetes.default.svc", "in-cluster")');
         expect(services.clusters.get).toHaveBeenCalledWith(server, '');
     });
 

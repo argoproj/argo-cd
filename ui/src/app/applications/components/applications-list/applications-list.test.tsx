@@ -79,10 +79,9 @@ const list = (rows: Application[]) =>
         failed: false,
         retry: jest.fn(),
         rows,
-        facets: {},
         stats: {total: rows.length},
         noApplications: false,
-        searchSuggestions: rows,
+        queryValues: {},
         markRefreshing: jest.fn()
     }) as unknown as AppsListSourceResult;
 
@@ -115,14 +114,14 @@ beforeEach(() => {
 
 test.each(['list', 'tiles'])('syncing an application from the %s view opens its panel without scoping the list to its namespace', async view => {
     const history = renderAt(`/applications?view=${view}`);
-    expect(listedNamespace()).toBeNull();
+    expect(listedNamespace()).toBe('');
 
     fireEvent.click(await screen.findByText('Sync guestbook'));
 
     expect(await screen.findByText('Syncing guestbook')).toBeInTheDocument();
     expect(services.applications.get).toHaveBeenCalledWith('guestbook', 'team-a', 'application');
     expect(params(history).get('appNamespace')).toBeNull();
-    expect(listedNamespace()).toBeNull();
+    expect(listedNamespace()).toBe('');
 
     fireEvent.click(screen.getByText('Close'));
 
@@ -131,17 +130,17 @@ test.each(['list', 'tiles'])('syncing an application from the %s view opens its 
     expect(params(history).get('syncAppNamespace')).toBeNull();
 });
 
-test('keeps the list scoped to the namespace in the URL across syncing an application', async () => {
-    const history = renderAt('/applications?appNamespace=team-a');
-    expect(listedNamespace()).toBe('team-a');
+test('keeps the namespace query in the URL across syncing an application', async () => {
+    const history = renderAt('/applications?q=appNamespace%20%3D%20team-a');
+    expect(jest.mocked(useApplicationsList).mock.lastCall[0].pref.search).toBe('appNamespace = team-a');
 
     fireEvent.click(await screen.findByText('Sync guestbook'));
     await screen.findByText('Syncing guestbook');
     fireEvent.click(screen.getByText('Close'));
     await act(async () => {});
 
-    expect(params(history).get('appNamespace')).toBe('team-a');
-    expect(listedNamespace()).toBe('team-a');
+    expect(params(history).get('q')).toBe('appNamespace = team-a');
+    expect(jest.mocked(useApplicationsList).mock.lastCall[0].pref.search).toBe('appNamespace = team-a');
 });
 
 test('a failed cluster list is not an unhandled rejection outside the summary view', async () => {
@@ -149,4 +148,20 @@ test('a failed cluster list is not an unhandled rejection outside the summary vi
     renderAt('/applications?view=list');
     await screen.findByText('Sync guestbook');
     await act(async () => {});
+});
+
+test('query submission and browser history restore the visible query from the URL', async () => {
+    const history = renderAt('/applications?q=health%20%3D%20Degraded&proj=hidden&sync=Synced');
+    const input = await screen.findByRole('combobox', {name: 'Search applications'});
+    expect(input).toHaveValue('health = Degraded');
+    fireEvent.change(input, {target: {value: '(health = Degraded OR sync = OutOfSync) AND project = production'}});
+    fireEvent.submit(input.closest('form'));
+    await waitFor(() => expect(params(history).get('q')).toBe('(health = Degraded OR sync = OutOfSync) AND project = production'));
+    expect(params(history).has('proj')).toBe(false);
+    expect(params(history).has('sync')).toBe(false);
+    expect(jest.mocked(useApplicationsList).mock.lastCall[0].pref.search).toBe(params(history).get('q'));
+    act(() => history.goBack());
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('health = Degraded'));
+    act(() => history.goForward());
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('(health = Degraded OR sync = OutOfSync) AND project = production'));
 });
