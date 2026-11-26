@@ -7,7 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING} from '../application-sync-options/application-sync-options';
-import {ApplicationSelector} from '../../../shared/components';
+import {ApplicationSelector, getSelectedApps} from '../../../shared/components';
 import {getAppDefaultSource} from '../utils';
 import {resolveBulkSyncFlags, SyncFlagValues} from './resolve-bulk-sync-flags';
 
@@ -18,15 +18,14 @@ interface Progress {
 
 export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: models.Application[]; getApi: (api: FormApi) => void; setPending: (pending: boolean) => void}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
-    const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     return (
         <Consumer>
             {ctx => (
                 <Form
-                    defaultValues={{syncFlags: []}}
+                    defaultValues={{syncFlags: [], selectedApps: []}}
                     onSubmit={async (params: any) => {
                         setPending(true);
-                        const selectedApps = getSelectedApps(params);
+                        const selectedApps = getSelectedApps(apps, params);
                         if (selectedApps.length === 0) {
                             ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
                             setPending(false);

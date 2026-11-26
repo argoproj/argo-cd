@@ -96,6 +96,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
+	command.AddCommand(NewApplicationEventsCommand(clientOpts))
 	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationConfirmDeletionCommand(clientOpts))
@@ -1230,7 +1231,7 @@ func findAndPrintDiff(
 		baseTargetProvider = newSingleRevisionProvider(appIf, appName, appNs, revision, false)
 	default:
 		// Normal sync: provider uses target state from ManagedResources
-		baseTargetProvider = newDefaultTargetProvider(resources)
+		baseTargetProvider = newTargetManifestProvider(resources, excludeSecret)
 	}
 
 	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, getInfoProviderFromState(resources))

@@ -99,6 +99,21 @@ test('ignores watch events from other namespaces when the list is scoped to one'
     await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['d', 'a', 'b']));
 });
 
+test('sends the label filters the server can evaluate and still filters on the client', async () => {
+    const labelled = (name: string, labels: Record<string, string>) => ({...app(name), metadata: {name, namespace: 'argocd', labels}}) as Application;
+    // The server can't evaluate `replicas gt 1`, so it returns an app that only the client filters out.
+    jest.mocked(services.applications.list).mockResolvedValue({
+        items: [labelled('a', {team: 'core', replicas: '2'}), labelled('b', {team: 'core', replicas: '1'})],
+        metadata: {resourceVersion: '5'}
+    } as any);
+    const result = setup({pref: pref({labelsFilter: ['team=core', 'replicas gt 1']}), appNamespace: '', hydratorEnabled: false});
+
+    await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
+    expect(jest.mocked(services.applications.list).mock.calls[0][2]).toMatchObject({selector: 'team=core'});
+    expect(jest.mocked(services.applications.watch).mock.calls[0][2]).toMatchObject({selector: 'team=core'});
+    expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
+});
+
 test('neither lists nor watches when favorites only is on without favorites', async () => {
     const result = setup({pref: pref({showFavorites: true, favoritesAppList: []}), appNamespace: '', hydratorEnabled: false});
     await waitFor(() => expect(result.current.loading).toBe(false));

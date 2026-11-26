@@ -23,7 +23,10 @@ func Path(root, path string) (string, error) {
 		return "", fmt.Errorf("%s: app path is absolute", path)
 	}
 	appPath := filepath.Join(root, path)
-	if !strings.HasPrefix(appPath, filepath.Clean(root)) {
+	// Compare path components, not strings: a plain prefix check would accept
+	// a sibling such as "<root>-other" as being inside "<root>".
+	rel, err := filepath.Rel(filepath.Clean(root), appPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("%s: app path outside root", path)
 	}
 	info, err := os.Stat(appPath)

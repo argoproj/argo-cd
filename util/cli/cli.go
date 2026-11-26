@@ -322,10 +322,14 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		cmd.Stdin = os.Stdin
 
 		err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run)
-		errors.CheckError(err)
+		if err != nil {
+			_ = os.Remove(tempFile)
+			errors.CheckError(err)
+		}
 
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
+		_ = os.Remove(tempFile)
 		if len(updated) == 0 || bytes.Equal(updated, data) {
 			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break

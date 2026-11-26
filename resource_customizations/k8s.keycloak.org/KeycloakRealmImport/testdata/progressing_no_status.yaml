@@ -1,0 +1,14 @@
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  creationTimestamp: "2026-10-29T20:04:51Z"
+  generation: 1
+  name: new-realm
+  namespace: keycloak
+  resourceVersion: "13405"
+  uid: 9d5128fd-306a-4269-845a-8bfcf98f1556
+spec:
+  keycloakCRName: keycloak
+  realm:
+    enabled: true
+    realm: new
