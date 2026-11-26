@@ -122,7 +122,7 @@ describe('SourcePanel', () => {
             <Form defaultValues={app} getApi={api => (formApi = api)}>
                 {api => {
                     const selectedURL = (api.values as models.Application).spec.sources?.[0]?.repoURL;
-                    return <SourcePanel formApi={api} repos={[repoURL]} repoInfo={selectedURL === repoURL ? registeredRepo : undefined} sourceIndex={0} />;
+                    return <SourcePanel formApi={api} repos={[registeredRepo]} repoInfo={selectedURL === repoURL ? registeredRepo : undefined} sourceIndex={0} />;
                 }}
             </Form>
         );
@@ -157,7 +157,7 @@ describe('SourcePanel', () => {
             <Form defaultValues={app} getApi={api => (formApi = api)}>
                 {api => {
                     const selectedURL = (api.values as models.Application).spec.sources?.[0]?.repoURL;
-                    return <SourcePanel formApi={api} repos={repositories.map(repo => repo.repo)} repoInfo={repositories.find(repo => repo.repo === selectedURL)} sourceIndex={0} />;
+                    return <SourcePanel formApi={api} repos={repositories} repoInfo={repositories.find(repo => repo.repo === selectedURL)} sourceIndex={0} />;
                 }}
             </Form>
         );
@@ -169,5 +169,21 @@ describe('SourcePanel', () => {
         expect(formApi?.values.spec.sources[0].targetRevision).toBe('HEAD');
         expect(formApi?.values.spec.sources[0].helm?.valueFiles).toEqual(['values.yaml']);
         expect(screen.getByRole('textbox', {name: 'Ref'})).toBeInTheDocument();
+    });
+
+    test('shows the repository name alongside the URL in the repository URL suggestions', async () => {
+        const app = applicationWithSources([{repoURL: '', targetRevision: 'HEAD'} as models.ApplicationSource]);
+        const repositories = [
+            {repo: 'https://git.example.com/named.git', name: 'my-named-repo', type: 'git'},
+            {repo: 'https://git.example.com/unnamed.git', type: 'git'}
+        ] as models.Repository[];
+
+        render(<Form defaultValues={app}>{api => <SourcePanel formApi={api} repos={repositories} sourceIndex={0} />}</Form>);
+
+        fireEvent.focus(document.querySelector('[qe-id="application-create-source-1-field-repository-url"]') as HTMLInputElement);
+
+        const namedOption = (await screen.findByText('https://git.example.com/named.git')).closest('.select__option');
+        expect(namedOption).toHaveTextContent('my-named-repo');
+        expect(screen.getByText('https://git.example.com/unnamed.git')).toBeInTheDocument();
     });
 });
