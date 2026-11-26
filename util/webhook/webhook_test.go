@@ -772,12 +772,14 @@ func TestHandleEvent(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		app         *v1alpha1.Application
-		changedFile string // file that was changed in the webhook payload
-		hasRefresh  bool   // application has refresh annotation applied
-		hasHydrate  bool   // application has hydrate annotation applied
-		updateCache bool   // cache should be updated with the new revision
+		name          string
+		app           *v1alpha1.Application
+		changedFile   string // file that was changed in the webhook payload
+		hasRefresh    bool   // application has refresh annotation applied
+		hasHydrate    bool   // application has hydrate annotation applied
+		seedCache     bool   // cache should contain manifests for the old revision
+		seedSyncCache bool   // sync source cache should contain manifests for the old revision
+		updateCache   bool   // cache should be updated with the new revision
 	}{
 		{
 			name: "single source without annotation - always refreshes",
@@ -997,6 +999,37 @@ func TestHandleEvent(t *testing.T) {
 			updateCache: false,
 		},
 		{
+			name: "source hydrator sync source no-op refreshes after cache warm",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			// Sync-source refresh paths are the whole sync path (the annotation is ignored), so a
+			// file under sync/path would take the direct-refresh branch. Use a file outside that
+			// path and seed the sync-source cache so this hits refreshAfterCacheWarm.
+			changedFile:   "other-app/app.yaml",
+			hasRefresh:    true,
+			hasHydrate:    false,
+			seedSyncCache: true,
+			updateCache:   false,
+		},
+		{
 			name: "source hydrator dry source with annotation - refresh and hydrate",
 			app: &v1alpha1.Application{
 				Name:      "test-app",
@@ -1022,6 +1055,34 @@ func TestHandleEvent(t *testing.T) {
 			hasRefresh:  true,
 			hasHydrate:  true,
 			updateCache: false,
+		},
+		{
+			name: "source hydrator shared branch dry change hydrates after sync cache warm",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "master",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile:   "dry/path/deploy/app.yaml",
+			hasRefresh:    true,
+			hasHydrate:    true,
+			seedSyncCache: true,
+			updateCache:   false,
 		},
 		{
 			name: "source hydrator dry source with annotation - non-matching file updates cache",
@@ -1077,19 +1138,31 @@ func TestHandleEvent(t *testing.T) {
 				1*time.Minute,
 				10*time.Second,
 			)
+			sourceForCache := func() *v1alpha1.ApplicationSource {
+				if ttc.app.Spec.SourceHydrator != nil {
+					syncSource := ttc.app.Spec.GetSource()
+					if strings.HasPrefix(ttc.changedFile, syncSource.Path+"/") {
+						return &syncSource
+					}
+					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
+					return &drySource
+				}
+				if len(ttc.app.Spec.Sources) > 0 {
+					return &ttc.app.Spec.Sources[0]
+				}
+				return nil
+			}
 
 			// Pre-populate cache with beforeSHA if we're testing cache updates
-			if ttc.updateCache {
-				var source *v1alpha1.ApplicationSource
-				if ttc.app.Spec.SourceHydrator != nil {
-					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
-					source = &drySource
-				} else if len(ttc.app.Spec.Sources) > 0 {
-					source = &ttc.app.Spec.Sources[0]
-				}
+			if ttc.seedCache || ttc.updateCache {
+				source := sourceForCache()
 				if source != nil {
 					setupTestCache(t, repoCache, ttc.app.Name, source, nil, []string{"test-manifest"})
 				}
+			}
+			if ttc.seedSyncCache {
+				syncSource := ttc.app.Spec.GetSource()
+				setupTestCache(t, repoCache, ttc.app.Name, &syncSource, nil, []string{"test-manifest"})
 			}
 
 			// Setup server cache with cluster info
@@ -1170,13 +1243,7 @@ func TestHandleEvent(t *testing.T) {
 
 			// Verify cache update behavior
 			if ttc.updateCache {
-				var source *v1alpha1.ApplicationSource
-				if ttc.app.Spec.SourceHydrator != nil {
-					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
-					source = &drySource
-				} else if len(ttc.app.Spec.Sources) > 0 {
-					source = &ttc.app.Spec.Sources[0]
-				}
+				source := sourceForCache()
 				if source != nil {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
@@ -1201,6 +1268,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 		project      *v1alpha1.AppProject
 		seedCache    bool // seed the cache with manifests for the previous revision
 		cacheUpdated bool // cache should be updated with the new revision
+		cacheWarmed  bool // cache move should report a successful warm
 		errExpected  bool
 	}{
 		{
@@ -1244,6 +1312,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			},
 			seedCache:    true,
 			cacheUpdated: true,
+			cacheWarmed:  true,
 			errExpected:  false,
 		},
 		{
@@ -1277,6 +1346,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			},
 			seedCache:    true,
 			cacheUpdated: true,
+			cacheWarmed:  true,
 			errExpected:  false,
 		},
 		{
@@ -1411,13 +1481,14 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			}
 			logger, _ := test.NewNullLogger()
 			logCtx := logger.WithField("application", tt.app.Name)
-			err = h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
+			cacheWarmed, err := h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
 
 			if tt.errExpected {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
+			assert.Equal(t, tt.cacheWarmed, cacheWarmed)
 
 			if tt.cacheUpdated {
 				clusterInfo := &mockClusterInfo{}
@@ -1579,6 +1650,25 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			false,
 			"main",
 			bitbucketPushPayload("main", "test-owner", "test-repo", "TEST REPO"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			// https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4f6-wc8m-r246
+			// The API base URL must not come from the payload, or stored repository
+			// credentials are sent to whatever host the payload names.
+			"bitbucket payload with a foreign self link still calls the Bitbucket Cloud API",
+			false,
+			"main",
+			func() bitbucket.RepoPushPayload {
+				pl := bitbucketPushPayload("main", "test-owner", "test-repo", "test-repo")
+				pl.Repository.Links.Self.Href = "https://attacker.example/2.0/repositories/test-owner/test-repo"
+				return pl
+			}(),
 			true,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{

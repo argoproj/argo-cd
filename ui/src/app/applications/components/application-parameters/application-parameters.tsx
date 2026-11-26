@@ -27,6 +27,7 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {ARGO_WARNING_COLOR} from '../../../shared/components/colors';
 import {concatMaps} from '../../../shared/utils';
 import {deleteSourceAction, getAppDefaultSource, getAppDrySource, helpTip} from '../utils';
 import * as jsYaml from 'js-yaml';
@@ -72,6 +73,11 @@ function processPath(path: string) {
         return path;
     }
     return '';
+}
+
+// An image string without a tag, digest or new name is just the bare image name and carries no override
+function isImageOverride(item: string | null | undefined): boolean {
+    return item !== null && item !== undefined && /[:=@]/.test(item);
 }
 
 function getParamsEditableItems(
@@ -281,9 +287,17 @@ export const ApplicationParameters = (props: {
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
-                    {(details: models.RepoAppDetails) => {
+                    {({details, error}: SourceDetails) => {
+                        if (!details) {
+                            return null;
+                        }
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
-                        return getEditablePanel(attr, details);
+                        return (
+                            <>
+                                <SourceDetailsWarning error={error} />
+                                {getEditablePanel(attr, details)}
+                            </>
+                        );
                     }}
                 </DataLoader>
             );
@@ -339,7 +353,7 @@ export const ApplicationParameters = (props: {
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                            {({details, error}: SourceDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error)}
                         </DataLoader>
                     )}
                 </div>
@@ -365,14 +379,11 @@ export const ApplicationParameters = (props: {
                             function isDefined(item: any) {
                                 return item !== null && item !== undefined;
                             }
-                            function isDefinedWithVersion(item: any) {
-                                return item !== null && item !== undefined && item.match(/:/);
-                            }
                             if (updatedSrc && updatedSrc.helm?.parameters) {
                                 updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                             }
                             if (updatedSrc && updatedSrc.kustomize?.images) {
-                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
+                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isImageOverride);
                             }
 
                             let params = isMulti ? input.spec?.sources[ind]?.plugin?.parameters : input.spec?.source?.plugin?.parameters;
@@ -441,7 +452,7 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource): any {
+    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, detailsError?: Error): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -511,6 +522,7 @@ export const ApplicationParameters = (props: {
         return (
             <ApplicationParametersSource
                 index={ind}
+                banner={<SourceDetailsWarning error={detailsError} />}
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
@@ -520,15 +532,12 @@ export const ApplicationParameters = (props: {
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
                         }
-                        function isDefinedWithVersion(item: any) {
-                            return item !== null && item !== undefined && item.match(/:/);
-                        }
 
                         if (appSrc.helm && appSrc.helm.parameters) {
                             appSrc.helm.parameters = appSrc.helm.parameters.filter(isDefined);
                         }
                         if (appSrc.kustomize && appSrc.kustomize.images) {
-                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isDefinedWithVersion);
+                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isImageOverride);
                         }
 
                         let params = input.spec?.sources[ind]?.plugin?.parameters;
@@ -1119,21 +1128,36 @@ function gatherDetails(
     return attributes;
 }
 
+interface SourceDetails {
+    details: models.RepoAppDetails;
+    error?: Error;
+}
+
 // For Sources field. Get one source with index i from the list
-async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number) {
-    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => getExplicitSourceDetails(aSource));
-    return applyExplicitSourceType(aSource, repoDetail);
+async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number): Promise<SourceDetails> {
+    try {
+        return {details: applyExplicitSourceType(aSource, await services.repos.appDetails(aSource, name, project, index, version))};
+    } catch (error) {
+        return {details: getExplicitSourceDetails(aSource), error};
+    }
 }
 
 // Delete when source field is removed
-async function getSingleSource(app: models.Application) {
+async function getSingleSource(app: models.Application): Promise<SourceDetails> {
     if (app.spec.source || app.spec.sourceHydrator) {
         const source = getAppDrySource(app);
-        const repoDetail = await services.repos.appDetails(source, app.metadata.name, app.spec.project, 0, 0).catch(() => getExplicitSourceDetails(source));
-        return applyExplicitSourceType(source, repoDetail);
+        return getSourceFromAppSources(source, app.metadata.name, app.spec.project, 0, 0);
     }
-    return null;
+    return {details: null};
 }
+
+const SourceDetailsWarning = ({error}: {error?: Error}) =>
+    error ? (
+        <p role='alert'>
+            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />{' '}
+            <ErrorNotification title='Unable to load repository details. The source settings shown may be incomplete' e={error} />
+        </p>
+    ) : null;
 
 function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
     const explicitDetails = getExplicitSourceDetails(source);

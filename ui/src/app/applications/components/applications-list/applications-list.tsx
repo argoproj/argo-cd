@@ -152,12 +152,15 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const query = new URLSearchParams(window.location.search);
-    const appInput = tryJsonParse(query.get('new'));
+    // Subscribe to the query string: the props do not change when only ?new= does,
+    // so reading window.location here would leave the shortcuts enabled behind the
+    // New App panel.
+    const search = useLocationSearch();
+    const appInput = tryJsonParse(new URLSearchParams(search).get('new'));
 
     return (
         <SearchBar
