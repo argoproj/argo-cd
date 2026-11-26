@@ -147,3 +147,15 @@ func TestGetUserIdentifier(t *testing.T) {
 		})
 	}
 }
+
+
+func TestMapClaims_NoReencodeForMapClaimsValue(t *testing.T) {
+	in := jwt.MapClaims{"sub": "alice", "groups": []string{"devs", "ops"}}
+	out, err := MapClaims(in)
+	assert.NoError(t, err)
+	assert.Equal(t, in, out)
+
+	outPtr, err := MapClaims(&in)
+	assert.NoError(t, err)
+	assert.Equal(t, in, outPtr)
+}
