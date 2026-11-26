@@ -19,23 +19,24 @@ argocd app diff APPNAME [flags]
 
 ```
   -N, --app-namespace string                              Only render the difference in namespace
-      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands. (default 1)
-      --exit-code[=true|false]                            Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
+      --compare-desired[=true|false]                      Compare against the current desired state (target) instead of live state. Used together with --local or --revision(s)
+      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands (default 1)
+      --exit-code[=true|false]                            Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error (default true)
       --hard-refresh[=true|false]                         Refresh application data as well as target manifests cache
   -h, --help[=true|false]                                 help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Patterns without a path separator match on the filename only (at any depth); patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all files under charts/). NOTE: Kustomize apps that use configMapGenerator or secretGenerator with non-YAML source files (e.g. *.env, *.properties) must add those patterns explicitly via --local-include. (default [*.yaml,*.yml,*.json,*.tpl,Chart.lock])
+      --local-include stringArray                         Specify patterns of filenames to send. Patterns without a path separator match on the filename only (at any depth); patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all files under charts/). NOTE: Kustomize apps that use configMapGenerator or secretGenerator with non-YAML source files (e.g. *.env, *.properties) must add those patterns explicitly via --local-include. Used with --server-side-generate (default [*.yaml,*.yml,*.json,*.tpl,Chart.lock])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh[=true|false]                              Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
-      --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
-      --server-side-diff[=true|false]                     Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
+      --revisions stringArray                             Show manifests at specific revisions for source position in --source-positions
+      --server-side-diff[=true|false]                     Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff annotation is set on the application
       --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
-      --server-side-generate[=true|false]                 Used with --local, this will send your manifests to the server for diffing
-      --source-names stringArray                          List of source names. Default is an empty array.
-      --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
+      --server-side-generate[=true|false]                 Send your manifests to the server for diffing. Used with --local
+      --source-names stringArray                          List of source names. Default is an empty array
+      --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1 (default [])
 ```
 
 ### Options inherited from parent commands

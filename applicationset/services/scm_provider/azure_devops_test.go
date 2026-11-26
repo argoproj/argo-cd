@@ -396,6 +396,9 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 
 			if testCase.expectedProcessingErrorMsg != "" {
 				require.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
+				// The error here wraps no underlying error: formatting it
+				// with %w used to corrupt the message with "%!w(<nil>)".
+				assert.NotContains(t, err.Error(), "%!w(<nil>)")
 				assert.Nil(t, branches)
 
 				return
