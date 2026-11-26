@@ -121,6 +121,10 @@ func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error 
 		if urlErr, ok := errors.AsType[*url.Error](err); ok {
 			err = urlErr.Err
 		}
+		// EscapeError quotes the bad escape, which may come from the password.
+		if _, ok := errors.AsType[url.EscapeError](err); ok {
+			err = errors.New("invalid percent-encoding")
+		}
 		return fmt.Errorf("invalid proxy URL: %w", err)
 	}
 

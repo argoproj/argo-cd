@@ -472,12 +472,14 @@ func TestValidateProxyURL_MalformedURLErrorsOmitPassword(t *testing.T) {
 		"socks5://user:secret@127.0.0.1:bad",
 		"socks5://user:secret@[::1",
 		"socks5://user:secret@host:1080/%zz",
+		"socks5://user:secret%zz@127.0.0.1:1080",
 	} {
 		t.Run(rawURL, func(t *testing.T) {
 			t.Parallel()
 			err := validateProxyURL(rawURL)
 			require.ErrorContains(t, err, "invalid proxy URL")
 			assert.NotContains(t, err.Error(), "secret")
+			assert.NotContains(t, err.Error(), "%zz")
 		})
 	}
 }
