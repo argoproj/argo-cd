@@ -1588,13 +1588,26 @@ func TestWatchSendsDeletedWhenAppStopsMatchingFilter(t *testing.T) {
 				}, 2*time.Second, 10*time.Millisecond)
 				before := ws.count()
 				appServer.appBroadcaster.OnUpdate(tt.oldApp, tt.newApp)
-				// A later event is delivered after the earlier one, so once it arrives the earlier one has been processed.
-				appServer.appBroadcaster.OnUpdate(ready, ready.DeepCopy())
-				require.Eventually(t, func() bool { return ws.count() > before }, 2*time.Second, 10*time.Millisecond)
+
+				// Publish a trailing marker with a name that only this step uses. Events from one publisher
+				// are delivered in order, so once the marker has been recorded the update above has been
+				// processed too. Readiness events that were still queued cannot satisfy this wait, because
+				// they do not carry the marker's name.
+				marker := newApp("c", nil)
+				marker.Name = "barrier-app"
+				appServer.appBroadcaster.OnUpdate(marker, marker.DeepCopy())
+				require.Eventually(t, func() bool {
+					for _, e := range ws.events()[before:] {
+						if e.Application.Name == marker.Name {
+							return true
+						}
+					}
+					return false
+				}, 2*time.Second, 10*time.Millisecond)
 				cancel()
 				require.NoError(t, <-done)
 				for _, e := range ws.events()[before:] {
-					assert.Equal(t, "ready-app", e.Application.Name, "unexpected event for the non matching update")
+					assert.Contains(t, []string{"ready-app", marker.Name}, e.Application.Name, "unexpected event for the non matching update")
 				}
 				return
 			}
