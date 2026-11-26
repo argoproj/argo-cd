@@ -1,7 +1,7 @@
 local hs = {}
 local healthy = false
 local degraded = false
-local suspended = false
+local pausedMessage = nil
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
@@ -14,8 +14,7 @@ if obj.status ~= nil then
         healthy = true
       end
       if condition.status == "True" and condition.type == "Paused" then
-        hs.message = condition.message
-        suspended = true
+        pausedMessage = condition.message
       end
       if condition.status == "Unknown" and condition.type == "Ready" then
         hs.message = condition.message
@@ -27,11 +26,14 @@ end
 if degraded == true then
   hs.status = "Degraded"
   return hs
-elseif healthy == true and suspended == false then
+elseif healthy == true then
+  -- Pausing a ScaledJob is a declared state, not a failure, so a paused
+  -- ScaledJob that is Ready is Healthy. Reporting it as Suspended would keep
+  -- a sync that pauses it waiting for a healthy state that never comes.
   hs.status = "Healthy"
-  return hs 
-elseif healthy == true and suspended == true then
-  hs.status = "Suspended"
+  if pausedMessage ~= nil then
+    hs.message = pausedMessage
+  end
   return hs
 end
 hs.status = "Progressing"
