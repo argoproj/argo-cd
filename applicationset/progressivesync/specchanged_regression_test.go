@@ -102,9 +102,9 @@ func TestSpecChangedHonoursIgnoreApplicationDifferences(t *testing.T) {
 	desired := regressionApp("HEAD", new(false))
 
 	m := regressionManager(t, &appSet)
-	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+	statuses, err := m.UpdateApplicationSetApplicationStatus(log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, testStatusWriter{})
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 
@@ -127,9 +127,9 @@ func TestSpecChangedIgnoresControllerManagedAutomatedEnabled(t *testing.T) {
 	desired := regressionApp("HEAD", nil)     // freshly generated: Enabled unset
 
 	m := regressionManager(t, &appSet)
-	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+	statuses, err := m.UpdateApplicationSetApplicationStatus(log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, testStatusWriter{})
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 
@@ -157,9 +157,9 @@ func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 	desired := regressionApp("HEAD", nil)
 
 	m := regressionManager(t, &appSet)
-	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+	statuses, err := m.UpdateApplicationSetApplicationStatus(log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, testStatusWriter{})
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 

@@ -26,12 +26,17 @@ import (
 // UpdateApplicationSetApplicationStatus, not on their persistence.
 type testDeps struct{}
 
-func (testDeps) SetAppSetApplicationStatus(_ context.Context, _ *log.Entry, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetApplicationStatus) error {
-	return nil
+func (testDeps) SetAppSetApplicationStatus(_ *log.Entry, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetApplicationStatus, _ ApplicationSetWriter) {
 }
 
-func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool) error {
-	return nil
+func (testDeps) SetApplicationSetStatusCondition(_ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool, _ int64, _ ApplicationSetWriter) {
+}
+
+// testStatusWriter applies status changes in memory only.
+type testStatusWriter struct{}
+
+func (testStatusWriter) Apply(appset *v1alpha1.ApplicationSet, mutate func(*v1alpha1.ApplicationSet)) {
+	mutate(appset)
 }
 
 func (testDeps) RecordProgressiveSyncTriggered(*v1alpha1.ApplicationSet, string) {

@@ -1,10 +1,9 @@
 package controllers
 
 import (
-	"context"
-
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -18,13 +17,13 @@ import (
 */
 
 func (r *ApplicationSetReconciler) SetAppSetApplicationStatus(
-	ctx context.Context,
 	logCtx *log.Entry,
 	applicationSet *argov1alpha1.ApplicationSet,
 	applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus,
-) error {
+	w progressivesync.ApplicationSetWriter,
+) {
 	// Delegate to existing controller method
-	return r.setAppSetApplicationStatus(ctx, logCtx, applicationSet, applicationStatuses)
+	r.setAppSetApplicationStatus(logCtx, applicationSet, applicationStatuses, w)
 }
 
 func (r *ApplicationSetReconciler) RecordProgressiveSyncTriggered(
@@ -35,13 +34,14 @@ func (r *ApplicationSetReconciler) RecordProgressiveSyncTriggered(
 }
 
 func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
-	ctx context.Context,
 	applicationSet *argov1alpha1.ApplicationSet,
 	conditions []argov1alpha1.ApplicationSetCondition,
 	parametersGenerated bool,
-) error {
+	observedGeneration int64,
+	w progressivesync.ApplicationSetWriter,
+) {
 	// Delegate to existing controller method
-	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated)
+	r.setApplicationSetStatusCondition(applicationSet, conditions, parametersGenerated, observedGeneration, w)
 }
 
 func (r *ApplicationSetReconciler) IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet) {

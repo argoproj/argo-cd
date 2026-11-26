@@ -41,25 +41,38 @@ type deleteInOrder struct {
 	Step    int
 }
 
+// ApplicationSetWriter records changes to the ApplicationSet status. The ApplicationSet controller owns
+// the implementation and performs the single write at the end of the reconciliation, so progressive
+// sync records what it wants the status to say without issuing an API call of its own.
+type ApplicationSetWriter interface {
+	// Apply changes the in-memory ApplicationSet immediately and records the change so it is
+	// replayed against the object the controller finally writes. mutate must be safe to run more
+	// than once and against a different copy of the ApplicationSet than the one passed here.
+	Apply(appset *argov1alpha1.ApplicationSet, mutate func(*argov1alpha1.ApplicationSet))
+}
+
 // Dependencies is the interface for dependencies of the Manager.
 // It serves two purposes: 1) it prevents progressive sync from having direct access
 // to the ApplicationSet controller, and 2) it allows for easy mocking in tests.
 type Dependencies interface {
-	// SetAppSetApplicationStatus persists ApplicationSet status.ApplicationStatus field
+	// SetAppSetApplicationStatus records the ApplicationSet status.ApplicationStatus field on w.
 	SetAppSetApplicationStatus(
-		ctx context.Context,
 		logCtx *log.Entry,
 		applicationSet *argov1alpha1.ApplicationSet,
 		applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus,
-	) error
+		w ApplicationSetWriter,
+	)
 
-	// SetApplicationSetStatusCondition persists ApplicationSet conditions
+	// SetApplicationSetStatusCondition records ApplicationSet conditions on w. observedGeneration
+	// is the generation the current reconciliation works against; it is recorded on every
+	// condition the call writes.
 	SetApplicationSetStatusCondition(
-		ctx context.Context,
 		applicationSet *argov1alpha1.ApplicationSet,
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
-	) error
+		observedGeneration int64,
+		w ApplicationSetWriter,
+	)
 
 	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
 	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
@@ -114,7 +127,7 @@ func (m *Manager) applicationGoneFromAPIServer(ctx context.Context, namespace, n
 	}
 }
 
-func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int) (map[string]bool, error) {
+func (m *Manager) PerformProgressiveSyncs(logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int, observedGeneration int64, w ApplicationSetWriter) (map[string]bool, error) {
 	// Initialize validation tracking
 	m.validationIssues = &ValidationIssues{}
 
@@ -129,7 +142,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	// the transition time that will be set in the current reconcile loop
 	previousWaitingTime := GetLatestWaitingTransitionTimeOfAppset(&appset)
 
-	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
+	_, err := m.UpdateApplicationSetApplicationStatus(logCtx, &appset, applications, desiredApplications, appStepMap, w)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
@@ -154,7 +167,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	appsToSync := getAppsToSync(appset, appDependencyList, applications)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
-	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
+	_, err = m.UpdateApplicationSetApplicationStatusProgress(logCtx, &appset, appsToSync, appStepMap, w)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
@@ -162,7 +175,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	progressingCondition := m.getProgressingCondition(&appset)
 	invalidConfigCondition := m.getInvalidRolloutConfig(&appset)
 	conditions := []*argov1alpha1.ApplicationSetCondition{invalidConfigCondition, progressingCondition}
-	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, conditions)
+	_ = m.updateApplicationSetApplicationStatusConditions(&appset, conditions, observedGeneration, w)
 
 	return appsToSync, nil
 }
@@ -420,7 +433,7 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
-func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int, w ApplicationSetWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
@@ -576,10 +589,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appStatuses = append(appStatuses, *newAppStatus)
 	}
 
-	err = m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set AppSet application statuses: %w", err)
-	}
+	m.dependencies.SetAppSetApplicationStatus(logCtx, applicationSet, appStatuses, w)
 
 	return appStatuses, nil
 }
@@ -804,7 +814,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, w ApplicationSetWriter) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
@@ -896,10 +906,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 		}
 	}
 
-	err := m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set AppSet app status: %w", err)
-	}
+	m.dependencies.SetAppSetApplicationStatus(logCtx, applicationSet, appStatuses, w)
 
 	return appStatuses, nil
 }
@@ -971,7 +978,7 @@ func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.Applicati
 	}
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
+func (m *Manager) updateApplicationSetApplicationStatusConditions(applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition, observedGeneration int64, w ApplicationSetWriter) []argov1alpha1.ApplicationSetCondition {
 	// filter out nil conditions
 	var filteredConditions []argov1alpha1.ApplicationSetCondition
 	for _, condition := range conditions {
@@ -980,10 +987,12 @@ func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Co
 		}
 	}
 	if len(filteredConditions) != 0 {
-		_ = m.dependencies.SetApplicationSetStatusCondition(ctx,
+		m.dependencies.SetApplicationSetStatusCondition(
 			applicationSet,
 			filteredConditions,
 			true,
+			observedGeneration,
+			w,
 		)
 	}
 
