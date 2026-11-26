@@ -161,7 +161,7 @@ const getSignatureKeysMessage = (proj: Project): React.ReactNode => {
     if (proj.spec.sourceIntegrity?.git != null) {
         return (
             <>
-                These keys are <strong>not used for sync</strong> because Source Integrity Git is configured. See <UpgradeGuideLink />.
+                These keys are <strong>not enforced</strong> because Source Integrity Git is configured. See <UpgradeGuideLink />.
             </>
         );
     }
