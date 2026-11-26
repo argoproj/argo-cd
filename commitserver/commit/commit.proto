@@ -49,6 +49,9 @@ message HydratedManifestDetails {
 message CommitHydratedManifestsResponse {
   // HydratedSha is the commit SHA of the hydrated manifests commit.
   string hydratedSha = 1;
+  // HydratedDryShas maps each requested path to the dry SHA recorded in that path's hydrator.metadata in the hydrated
+  // commit. A path's value is older than the requested dry SHA when its manifests did not change.
+  map<string, string> hydratedDryShas = 2;
 }
 
 // CommitService is the service for committing hydrated manifests to a repository.

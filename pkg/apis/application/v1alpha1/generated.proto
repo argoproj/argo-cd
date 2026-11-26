@@ -2753,6 +2753,9 @@ message SourceHydratorStatus {
   // LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
   // This is updated on every evaluation, even when hydration is skipped due to no changes.
   optional string lastComparedDryRevision = 3;
+
+  // SyncedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata at the synced revision.
+  optional string syncedDrySHA = 4;
 }
 
 message SourceIntegrity {
@@ -2819,6 +2822,10 @@ message SuccessfulHydrateOperation {
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
   optional SourceHydrator sourceHydrator = 7;
+
+  // HydratedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata in the
+  // hydrated commit. It is older than DrySHA when the application's manifests did not change.
+  optional string hydratedDrySHA = 8;
 }
 
 // SyncOperation contains details about a sync operation.

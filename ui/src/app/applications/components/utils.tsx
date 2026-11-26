@@ -1000,6 +1000,23 @@ export function hydrationStatusMessage(app: appModels.Application) {
     }
 }
 
+export function syncSourceBehindMessage(app: appModels.Application) {
+    const sourceHydrator = app.spec.sourceHydrator;
+    const status = app.status.sourceHydrator;
+    const hydratedDrySHA = status?.lastSuccessfulOperation?.hydratedDrySHA;
+    const syncedDrySHA = status?.syncedDrySHA;
+    if (!sourceHydrator?.hydrateTo || !hydratedDrySHA || !syncedDrySHA || hydratedDrySHA === syncedDrySHA) {
+        return null;
+    }
+
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
+    return (
+        <span>
+            {sourceHydrator.syncSource.targetBranch} is behind {hydrateToSource.targetRevision}
+        </span>
+    );
+}
+
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     let icon = 'fa-question-circle';
 
