@@ -308,19 +308,6 @@ func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
-	r := regexp.MustCompile(`([/:])`)
-	normalizedGitURL := NormalizeGitURL(rawRepoURL)
-	if normalizedGitURL == "" {
-		return nil, fmt.Errorf("repository %q cannot be initialized: %w", SanitizeRepoURL(rawRepoURL), ErrInvalidRepoURL)
-	}
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
-	if root == os.TempDir() {
-		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", SanitizeRepoURL(rawRepoURL), root)
-	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
-}
-
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:      rawRepoURL,

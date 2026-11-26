@@ -4,6 +4,7 @@ import {BehaviorSubject, Observable} from 'rxjs';
 
 import {services} from '../../services';
 import requests from '../../services/requests';
+import {pauseAutoLogin} from '../../sso-auto-login';
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
@@ -14,16 +15,25 @@ function isLoggedIn(): Observable<boolean> {
     return mostRecentLoggedIn;
 }
 
+export function getLoginURL(returnURL: string): string {
+    return `${requests.toAbsURL('/login')}?return_url=${encodeURIComponent(returnURL)}`;
+}
+
 export const AuthOption: React.FC = () => {
     return (
         <DataLoader load={() => isLoggedIn()}>
             {loggedIn =>
                 loggedIn ? (
-                    <button className='login-logout-button' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+                    <button
+                        className='login-logout-button'
+                        onClick={() => {
+                            pauseAutoLogin();
+                            window.location.href = requests.toAbsURL('/auth/logout');
+                        }}>
                         Log out
                     </button>
                 ) : (
-                    <button className='login-logout-button' onClick={() => (window.location.href = `/login?return_url=${encodeURIComponent(location.href)}`)}>
+                    <button className='login-logout-button' onClick={() => (window.location.href = getLoginURL(location.href))}>
                         Log in
                     </button>
                 )
