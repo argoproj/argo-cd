@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	gosync "sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -77,7 +78,7 @@ type broadcasterMock struct {
 	objects []runtime.Object
 }
 
-func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
+func (b broadcasterMock) Subscribe(ch chan *appWatchEvent, _ ...func(event *appWatchEvent) bool) func() {
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
@@ -91,7 +92,7 @@ func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ..
 				}
 				clonedApp := app.DeepCopy()
 				clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
-				ch <- &v1alpha1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
+				ch <- &appWatchEvent{ApplicationWatchEvent: v1alpha1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}}
 			}
 		}
 	}()
@@ -107,12 +108,27 @@ func (broadcasterMock) OnDelete(any)      {}
 type mockApplicationWatchServer struct {
 	googlegrpc.ServerStream
 	ctx  context.Context
+	mu   gosync.Mutex
 	sent []*v1alpha1.ApplicationWatchEvent
 }
 
 func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sent = append(m.sent, event)
 	return nil
+}
+
+func (m *mockApplicationWatchServer) count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.sent)
+}
+
+func (m *mockApplicationWatchServer) events() []*v1alpha1.ApplicationWatchEvent {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]*v1alpha1.ApplicationWatchEvent(nil), m.sent...)
 }
 
 func (m *mockApplicationWatchServer) Context() context.Context {
@@ -1451,6 +1467,120 @@ func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
 	}
 }
 
+func TestWatchSendsDeletedWhenAppStopsMatchingFilter(t *testing.T) {
+	newApp := func(project string, lbls map[string]string) *v1alpha1.Application {
+		return newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "moving-app"
+			app.Spec.Project = project
+			app.Labels = lbls
+		})
+	}
+
+	tests := []struct {
+		name          string
+		query         *application.ApplicationQuery
+		oldApp        *v1alpha1.Application
+		newApp        *v1alpha1.Application
+		restrictRBAC  bool
+		wantType      watch.EventType
+		wantProject   string
+		wantNoMessage bool
+	}{
+		{
+			name:        "project changes away from the filtered project",
+			query:       &application.ApplicationQuery{Projects: []string{"a"}},
+			oldApp:      newApp("a", nil),
+			newApp:      newApp("b", nil),
+			wantType:    watch.Deleted,
+			wantProject: "a",
+		},
+		{
+			name:        "labels change so the selector no longer matches",
+			query:       &application.ApplicationQuery{Selector: new("env=prod")},
+			oldApp:      newApp("a", map[string]string{"env": "prod"}),
+			newApp:      newApp("a", map[string]string{"env": "dev"}),
+			wantType:    watch.Deleted,
+			wantProject: "a",
+		},
+		{
+			name:        "update that still matches stays MODIFIED",
+			query:       &application.ApplicationQuery{Projects: []string{"a"}},
+			oldApp:      newApp("a", nil),
+			newApp:      newApp("a", nil),
+			wantType:    watch.Modified,
+			wantProject: "a",
+		},
+		{
+			name:        "app starts matching the filter is sent as before",
+			query:       &application.ApplicationQuery{Projects: []string{"b"}},
+			oldApp:      newApp("a", nil),
+			newApp:      newApp("b", nil),
+			wantType:    watch.Modified,
+			wantProject: "b",
+		},
+		{
+			name:          "update that never matched sends nothing",
+			query:         &application.ApplicationQuery{Projects: []string{"c"}},
+			oldApp:        newApp("a", nil),
+			newApp:        newApp("b", nil),
+			wantNoMessage: true,
+		},
+		{
+			name:         "old project visible but new one is not: DELETED carries the old object",
+			query:        &application.ApplicationQuery{},
+			oldApp:       newApp("a", nil),
+			newApp:       newApp("b", nil),
+			restrictRBAC: true,
+			wantType:     watch.Deleted,
+			wantProject:  "a",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			appServer := newTestAppServerWithEnforcerConfigure(t, func(enf *rbac.Enforcer) {
+				_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+				if tt.restrictRBAC {
+					_ = enf.SetUserPolicy("p, role:a-only, applications, get, a/*, allow")
+					enf.SetDefaultRole("role:a-only")
+				} else {
+					enf.SetDefaultRole("role:admin")
+				}
+			}, map[string]string{})
+
+			// The test server uses a mock broadcaster that ignores updates, so use the real one here.
+			appServer.appBroadcaster = newAppBroadcaster()
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			ws := &mockApplicationWatchServer{ctx: ctx}
+			done := make(chan error, 1)
+			q := tt.query
+			q.ResourceVersion = new("1") // no initial ADDED events
+			go func() { done <- appServer.Watch(q, ws) }()
+
+			// Give Watch time to subscribe, then publish the update through the broadcaster.
+			require.Eventually(t, func() bool {
+				appServer.appBroadcaster.OnUpdate(tt.oldApp, tt.newApp)
+				return ws.count() > 0 || tt.wantNoMessage
+			}, 2*time.Second, 10*time.Millisecond)
+			if tt.wantNoMessage {
+				time.Sleep(50 * time.Millisecond)
+			}
+			cancel()
+			require.NoError(t, <-done)
+
+			sent := ws.events()
+			if tt.wantNoMessage {
+				assert.Empty(t, sent)
+				return
+			}
+			require.NotEmpty(t, sent)
+			assert.Equal(t, tt.wantType, sent[0].Type)
+			assert.Equal(t, tt.wantProject, sent[0].Application.Spec.GetProject())
+		})
+	}
+}
+
 func TestListApps(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "bcd"
@@ -2050,11 +2180,9 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
 
 	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
 	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
-	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
@@ -2143,11 +2271,9 @@ func TestPatchResourcesRBAC(t *testing.T) {
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
 
 	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
 	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
-	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
@@ -3191,7 +3317,6 @@ func TestUpdateAppProject(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
 
 	t.Run("update without changing project", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
@@ -3255,7 +3380,6 @@ func TestAppJsonPatch(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: new("garbage")})
 	require.Error(t, err)
@@ -3280,7 +3404,6 @@ func TestAppMergePatch(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
 		Name: &testApp.Name, Patch: new(`{"spec": { "source": { "path": "foo" } }}`), PatchType: new("merge"),
