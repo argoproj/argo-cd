@@ -117,6 +117,12 @@ Using the username `admin` and the password from above, log in to Argo CD's IP o
 argocd login <ARGOCD_SERVER>
 ```
 
+`<ARGOCD_SERVER>` is the host name or IP address of the API server, with an optional port, and without a scheme such as `https://`. For example, with the port forward from step 3:
+
+```bash
+argocd login localhost:8080
+```
+
 > [!NOTE]
 > The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
 
