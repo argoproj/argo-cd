@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	workloadidentity "github.com/argoproj/argo-cd/v3/util/workloadidentity/v2"
 )
 
 const (
@@ -92,6 +93,13 @@ func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*v1al
 
 	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
 		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %w", git.SanitizeRepoURL(repoURL), err)
+	}
+
+	// Resolve workload identity credentials if enabled
+	if repository.WorkloadIdentityProvider != "" {
+		if err := db.enrichWorkloadIdentity(ctx, repository); err != nil {
+			return repository, fmt.Errorf("unable to resolve workload identity for repository %q: %w", git.SanitizeRepoURL(repoURL), err)
+		}
 	}
 
 	return repository, err
@@ -462,6 +470,49 @@ func (db *db) enrichWriteCredsToRepo(ctx context.Context, repository *v1alpha1.R
 	} else {
 		log.Debugf("%s has credentials", repository.Repo)
 	}
+
+	return nil
+}
+
+// enrichWorkloadIdentity resolves workload identity credentials and injects them into the repository
+func (db *db) enrichWorkloadIdentity(ctx context.Context, repository *v1alpha1.Repository) error {
+	// Create workload identity resolver
+	resolver := workloadidentity.NewResolver(db.kubeclientset, db.ns)
+
+	// Create workload identity provider
+	provider, err := workloadidentity.NewIdentityProvider(repository, db.kubeclientset, db.ns)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Add ability to choose authenticator from the repository?
+	authenticator := provider.DefaultRepositoryAuthenticator()
+	// With no exchange configured, hand the K8s JWT straight to registries that
+	// validate it themselves (Harbor robot federation, Zot). Any exchange field
+	// set keeps the HTTP authenticator so a missing pathTemplate still errors.
+	if repository.WorkloadIdentityProvider == "k8s" && repository.WorkloadIdentityPathTemplate == "" &&
+		repository.WorkloadIdentityAuthHost == "" && repository.WorkloadIdentityMethod == "" &&
+		repository.WorkloadIdentityBodyTemplate == "" && repository.WorkloadIdentityAuthType == "" &&
+		repository.WorkloadIdentityResponseTokenField == "" && repository.WorkloadIdentityResponseUsernameField == "" &&
+		len(repository.WorkloadIdentityParams) == 0 {
+		authenticator = workloadidentity.NewAuthenticator("passthrough")
+	}
+
+	// Resolve credentials from service account
+	// The resolver will:
+	// 1. Get K8s token via TokenRequest API for project service account
+	// 2. Exchange token with provider specified in repository config
+	// 3. Return username/password
+	creds, err := resolver.ResolveCredentials(ctx, provider, authenticator, repository)
+	if err != nil {
+		return fmt.Errorf("failed to resolve workload identity credentials: %w", err)
+	}
+
+	// Inject credentials into repository
+	repository.Username = creds.Username
+	repository.Password = creds.Password
+
+	log.Debugf("Successfully resolved workload identity credentials for repository %q using provider %q", repository.Repo, repository.WorkloadIdentityProvider)
 
 	return nil
 }

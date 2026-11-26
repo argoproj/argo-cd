@@ -127,6 +127,8 @@ argocd-server [flags]
       --username string                                           Username for basic authentication to the API server
       --webhook-parallelism-limit int                             Number of webhook requests processed concurrently (default 50)
       --webhook-refresh-workers int                               Number of webhook refresh requests processed concurrently (default 20)
+      --workload-identity-token-cache-max-ttl duration            Upper bound on how long any workload identity repository credential is served from cache (default 1h0m0s)
+      --workload-identity-token-cache-ttl duration                TTL for cached workload identity repository credentials whose expiry is not reported by the token endpoint (0 disables caching those) (default 40m0s)
       --x-frame-options value                                     Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
 ```
 
