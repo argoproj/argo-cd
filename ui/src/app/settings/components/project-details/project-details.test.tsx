@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen} from '@testing-library/react';
+import {createMemoryHistory} from 'history';
 import '@testing-library/jest-dom';
 import {MemoryRouter, Route} from 'react-router';
 
@@ -42,7 +43,7 @@ const detailed = {
 const renderDetails = () =>
     render(
         <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-            <Provider value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {}} as any}>
+            <Provider value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {}, history: createMemoryHistory()} as any}>
                 <MemoryRouter initialEntries={['/settings/projects/my-proj']}>
                     <Route path='/settings/projects/:name' component={ProjectDetails} />
                 </MemoryRouter>
