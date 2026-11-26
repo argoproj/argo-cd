@@ -506,6 +506,36 @@ func createFilterableRepo(t *testing.T) (string, string) {
 	return repo, strings.TrimSpace(string(sha))
 }
 
+// createLFSRepo commits two versions of a file that Git LFS tracks.
+func createLFSRepo(t *testing.T) (string, string) {
+	t.Helper()
+	if _, err := exec.LookPath("git-lfs"); err != nil {
+		t.Skip("git-lfs is not installed")
+	}
+	ctx := t.Context()
+	repo := t.TempDir()
+	require.NoError(t, runCmd(ctx, repo, "git", "init"))
+	require.NoError(t, runCmd(ctx, repo, "git", "config", "uploadpack.allowFilter", "true"))
+	require.NoError(t, runCmd(ctx, repo, "git", "lfs", "install", "--local"))
+	require.NoError(t, runCmd(ctx, repo, "git", "lfs", "track", "*.bin"))
+	for _, content := range []string{"first-binary", "second-binary"} {
+		require.NoError(t, os.WriteFile(filepath.Join(repo, "data.bin"), []byte(content), 0o644))
+		require.NoError(t, runCmd(ctx, repo, "git", "add", ".gitattributes", "data.bin"))
+		require.NoError(t, runCmd(ctx, repo, "git", "commit", "-m", content))
+	}
+	sha, err := outputCmd(ctx, repo, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+
+	// The client runs git with HOME=/dev/null, and the Argo CD image installs LFS filters in its system config.
+	// Install them in a global config that the client reads, as the image does.
+	config := filepath.Join(t.TempDir(), "gitconfig")
+	install := exec.CommandContext(ctx, "git", "lfs", "install", "--skip-repo")
+	install.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+config)
+	require.NoError(t, install.Run())
+	t.Setenv("GIT_CONFIG_GLOBAL", config)
+	return repo, strings.TrimSpace(string(sha))
+}
+
 func countMissingObjects(t *testing.T, root string) int {
 	t.Helper()
 	out, err := outputCmd(t.Context(), root, "git", "rev-list", "--objects", "--missing=print", "--all")
@@ -607,6 +637,56 @@ func Test_nativeGitClient_PartialCloneFilter(t *testing.T) {
 		_, err = full.Checkout(ctx, sha, false, false)
 		require.NoError(t, err)
 	})
+
+	t.Run("LFS repositories fetch and check out with a filter set", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createLFSRepo(t)
+		client, err := NewClientExt("file://"+repo, t.TempDir(), NopCreds{}, true, true, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(client.Root(), "data.bin"))
+		require.NoError(t, err)
+		assert.Equal(t, "second-binary", string(content))
+	})
+
+	t.Run("enabling LFS clones a partial clone again in full", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createLFSRepo(t)
+		root := t.TempDir()
+		filtered, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, filtered.Init())
+		require.NoError(t, filtered.Fetch(ctx, "", 0))
+		_, err = outputCmd(ctx, root, "git", "config", "--get", "remote.origin.promisor")
+		require.NoError(t, err, "a fetch without LFS makes a partial clone")
+
+		lfs, err := NewClientExt("file://"+repo, root, NopCreds{}, true, true, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, lfs.Init())
+		require.NoError(t, lfs.Fetch(ctx, "", 0))
+
+		_, err = lfs.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(root, "data.bin"))
+		require.NoError(t, err)
+		assert.Equal(t, "second-binary", string(content))
+	})
+}
+
+func TestValidatePartialCloneFilter(t *testing.T) {
+	for _, filter := range []string{"", "blob:none", "blob:limit=1m", "tree:0"} {
+		require.NoError(t, ValidatePartialCloneFilter(t.Context(), filter), filter)
+	}
+	for _, filter := range []string{"blb:none", "blob:nonee", "blob:limit=lots"} {
+		err := ValidatePartialCloneFilter(t.Context(), filter)
+		require.Error(t, err, filter)
+		assert.Contains(t, err.Error(), "invalid partial clone filter")
+		assert.Contains(t, err.Error(), "invalid filter-spec")
+	}
 }
 
 func Test_IsAnnotatedTag(t *testing.T) {

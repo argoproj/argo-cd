@@ -72,7 +72,8 @@ the appropriate tool.
 * For repositories with long histories, set `reposerver.git.partial.clone.filter` to `blob:none` in
   `argocd-cmd-params-cm`. The repo-server then fetches partial clones: Git downloads every commit and tree, but only
   the file contents that a checkout needs, and downloads missing contents on demand with the repository credentials.
-  Unlike a shallow clone with `depth`, a partial clone keeps the full commit history.
+  Unlike a shallow clone with `depth`, a partial clone keeps the full commit history. Repositories with Git LFS enabled
+  always fetch all objects, because `git lfs fetch --all` reads file contents from every commit.
 
   > [!WARNING]
   > Object filters work only when the Git server supports them. On self-hosted servers, enable

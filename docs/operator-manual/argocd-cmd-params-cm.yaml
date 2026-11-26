@@ -385,7 +385,7 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
   reposerver.git.lsremote.optimized.enabled: "false"
-  # Git object filter for partial clones, such as "blob:none". Empty fetches all objects.
+  # Git object filter for partial clones, such as "blob:none". Empty fetches all objects, as do repositories with LFS enabled.
   reposerver.git.partial.clone.filter: ""
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"

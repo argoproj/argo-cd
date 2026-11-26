@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	utilgrpc "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
@@ -113,6 +114,10 @@ func NewCommand() *cobra.Command {
 					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
 				}
 			}()
+
+			if err := git.ValidatePartialCloneFilter(ctx, gitPartialCloneFilter); err != nil {
+				log.Error(err)
+			}
 
 			if !disableTLS {
 				var err error
@@ -294,7 +299,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().BoolVar(&gitLsRemoteOptimizedEnabled, "git-ls-remote-optimized", env.ParseBoolFromEnv("ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED", false), "Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.")
-	command.Flags().StringVar(&gitPartialCloneFilter, "git-partial-clone-filter", env.StringFromEnv("ARGOCD_GIT_PARTIAL_CLONE_FILTER", ""), "Fetch Git repositories as partial clones with this object filter, such as blob:none. Empty fetches all objects.")
+	command.Flags().StringVar(&gitPartialCloneFilter, "git-partial-clone-filter", env.StringFromEnv("ARGOCD_GIT_PARTIAL_CLONE_FILTER", ""), "Fetch Git repositories as partial clones with this object filter, such as blob:none. Empty fetches all objects, as do repositories with LFS enabled.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
 
