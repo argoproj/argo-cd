@@ -3,7 +3,8 @@ import {fireEvent, render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {services} from '../../services';
-import {AuthOption} from './page';
+import requests from '../../services/requests';
+import {AuthOption, getLoginURL} from './page';
 
 jest.mock('../../services', () => ({
     services: {
@@ -26,4 +27,16 @@ describe('AuthOption', () => {
 
         expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
     });
+});
+
+
+test('login URL respects the configured base href', () => {
+    requests.setBaseHRef('/argo-cd');
+    try {
+        expect(getLoginURL('https://example.com/argo-cd/applications')).toBe(
+            '/argo-cd/login?return_url=https%3A%2F%2Fexample.com%2Fargo-cd%2Fapplications'
+        );
+    } finally {
+        requests.setBaseHRef('/');
+    }
 });
