@@ -6,6 +6,7 @@ import (
 	fmt "fmt"
 
 	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	v1beta1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -43,6 +44,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().Applications().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("applicationsets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1alpha1().ApplicationSets().Informer()}, nil
+
+		// Group=argoproj.io, Version=v1beta1
+	case v1beta1.SchemeGroupVersion.WithResource("applications"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Argoproj().V1beta1().Applications().Informer()}, nil
 
 	}
 

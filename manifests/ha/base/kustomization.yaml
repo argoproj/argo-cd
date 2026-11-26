@@ -21,4 +21,5 @@ resources:
 - ../../base/server
 - ../../base/config
 - ../../base/notification
+- ../../base/conversion-webhook
 - ./redis-ha

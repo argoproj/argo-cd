@@ -14,6 +14,7 @@ import (
 	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
 	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
+	conversionwebhook "github.com/argoproj/argo-cd/v3/cmd/argocd-conversion-webhook/commands"
 	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
 	gitaskpass "github.com/argoproj/argo-cd/v3/cmd/argocd-git-ask-pass/commands"
 	k8sauth "github.com/argoproj/argo-cd/v3/cmd/argocd-k8s-auth/commands"
@@ -63,6 +64,8 @@ var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI
 		return applicationset.NewCommand(), false
 	case common.CommandK8sAuth:
 		return k8sauth.NewCommand(), true
+	case "argocd-conversion-webhook":
+		return conversionwebhook.NewCommand(), false
 	default:
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		return cli.NewCommand(), true
