@@ -291,6 +291,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, mgr.GetAPIReader(), appClientset, appsetReconciler)
+			appsetReconciler.ProgressiveSyncManager.SyncRetryLimit = argoSettingsMgr
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations, &workqueueRateLimit); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")

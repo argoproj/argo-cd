@@ -76,10 +76,31 @@ type Manager struct {
 	// event that was never delivered. Required: with no uncached reader the cache cannot be verified,
 	// so past the threshold reverse deletion errors rather than trusting it. Production supplies
 	// mgr.GetAPIReader().
-	APIReader        client.Reader
-	AppClientset     appclientset.Interface
+	APIReader    client.Reader
+	AppClientset appclientset.Interface
+	// SyncRetryLimit provides the retry limit of the syncs RollingSync triggers on Applications without a
+	// retry strategy, so they retry as many times as automated syncs do. Production supplies the
+	// controller's settings manager. When nil, defaultSyncRetryLimit is used.
+	SyncRetryLimit   SyncRetryLimitGetter
 	dependencies     Dependencies
 	validationIssues *ValidationIssues // collected during progressive sync execution
+}
+
+// SyncRetryLimitGetter returns the configured retry limit of automated syncs (application.sync.retry.limit in
+// argocd-cm). *settings.SettingsManager implements it.
+type SyncRetryLimitGetter interface {
+	GetSyncRetryLimit() int64
+}
+
+// defaultSyncRetryLimit is the retry limit used when no SyncRetryLimitGetter is set, matching the default of
+// application.sync.retry.limit.
+const defaultSyncRetryLimit = int64(5)
+
+func (m *Manager) syncRetryLimit() int64 {
+	if m.SyncRetryLimit == nil {
+		return defaultSyncRetryLimit
+	}
+	return m.SyncRetryLimit.GetSyncRetryLimit()
 }
 
 // NewManager creates a new manager with dependencies
@@ -1005,6 +1026,8 @@ func disableAutomatedSync(app *argov1alpha1.Application) {
 type progressiveSyncOptions struct {
 	prune    bool
 	strategy *argov1alpha1.SyncStrategy
+	// retryLimit applies when the Application has no retry strategy of its own.
+	retryLimit int64
 }
 
 // resolveProgressiveSyncOptions derives controller-triggered sync flags from the Application syncPolicy.
@@ -1032,6 +1055,7 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
 		syncOpts := resolveProgressiveSyncOptions(desiredApplications[i].Spec.SyncPolicy)
+		syncOpts.retryLimit = m.syncRetryLimit()
 
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		disableAutomatedSync(&desiredApplications[i])
@@ -1083,10 +1107,9 @@ func syncApplication(application argov1alpha1.Application, opts progressiveSyncO
 			Prune:        opts.prune,
 			SyncStrategy: opts.strategy,
 		},
-		// Set a retry limit of 5, aligning with the default in Argo CD's appcontroller auto-sync behavior.
-		// This provides consistency for retry behavior across controllers.
-		// See: https://github.com/argoproj/argo-cd/blob/af9ebac0bb35dc16eb034c1cefaf7c92d1029927/controller/appcontroller.go#L2126
-		Retry: argov1alpha1.RetryStrategy{Limit: 5},
+		// Use the same retry limit as the appcontroller's automated syncs (application.sync.retry.limit,
+		// 5 by default), so retry behavior is consistent across controllers.
+		Retry: argov1alpha1.RetryStrategy{Limit: opts.retryLimit},
 	}
 
 	if application.Spec.HasMultipleSources() {

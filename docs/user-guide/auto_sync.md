@@ -184,7 +184,8 @@ spec:
 - `backoff.maxDuration`: maximum wait time between retries, regardless of the number of attempts.
 
 An automated sync of an Application without a `retry` field is retried 5 times. To change that default for all such
-Applications, set `application.sync.retry.limit` in the `argocd-cm` ConfigMap:
+Applications, set `application.sync.retry.limit` in the `argocd-cm` ConfigMap. The same limit applies to the syncs
+that an ApplicationSet with the RollingSync strategy triggers:
 
 ```yaml
 apiVersion: v1
