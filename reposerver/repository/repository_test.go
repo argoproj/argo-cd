@@ -6305,7 +6305,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	numberOfCallers := 10
 	for range numberOfCallers {
 		wg.Go(func() {
-			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -6332,7 +6332,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
+	client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -6359,7 +6359,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	numberOfCallers := 10
 	for range numberOfCallers {
 		wg.Go(func() {
-			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -6388,7 +6388,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	repoURL := "file://" + dir
-	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClientExt(repoURL, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -6419,7 +6419,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	repoURL := "file://" + dir
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClientExt(repoURL, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
