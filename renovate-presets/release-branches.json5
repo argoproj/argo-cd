@@ -63,6 +63,37 @@
       "enabled": true
     },
     {
+      "description": "Re-enable the ubuntu base image on release branches so security republishes of the same tag reach supported releases. The next rule limits it to digest updates.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/ubuntu"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Keep the ubuntu tag fixed on release branches. Only the digest moves.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/ubuntu"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch"
+      ],
+      "enabled": false
+    },
+    {
       "description": "No lock file maintenance on release branches. That would bump modules outside the Go toolchain patch.",
       "matchBaseBranches": [
         "/^release-\\d+\\.\\d+$/"
