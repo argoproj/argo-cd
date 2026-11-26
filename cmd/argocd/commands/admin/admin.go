@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -123,7 +124,7 @@ func isArgoCDSecret(un unstructured.Unstructured) bool {
 // isArgoCDConfigMap returns true if the configmap name is one of argo cd's well known configmaps
 func isArgoCDConfigMap(name string) bool {
 	switch name {
-	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName:
+	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName, common.ArgoCDCmdParamsConfigMapName:
 		return true
 	}
 	return false
@@ -175,9 +176,23 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 	applicationsetNamespaces := make([]string, 0)
 
 	un, err := configMapsClient.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return &argocdAdditionalNamespaces{
+			applicationNamespaces:    applicationNamespaces,
+			applicationsetNamespaces: applicationsetNamespaces,
+		}
+	}
 	errors.CheckError(err)
+	return additionalNamespacesFromConfigMap(un)
+}
+
+// additionalNamespacesFromConfigMap reads the additional namespaces from an argocd-cmd-params-cm object
+func additionalNamespacesFromConfigMap(un *unstructured.Unstructured) *argocdAdditionalNamespaces {
+	applicationNamespaces := make([]string, 0)
+	applicationsetNamespaces := make([]string, 0)
+
 	var cm corev1.ConfigMap
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
 	namespacesListFromString := func(namespaces string) []string {
