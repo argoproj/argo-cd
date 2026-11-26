@@ -47,8 +47,9 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 
 func TestProcessApplicationListField_OwnerReferences(t *testing.T) {
 	t.Parallel()
-	app := v1alpha1.Application{}
-	app.OwnerReferences = []metav1.OwnerReference{{Kind: "ApplicationSet", Name: "my-appset"}}
+	app := v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{
+		OwnerReferences: []metav1.OwnerReference{{Kind: "ApplicationSet", Name: "my-appset"}},
+	}}
 	list := v1alpha1.ApplicationList{Items: []v1alpha1.Application{app}}
 
 	res, err := processApplicationListField(&list, map[string]any{"items.metadata.ownerReferences": true}, false)
