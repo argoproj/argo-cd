@@ -505,6 +505,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			}),
 			apps: []v1alpha1.Application{
 				newApp("app1", health.HealthStatusProgressing, v1alpha1.SyncStatusCodeSynced, "next", &v1alpha1.OperationState{
+					Operation:  v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 					Phase:      common.OperationSucceeded,
 					StartedAt:  nowMinus5,
 					FinishedAt: &metav1.Time{Time: nowMinus5.Add(5 * time.Second)},
@@ -544,6 +545,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
+							Operation:  v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 							Phase:      common.OperationSucceeded,
 							StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
 							FinishedAt: &metav1.Time{Time: time.Now()},
