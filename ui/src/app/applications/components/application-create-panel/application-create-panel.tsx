@@ -266,10 +266,6 @@ export const ApplicationCreatePanel = (props: {
             }>
             {({projects, clusters, reposInfo}) => {
                 const repos = [...reposInfo].sort((curr, next) => curr.repo.localeCompare(next.repo));
-                const repoInfo = reposInfo.find(info => info.repo === app.spec.source?.repoURL);
-                if (repoInfo) {
-                    normalizeAppSource(app, repoInfo.type || currentRepoType.current || 'git');
-                }
                 return (
                     <div className='application-create-panel'>
                         {(yamlMode && (
