@@ -274,6 +274,12 @@ func TestProxySSHConnection_Errors(t *testing.T) {
 		require.ErrorContains(t, err, "unsafe proxy URL rejected")
 	})
 
+	t.Run("malformed proxy URL", func(t *testing.T) {
+		err := ProxySSHConnection(t.Context(), "socks5://user:secret@127.0.0.1:bad", "git.example.com", "22", strings.NewReader(""), io.Discard)
+		require.ErrorContains(t, err, "unsafe proxy URL rejected")
+		assert.NotContains(t, err.Error(), "secret", "the proxy password must not appear in errors")
+	})
+
 	t.Run("unsupported scheme", func(t *testing.T) {
 		err := ProxySSHConnection(t.Context(), "http://127.0.0.1:1080", "git.example.com", "22", strings.NewReader(""), io.Discard)
 		require.ErrorContains(t, err, "unsafe proxy URL rejected")

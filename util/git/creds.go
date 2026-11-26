@@ -117,6 +117,10 @@ func ValidateHTTPProxyURL(rawURL string) error {
 func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
+		// url.Error quotes the whole URL, proxy password included; callers log this error.
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			err = urlErr.Err
+		}
 		return fmt.Errorf("invalid proxy URL: %w", err)
 	}
 

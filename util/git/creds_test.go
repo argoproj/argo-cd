@@ -466,6 +466,22 @@ func TestValidateProxyURL_RejectsUnsafeHostnames(t *testing.T) {
 	}
 }
 
+func TestValidateProxyURL_MalformedURLErrorsOmitPassword(t *testing.T) {
+	t.Parallel()
+	for _, rawURL := range []string{
+		"socks5://user:secret@127.0.0.1:bad",
+		"socks5://user:secret@[::1",
+		"socks5://user:secret@host:1080/%zz",
+	} {
+		t.Run(rawURL, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(rawURL)
+			require.ErrorContains(t, err, "invalid proxy URL")
+			assert.NotContains(t, err.Error(), "secret")
+		})
+	}
+}
+
 func TestValidateProxyURL_AcceptsValidURLs(t *testing.T) {
 	t.Parallel()
 	valid := []struct {
