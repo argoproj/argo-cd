@@ -53,12 +53,7 @@ func TestProcessApplicationListField_OwnerReferences(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.metadata.ownerReferences": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	refs, ok, err := unstructured.NestedSlice(item, "metadata", "ownerReferences")
 	require.NoError(t, err)
