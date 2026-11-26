@@ -46,7 +46,7 @@ func TestNewParsers_RequiresSecret(t *testing.T) {
 		want                 []string
 	}{
 		{
-			name: "no provider is registered without a secret",
+			name: "no provider accepts events without a secret",
 		},
 		{
 			name:                 "every provider is registered when unauthenticated events are allowed",
@@ -96,11 +96,59 @@ func TestNewParsers_RequiresSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(EnvWebhookAllowUnauthenticated, tt.allowUnauthenticated)
 
+			parsers := NewParsers(&tt.settings, opts)
+			// A provider without a secret keeps its place in the dispatch order.
+			assert.Len(t, parsers, 7)
+
 			var got []string
-			for _, p := range NewParsers(&tt.settings, opts) {
-				got = append(got, fmt.Sprintf("%T", p))
+			for _, p := range parsers {
+				if _, rejecting := p.(*rejectingParser); !rejecting {
+					got = append(got, fmt.Sprintf("%T", p))
+				}
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// A request must be rejected by its own provider, not by a later parser that matches the same headers.
+func TestDispatch_ProviderWithoutSecretClaimsItsRequests(t *testing.T) {
+	t.Setenv(EnvWebhookAllowUnauthenticated, "")
+	opts := ParserOptions{
+		GogsEvents:            []gogs.Event{gogs.PushEvent},
+		GitHubEvents:          []github.Event{github.PushEvent},
+		BitbucketEvents:       []bitbucket.Event{bitbucket.RepoPushEvent},
+		BitbucketServerEvents: []bitbucketserver.Event{bitbucketserver.RepositoryReferenceChangedEvent},
+	}
+	parsers := NewParsers(&settings.ArgoCDSettings{WebhookGitHubSecret: "secret", WebhookBitbucketServerSecret: "secret"}, opts)
+	tests := []struct {
+		name    string
+		headers map[string]string
+		wantErr string
+	}{
+		{
+			name:    "Gogs event is not handed to GitHub",
+			headers: map[string]string{"X-Gogs-Event": "push", "X-GitHub-Event": "push"},
+			wantErr: "no webhook secret is configured for Gogs",
+		},
+		{
+			name:    "Bitbucket Cloud event is not handed to Bitbucket Server",
+			headers: map[string]string{"X-Hook-UUID": "uuid", "X-Event-Key": "repo:push"},
+			wantErr: "no webhook secret is configured for Bitbucket",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{}`))
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
+			}
+
+			payload, handled, err := Dispatch(parsers, req)
+
+			assert.True(t, handled)
+			assert.Nil(t, payload)
+			require.EqualError(t, err, tt.wantErr)
 		})
 	}
 }
@@ -122,7 +170,7 @@ func TestHandleRequest_ProviderWithoutSecret(t *testing.T) {
 		{
 			name:       "rejected by default",
 			wantStatus: http.StatusBadRequest,
-			wantBody:   "Unknown webhook event",
+			wantBody:   "Webhook processing failed",
 		},
 		{
 			name:                 "accepted when unauthenticated events are allowed",
