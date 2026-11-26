@@ -18,7 +18,7 @@ type SourceIntegritySection<T> = {
 const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[] = [
     {
         key: 'git',
-        isConfigured: (si?: ProjectSourceIntegrity) => (si?.git?.policies?.length ?? 0) > 0,
+        isConfigured: (si?: ProjectSourceIntegrity) => si?.git != null,
         View: GitSourceIntegritySection,
         getProps: (si?: ProjectSourceIntegrity) => ({git: si?.git})
     }
@@ -64,14 +64,24 @@ const SourceIntegrityPanel = ({proj}: {proj: Project}) => (
 const SourceIntegrityContent = ({sourceIntegrity, signatureKeys}: {sourceIntegrity?: ProjectSourceIntegrity; signatureKeys?: ProjectSignatureKey[]}) => {
     const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
 
+    // EffectiveSourceIntegrity - legacy keys are ignored whenever Git is set.
+    const showLegacyKeysNotice = (signatureKeys?.length ?? 0) > 0 && sourceIntegrity?.git == null;
+
     if (configuredSections.length === 0) {
-        if ((signatureKeys?.length ?? 0) > 0) {
-            return <p>No Source Integrity policies are configured. Legacy GPG signature keys below are still enforced.</p>;
+        if (showLegacyKeysNotice) {
+            return <p>Source Integrity is not configured. Legacy GPG signature keys below are still enforced.</p>;
         }
         return <p>Source Integrity is not configured.</p>;
     }
 
-    return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
+    return (
+        <>
+            {showLegacyKeysNotice && <p>Source Integrity Git is not configured. Legacy GPG signature keys below are still enforced.</p>}
+            {configuredSections.map(section => (
+                <section.View key={section.key} {...section.getProps(sourceIntegrity)} />
+            ))}
+        </>
+    );
 };
 
 const SIGNATURE_KEYS_DEPRECATION_MESSAGE = 'This feature is deprecated. Migrate to Source Integrity instead.';
@@ -148,10 +158,10 @@ const getSignatureKeysMessage = (proj: Project): React.ReactNode => {
         return null;
     }
 
-    if (proj.spec.sourceIntegrity?.git !== undefined) {
+    if (proj.spec.sourceIntegrity?.git != null) {
         return (
             <>
-                These keys are <strong>not used for sync</strong> because Source Integrity Git policies are configured. See <UpgradeGuideLink />.
+                These keys are <strong>not used for sync</strong> because Source Integrity Git is configured. See <UpgradeGuideLink />.
             </>
         );
     }
@@ -167,6 +177,7 @@ function GitSourceIntegritySection({git}: {git?: SourceIntegrityGit}) {
     return (
         <>
             <p className='project-details__list-title'>GIT</p>
+            {(git?.policies?.length ?? 0) === 0 && <div className='white-box source-integrity-panel__policy'>Source Integrity Git has no policies.</div>}
             {git?.policies?.map((policy, policyIndex) => {
                 const includedRepoUrls = getIncludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
                 const excludedRepoUrls = getExcludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));

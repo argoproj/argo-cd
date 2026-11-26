@@ -159,9 +159,9 @@ describe('SourceIntegrityTab', () => {
 
         expect(screen.getByText(/SOURCE INTEGRITY/)).toBeTruthy();
         expect(
-            screen.getByText('No Source Integrity policies are configured. Legacy GPG signature keys below are still enforced.')
+            screen.getByText('Source Integrity is not configured. Legacy GPG signature keys below are still enforced.')
         ).toBeTruthy();
-        expect(screen.queryByText('Source Integrity is not configured.')).toBeFalsy();
+        expect(screen.queryByText(/^Source Integrity is not configured\.$/)).toBeFalsy();
         expect(screen.getByText(/\[DEPRECATED\] GPG SIGNATURE KEYS/)).toBeTruthy();
         expect(screen.getByText('This feature is deprecated. Migrate to Source Integrity instead.')).toBeTruthy();
         expect(screen.getByText('1234567890')).toBeTruthy();
@@ -192,7 +192,7 @@ describe('SourceIntegrityTab', () => {
 
         expect(screen.getByText('1234567890')).toBeTruthy();
         expect(screen.getByText(/not used for sync/)).toBeTruthy();
-        expect(screen.getByText(/because Source Integrity Git policies are configured/)).toBeTruthy();
+        expect(screen.getByText(/because Source Integrity Git is configured/)).toBeTruthy();
         expect(screen.getByRole('link', {name: 'Upgrade to Source Integrity'})).toHaveAttribute(
             'href',
             'https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity-git-gpg/#upgrade-to-source-integrity-verification'
@@ -200,5 +200,29 @@ describe('SourceIntegrityTab', () => {
         expect(screen.queryByText('Source Integrity is not configured.')).toBeFalsy();
         expect(screen.queryByText(/Legacy GPG signature keys below are still enforced/)).toBeFalsy();
         expect(screen.queryByText(/still enforced for all Git repositories/)).toBeFalsy();
+    });
+
+    test('explains signature keys are not used for sync when Source Integrity Git is set without policies', () => {
+        renderTab(projectWithSignatureKeys(['1234567890'], {git: {policies: []}}));
+
+        expect(screen.getByText('1234567890')).toBeTruthy();
+        expect(screen.getByText('GIT')).toBeTruthy();
+        expect(screen.getByText('Source Integrity Git has no policies.')).toBeTruthy();
+        expect(screen.queryByText('Source Integrity is not configured.')).toBeFalsy();
+        expect(screen.queryByText(/Legacy GPG signature keys below are still enforced/)).toBeFalsy();
+        expect(screen.getByText(/not used for sync/)).toBeTruthy();
+        expect(screen.getByText(/because Source Integrity Git is configured/)).toBeTruthy();
+        expect(screen.queryByText(/still enforced for all Git repositories/)).toBeFalsy();
+    });
+
+    test('explains signature keys are still enforced when Source Integrity has no git section', () => {
+        // No displayable SI sections yet (e.g. future non-git types unset); git specifically absent → keys still apply.
+        renderTab(projectWithSignatureKeys(['1234567890'], {}));
+
+        expect(
+            screen.getByText('Source Integrity is not configured. Legacy GPG signature keys below are still enforced.')
+        ).toBeTruthy();
+        expect(screen.getByText(/still enforced for all Git repositories/)).toBeTruthy();
+        expect(screen.queryByText(/not used for sync/)).toBeFalsy();
     });
 });
