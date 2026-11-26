@@ -77,6 +77,32 @@ func Test_secretToCluster(t *testing.T) {
 	assert.NotZero(t, *cluster.ConfigHash)
 }
 
+func Test_secretToCluster_QPSAndBurst(t *testing.T) {
+	secret := &corev1.Secret{
+		Name:      "mycluster",
+		Namespace: fakeNamespace,
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("https://mycluster"),
+			"config": []byte(`{"username":"foo","qps":15.5,"burst":31}`),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+	assert.InDelta(t, 15.5, cluster.Config.QPS, 0.0001)
+	assert.Equal(t, int64(31), cluster.Config.Burst)
+
+	// Test round trip via clusterToSecret
+	s := &corev1.Secret{}
+	err = clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	roundTripCluster, err := SecretToCluster(s)
+	require.NoError(t, err)
+	assert.InDelta(t, 15.5, roundTripCluster.Config.QPS, 0.0001)
+	assert.Equal(t, int64(31), roundTripCluster.Config.Burst)
+}
+
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 	secret := &corev1.Secret{
 		Name:        "mycluster",

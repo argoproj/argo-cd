@@ -1,0 +1,11 @@
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedDeletingPolicy
+metadata:
+  name: sample-namespaced-deleting-policy
+  namespace: test-namespace
+  generation: 1
+spec: {}
+status:
+  conditionStatus:
+    message: ""
+  lastExecutionTime: "2026-11-04T16:00:00Z"

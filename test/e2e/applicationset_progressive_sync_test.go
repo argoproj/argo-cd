@@ -348,7 +348,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		{
 			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
 			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "Successfully generated parameters for all Applications",
+			Message: "All parameters have been generated successfully",
 			Reason:  v1alpha1.ApplicationSetReasonParametersGenerated,
 		},
 		{
@@ -534,14 +534,16 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		When().
 		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
 		And(func() {
-			changeTime = new(metav1.Now())
+			changeTime = waitForNextWholeSecond()
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
 		}).
+		RefreshApp([]string{"refresh-prod-app3"}).
 		Then().
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
-		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
+		// Refreshing refresh-prod-app3 above stands in for a git webhook, so the change is noticed without waiting for the periodic resync.
+		// ensureApplicationsReconciled then adds refresh annotations to the other applications, which is what refresh-staging-app2 reconciling here relies on
 		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
 		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)).                               // Check application with skip-reconcile was not reconciled
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
@@ -772,6 +774,12 @@ var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
 			},
 		},
 	},
+}
+
+func waitForNextWholeSecond() *metav1.Time {
+	next := time.Now().Truncate(time.Second).Add(time.Second)
+	time.Sleep(time.Until(next))
+	return &metav1.Time{Time: next}
 }
 
 func generateExpectedApp(prefix string, path string, name string, envVar string, testFinalizer string, samePath bool) v1alpha1.Application {

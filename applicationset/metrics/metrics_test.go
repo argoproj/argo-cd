@@ -80,12 +80,12 @@ status:
     version: v1alpha1
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: Successfully generated parameters for all Applications
+    message: All applications have been generated successfully
     reason: ApplicationSetUpToDate
     status: "False"
     type: ErrorOccurred
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: Successfully generated parameters for all Applications
+    message: All parameters have been generated successfully
     reason: ParametersGenerated
     status: "True"
     type: ParametersGenerated
@@ -299,7 +299,7 @@ status:
     status: "False"
     type: InvalidRolloutConfig
   - lastTransitionTime: "2026-08-04T02:28:22Z"
-    message: Successfully generated parameters for all Applications
+    message: All parameters have been generated successfully
     reason: ParametersGenerated
     status: "True"
     type: ParametersGenerated
@@ -549,6 +549,26 @@ argocd_appset_reconcile_sum{name="test1",namespace="argocd"} 5
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
+}
+
+func TestIncRefreshTriggeredCount(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd"} 3`)
 }
 
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {

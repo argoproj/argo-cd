@@ -13,9 +13,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -24,9 +25,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
+	"github.com/kballard/go-shellquote"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/sync/singleflight"
 
 	gocache "github.com/patrickmn/go-cache"
 
@@ -52,10 +55,14 @@ var (
 	azureTokenCache *gocache.Cache
 
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-	githubInstallationIdCache      *gocache.Cache
-	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	githubInstallationIdCache *gocache.Cache
+	// Coalesces concurrent installation ID lookups for the same org, host, and app into one API call
+	githubInstallationIdGroup singleflight.Group
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
+
+	// validProxyHostRegexp matches only safe hostname characters: alphanumeric, hyphen, dot, and brackets (for IPv6).
+	validProxyHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9.\-]+$`)
 )
 
 const (
@@ -94,6 +101,57 @@ func init() {
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
 	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
+}
+
+func validateProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "socks5", "socks5h")
+}
+
+// ValidateHTTPProxyURL validates a proxy URL for HTTP/HTTPS creds (GitHub App,
+// Azure Service Principal, HTTPS creds). It accepts http, https, socks5 and
+// socks5h schemes.
+func ValidateHTTPProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "http", "https", "socks5", "socks5h")
+}
+
+func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	schemeOK := slices.Contains(allowedSchemes, parsed.Scheme)
+	if !schemeOK {
+		return fmt.Errorf("invalid proxy scheme %q: only %v are supported", parsed.Scheme, allowedSchemes)
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return errors.New("proxy URL has empty hostname")
+	}
+	if strings.Contains(host, ":") {
+		// Treat as IPv6 — validate with net.ParseIP which understands all
+		// valid IPv6 formats and rejects anything containing shell metacharacters.
+		if net.ParseIP(host) == nil {
+			return fmt.Errorf("proxy hostname %q is not a valid IPv6 address", host)
+		}
+	} else {
+		// DNS name or IPv4 — allow only alphanumerics, hyphens, and dots.
+		if !validProxyHostRegexp.MatchString(host) {
+			return fmt.Errorf("proxy hostname %q contains unsafe characters: only alphanumerics, hyphens, and dots are allowed", host)
+		}
+	}
+
+	portStr := parsed.Port()
+	if portStr == "" {
+		return errors.New("proxy URL has no port")
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("proxy port %q is not a valid TCP port (must be 1-65535)", portStr)
+	}
+
+	return nil
 }
 
 type NoopCredsStore struct{}
@@ -245,7 +303,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(creds.clientCertData)
 		if err != nil {
@@ -303,6 +361,15 @@ type SSHCreds struct {
 }
 
 func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, proxy string) SSHCreds {
+	if proxy != "" {
+		if err := validateProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewSSHCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
 	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, proxy}
 }
 
@@ -334,6 +401,9 @@ func (f authFilePaths) Close() error {
 	}
 	return retErr
 }
+
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
 
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
@@ -373,17 +443,51 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile="+knownHostsFile)
 	}
+
 	// Handle SSH socks5 proxy settings
-	proxyEnv := []string{}
+	var proxyEnv []string
+	var proxyScriptPath string
+
 	if c.proxy != "" {
+		if err := validateProxyURL(c.proxy); err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("unsafe proxy URL rejected: %w", err)
+		}
+
 		parsedProxyURL, err := url.Parse(c.proxy)
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
 		}
-		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
+
+		// Write a temporary wrapper script instead of embedding the hostname and port directly into the
+		// shell-interpreted GIT_SSH_COMMAND string.
+		proxyScriptContent := fmt.Sprintf(
+			"#!/bin/sh\nexec connect-proxy -5 -S %s:%s \"$@\"\n",
 			parsedProxyURL.Hostname(),
-			parsedProxyURL.Port()))
+			parsedProxyURL.Port(),
+		)
+
+		proxyScript, err := createTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		if err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
+		}
+		proxyScriptPath = proxyScript.Name()
+
+		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = proxyScript.Close()
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
+		}
+		if err := proxyScript.Close(); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to close proxy command script: %w", err)
+		}
+		args = append(args, "-o", "ProxyCommand="+shellquote.Join("/bin/sh", proxyScriptPath)+" %h %p")
+
 		if parsedProxyURL.User != nil {
 			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
 			if socks5Passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
@@ -391,9 +495,28 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			}
 		}
 	}
-	env = append(env, []string{"GIT_SSH_COMMAND=" + strings.Join(args, " ")}...)
+
+	env = append(env, []string{"GIT_SSH_COMMAND=" + shellquote.Join(args...)}...)
 	env = append(env, proxyEnv...)
-	return sshCloser, env, nil
+
+	// We need a combined closer that removes both the SSH private key tempfile
+	// and the proxy script tempfile (if one was created).
+	combinedCloser := utilio.NewCloser(func() error {
+		keyErr := sshCloser.Close()
+		var proxyErr error
+		if proxyScriptPath != "" {
+			proxyErr = os.Remove(proxyScriptPath)
+			if os.IsNotExist(proxyErr) {
+				proxyErr = nil
+			}
+		}
+		if keyErr != nil {
+			return keyErr
+		}
+		return proxyErr
+	})
+
+	return combinedCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application
@@ -415,6 +538,15 @@ type GitHubAppCreds struct {
 // NewGitHubAppCreds provide github app credentials
 // repoURL is required for automatic installation ID discovery when appInstallId is 0
 func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, repoURL string) GenericHTTPSCreds {
+	if proxy != "" {
+		if err := ValidateHTTPProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewGitHubAppCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
 	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store, repoURL: repoURL}
 }
 
@@ -457,7 +589,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(g.clientCertData)
 		if err != nil {
@@ -517,14 +649,15 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
-	defer cancel()
-
 	itr, err := g.getInstallationTransport()
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub app installation transport: %w", err)
 	}
+
+	// Create the token context only after installation discovery, so time spent
+	// waiting for discovery does not shorten the token request's timeout.
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
 
 	return itr.Token(ctx)
 }
@@ -566,14 +699,13 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := newGitRequestContext(gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
 		if err != nil {
 			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
 		}
-		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
 		installationID = discoveredID
 	}
 
@@ -633,8 +765,8 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 // GitHub App installation discovery cache and helper
 
 // DiscoverGitHubAppInstallationID discovers the GitHub App installation ID for a given organization.
-// It queries the GitHub API to list all installations for the app and returns the installation ID
-// for the matching organization. Results are cached to avoid redundant API calls.
+// It queries the GitHub API for the app's installation on the organization, or on the user account of the same
+// name if the owner is not an organization. Results are cached to avoid redundant API calls.
 // An optional HTTP client can be provided for custom transport (e.g., for metrics tracking).
 func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
 	domain, err := domainFromBaseURL(enterpriseBaseURL)
@@ -643,7 +775,7 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	}
 	org = strings.ToLower(org)
 	// Check cache first
-	cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appId)
+	cacheKey := fmt.Sprintf("%s:%s:%d", org, domain, appId)
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
@@ -678,46 +810,75 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		}
 	}
 
-	// List all installations and cache them
-	var allInstallations []*github.Installation
-	opts := &github.ListOptions{PerPage: 100}
-
-	// Lock for the entire loop to avoid multiple concurrent API calls on startup
-	githubInstallationIdCacheMutex.Lock()
-	defer githubInstallationIdCacheMutex.Unlock()
-
-	// Check cache again inside the write lock in case another goroutine already fetched it
-	if id, found := githubInstallationIdCache.Get(cacheKey); found {
-		return id.(int64), nil
-	}
-
+	// Share one API call among concurrent lookups for the same org, so a burst of callers on startup makes one
+	// request and all receive its result. Each caller still stops waiting when its own context ends. The key
+	// includes a hash of the private key so that callers with different keys (for example, during key rotation)
+	// don't receive each other's errors. The cached ID doesn't depend on the key, so the cache key leaves it out.
+	keyHash := sha256.Sum256([]byte(privateKey))
+	flightKey := cacheKey + ":" + hex.EncodeToString(keyHash[:])
 	for {
-		installations, resp, err := client.Apps.ListInstallations(ctx, opts)
-		if err != nil {
-			return 0, fmt.Errorf("failed to list installations: %w", err)
+		var res singleflight.Result
+		select {
+		case res = <-githubInstallationIdGroup.DoChan(flightKey, func() (any, error) {
+			id, err := findGitHubAppInstallationID(ctx, client, cacheKey, domain, appId, org)
+			if err != nil && ctx.Err() != nil {
+				return nil, &sharedLookupContextError{err: err}
+			}
+			return id, err
+		}):
+		case <-ctx.Done():
+			return 0, fmt.Errorf("failed to find installation: %w", ctx.Err())
 		}
-
-		allInstallations = append(allInstallations, installations...)
-
-		if resp.NextPage == 0 {
-			break
+		// The shared call runs with the context of whichever caller started it. If it failed because that context
+		// ended, try again with ours instead of failing on another caller's deadline.
+		if ctxErr, ok := errors.AsType[*sharedLookupContextError](res.Err); ok {
+			if ctx.Err() == nil {
+				continue
+			}
+			return 0, ctxErr.err
 		}
-		opts.Page = resp.NextPage
+		if res.Err != nil {
+			return 0, res.Err
+		}
+		return res.Val.(int64), nil
 	}
+}
 
-	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
-	for _, installation := range allInstallations {
-		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
-			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
-		}
-	}
+// sharedLookupContextError marks a shared installation lookup that failed after the context of the caller that
+// started it ended.
+type sharedLookupContextError struct {
+	err error
+}
 
-	// Return the installation ID for the requested org
+func (e *sharedLookupContextError) Error() string { return e.err.Error() }
+
+func (e *sharedLookupContextError) Unwrap() error { return e.err }
+
+// findGitHubAppInstallationID looks up the app's installation on the org, falling back to the user account of the
+// same name, and caches the installation ID under cacheKey.
+func findGitHubAppInstallationID(ctx context.Context, client *github.Client, cacheKey, domain string, appId int64, org string) (int64, error) {
+	// Check the cache again in case another caller's lookup finished since the first check
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
-	return 0, fmt.Errorf("installation not found for org: %s", org)
+
+	start := time.Now()
+	log.Debugf("Looking up GitHub App installation ID for org %s (app %d on %s)", org, appId, domain)
+	installation, resp, err := client.Apps.FindOrganizationInstallation(ctx, org)
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
+		// The owner may be a user account rather than an organization
+		installation, resp, err = client.Apps.FindUserInstallation(ctx, org)
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return 0, fmt.Errorf("installation not found for org: %s", org)
+		}
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to find installation after %s: %w", time.Since(start), err)
+	}
+
+	githubInstallationIdCache.Set(cacheKey, installation.GetID(), gocache.DefaultExpiration)
+	log.Infof("Discovered GitHub App installation ID %d for org %s (app %d on %s) in %s, rate limit remaining: %d", installation.GetID(), org, appId, domain, time.Since(start), resp.Rate.Remaining)
+	return installation.GetID(), nil
 }
 
 // domainFromBaseURL extracts the host (domain) from the given GitHub base URL.
@@ -1037,9 +1198,18 @@ func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) Azur
 	return a
 }
 
-// WithProxy sets the HTTP/HTTPS proxy used to access the repo
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo.
+// Unsafe proxy values are rejected at this boundary so they cannot
+// flow further (e.g. into net/http transports via GetRepoHTTPClient).
 func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
 	if proxy != "" {
+		if err := ValidateHTTPProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("AzureServicePrincipalCreds.WithProxy: rejecting unsafe proxy URL: %v", err)
+			return a
+		}
 		a.proxy = proxy
 	}
 	return a
@@ -1085,7 +1255,7 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	// Generate cache key for creds
 	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure Service Principal credentials: %w", err)
 	}
 
 	t, found := azureServicePrincipalTokenCache.Get(key)

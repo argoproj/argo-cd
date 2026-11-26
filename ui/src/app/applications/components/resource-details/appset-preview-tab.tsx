@@ -1,9 +1,9 @@
 import * as jsYaml from 'js-yaml';
-import * as monacoEditor from 'monaco-editor';
+import type * as monacoEditor from 'monaco-editor';
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
 
-import {MonacoEditor} from '../../../shared/components';
+import {MonacoEditor} from '../../../shared/components/monaco-editor';
 import * as models from '../../../shared/models';
 import {AppSetGeneratedAppsDiff} from './appset-generated-apps-diff';
 

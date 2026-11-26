@@ -263,8 +263,7 @@ func printStatsSummary(clusters []ClusterWithInfo, replicas int) {
 	avgResourcesByShard := totalResourcesCount / int64(replicas)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\t%% OF TOTAL\t%% OF AVG PER SHARD (%d)\n", avgResourcesByShard)
-	for shard := 0; shard < len(resourcesCountByShard); shard++ {
-		cnt := resourcesCountByShard[shard]
+	for shard, cnt := range resourcesCountByShard {
 		totalPercent := (float64(cnt) / float64(totalResourcesCount)) * 100.0
 		avgPercent := (float64(cnt) / float64(avgResourcesByShard)) * 100.0
 		_, _ = fmt.Fprintf(w, "%d\t%d\t%.0f%%\t%.0f%%\n", shard, cnt, totalPercent, avgPercent)
@@ -683,6 +682,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// Override K8s client QPS and Burst if specified via CLI flags
+			cmdutil.ApplyRateLimitOverrides(&clusterOpts, clst)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = v1alpha1.KubernetesInternalAPIServerAddr
 			}

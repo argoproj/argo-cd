@@ -23,6 +23,91 @@ type streamMock struct {
 	done     chan bool
 }
 
+type failingSender struct{}
+
+func (failingSender) Send(*pluginclient.AppStreamRequest) error {
+	return errors.New("send failed")
+}
+
+type discardSender struct{}
+
+func (discardSender) Send(*pluginclient.AppStreamRequest) error {
+	return nil
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryOnSuccess(t *testing.T) {
+	tempRoot := t.TempDir()
+	appPath := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	require.NoError(t, cmp.SendRepoStream(t.Context(), appPath, appPath, discardSender{}, nil, nil))
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryWhenMetadataSendFails(t *testing.T) {
+	tempRoot := t.TempDir()
+	appPath := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	err := cmp.SendRepoStream(t.Context(), appPath, appPath, failingSender{}, nil, nil)
+	require.ErrorContains(t, err, "send failed")
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestGetCompressedRepoAndMetadataCleansTemporaryDirectoryOnEarlyReturn(t *testing.T) {
+	tests := map[string]struct {
+		rootPath string
+		appPath  string
+		addFile  bool
+	}{
+		"no files": {
+			rootPath: t.TempDir(),
+		},
+		"app path outside root": {
+			rootPath: t.TempDir(),
+			appPath:  t.TempDir(),
+			addFile:  true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tempRoot := t.TempDir()
+			t.Setenv("TMP", tempRoot)
+			t.Setenv("TEMP", tempRoot)
+			t.Setenv("TMPDIR", tempRoot)
+
+			appPath := tt.appPath
+			if appPath == "" {
+				appPath = tt.rootPath
+			}
+			if tt.addFile {
+				require.NoError(t, os.WriteFile(filepath.Join(tt.rootPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+			}
+			_, _, err := cmp.GetCompressedRepoAndMetadata(tt.rootPath, appPath, nil, nil, nil)
+			require.Error(t, err)
+
+			entries, err := os.ReadDir(tempRoot)
+			require.NoError(t, err)
+			assert.Empty(t, entries)
+		})
+	}
+}
+
 func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 	select {
 	case message := <-m.messages:
@@ -122,4 +207,33 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 func getTestDataDir(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
+}
+
+type sliceStreamReceiver struct {
+	messages []*pluginclient.AppStreamRequest
+}
+
+func (r *sliceStreamReceiver) Recv() (*pluginclient.AppStreamRequest, error) {
+	if len(r.messages) == 0 {
+		return nil, io.EOF
+	}
+	m := r.messages[0]
+	r.messages = r.messages[1:]
+	return m, nil
+}
+
+func TestReceiveRepoStreamCleansTemporaryFileOnChecksumMismatch(t *testing.T) {
+	t.Parallel()
+	workdir := t.TempDir()
+	receiver := &sliceStreamReceiver{messages: []*pluginclient.AppStreamRequest{
+		{Request: &pluginclient.AppStreamRequest_Metadata{Metadata: &pluginclient.ManifestRequestMetadata{Checksum: "wrong"}}},
+		{Request: &pluginclient.AppStreamRequest_File{File: &pluginclient.File{Chunk: []byte("data")}}},
+	}}
+
+	_, err := cmp.ReceiveRepoStream(t.Context(), receiver, workdir, false)
+	require.ErrorContains(t, err, "checksum validation error")
+
+	entries, err := os.ReadDir(workdir)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
 }

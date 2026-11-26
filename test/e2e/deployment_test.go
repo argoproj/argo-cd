@@ -251,7 +251,7 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 		Data: map[string][]byte{
 			"name":   []byte(clusterName),
 			"server": []byte(clusterServer),
-			"config": []byte(string(clusterConfigJSON)),
+			"config": []byte(clusterConfigJSON),
 		},
 	}
 

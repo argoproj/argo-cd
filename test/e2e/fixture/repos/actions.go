@@ -1,7 +1,6 @@
 package repos
 
 import (
-	"log"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -86,6 +85,7 @@ func (a *Actions) runCli(args ...string) {
 	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	if !a.ignoreErrors && a.lastError != nil {
-		log.Fatal(a.lastOutput)
+		// t.Fatal, not log.Fatal: exiting the process would skip every test not yet run.
+		a.context.T().Fatal(a.lastOutput)
 	}
 }

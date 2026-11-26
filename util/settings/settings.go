@@ -110,6 +110,8 @@ type ArgoCDSettings struct {
 	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
+	// WebhookDockerHubSecret holds the shared secret for authenticating DockerHub webhook events
+	WebhookDockerHubSecret string `json:"webhookDockerHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
@@ -146,6 +148,8 @@ type ArgoCDSettings struct {
 	ResourceViewEnabled bool `json:"resourceViewEnabled"`
 	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
+	// SSOAutoLogin indicates whether the login page redirects to the SSO provider without waiting for the user to click the SSO login button
+	SSOAutoLogin bool `json:"ssoAutoLogin,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -173,7 +177,7 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
-	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during sync is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
@@ -230,6 +234,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -251,6 +257,8 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -459,6 +467,8 @@ const (
 	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
+	// settingsWebhookDockerHubSecret is the key for the DockerHub shared webhook secret
+	settingsWebhookDockerHubSecretKey = "webhook.dockerhub.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
@@ -537,6 +547,8 @@ const (
 	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
 	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
 	settingUILoginButtonTextKey = "ui.loginButtonText"
+	// settingSSOAutoLoginKey designates the key for redirecting the login page to the SSO provider automatically
+	settingSSOAutoLoginKey = "sso.autoLogin"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
 	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
@@ -1763,6 +1775,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
 	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
+	settings.SSOAutoLogin = argoCDCM.Data[settingSSOAutoLoginKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
@@ -1909,6 +1922,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.Secrets = secretValues
 
 	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookDockerHubSecret = string(argoCDSecret.Data[settingsWebhookDockerHubSecretKey])
 	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
@@ -2140,6 +2154,11 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 // GetWebhookGitHubSecret returns the resolved GitHub webhook secret
 func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
 	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookDockerHubSecret returns the resolved DockerHub webhook secret
+func (a *ArgoCDSettings) GetWebhookDockerHubSecret() string {
+	return ReplaceStringSecret(a.WebhookDockerHubSecret, a.Secrets)
 }
 
 // GetWebhookGitLabSecret returns the resolved GitLab webhook secret
@@ -2479,12 +2498,24 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	requestURL := r.URL
+	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
+	// Prefer r.RequestURI so URL matching still includes the original root path.
+	if r.RequestURI != "" {
+		var err error
+		requestURL, err = url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			return "", fmt.Errorf("error parsing request URI: %w", err)
+		}
+	}
+	requestPath := requestURL.EscapedPath()
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+		basePath := strings.TrimSuffix(u.EscapedPath(), "/")
+		if u.Host == r.Host && (requestPath == basePath || strings.HasPrefix(requestPath, basePath+"/")) {
 			return candidateURL, nil
 		}
 	}

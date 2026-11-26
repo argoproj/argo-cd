@@ -403,3 +403,46 @@ func TestNoFilters(t *testing.T) {
 	assert.Equal(t, "one", repos[0].Branch)
 	assert.Equal(t, "two", repos[1].Branch)
 }
+
+func TestContainsAnyExcludedLabels(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		Name           string
+		ExcludedLabels []string
+		GotLabels      []string
+		Expect         bool
+	}{
+		{
+			Name:           "Has excluded label",
+			ExcludedLabels: []string{"stale", "wip"},
+			GotLabels:      []string{"label1", "stale"},
+			Expect:         true,
+		},
+		{
+			Name:           "Does not have excluded labels",
+			ExcludedLabels: []string{"stale", "wip"},
+			GotLabels:      []string{"label1", "label2"},
+			Expect:         false,
+		},
+		{
+			Name:           "No excluded labels specified",
+			ExcludedLabels: []string{},
+			GotLabels:      []string{"stale"},
+			Expect:         false,
+		},
+		{
+			Name:           "No labels",
+			ExcludedLabels: []string{"stale"},
+			GotLabels:      []string{},
+			Expect:         false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			got := containsAnyExcludedLabels(c.ExcludedLabels, c.GotLabels)
+			require.Equal(t, c.Expect, got)
+		})
+	}
+}

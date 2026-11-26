@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	goruntime "runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -99,6 +101,23 @@ func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ..
 func (broadcasterMock) OnAdd(any, bool)   {}
 func (broadcasterMock) OnUpdate(any, any) {}
 func (broadcasterMock) OnDelete(any)      {}
+
+// mockApplicationWatchServer captures the applications sent through a Watch stream. The embedded
+// grpc.ServerStream is never used because Watch only calls Context and Send, both overridden here.
+type mockApplicationWatchServer struct {
+	googlegrpc.ServerStream
+	ctx  context.Context
+	sent []*v1alpha1.ApplicationWatchEvent
+}
+
+func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	m.sent = append(m.sent, event)
+	return nil
+}
+
+func (m *mockApplicationWatchServer) Context() context.Context {
+	return m.ctx
+}
 
 func fakeRepo() *v1alpha1.Repository {
 	return &v1alpha1.Repository{
@@ -1311,6 +1330,127 @@ func TestListAppWithProjects(t *testing.T) {
 	})
 }
 
+func TestListAppWithNames(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+	}))
+
+	t.Run("List all apps", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 3)
+	})
+
+	t.Run("List apps with names filter set", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"App1", "App3"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 2)
+		for _, app := range appList.Items {
+			assert.Contains(t, []string{"App1", "App3"}, app.Name)
+		}
+	})
+
+	t.Run("List apps with empty names filter returns all apps", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 3)
+	})
+}
+
+func TestListAppWithNamespacedNames(t *testing.T) {
+	// The same application name in two namespaces, as possible with apps-in-any-namespace.
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Namespace = "argocd-1"
+	}))
+	appServer.enabledNamespaces = []string{"argocd-1"}
+
+	t.Run("List apps with a namespace qualified name returns only the app in that namespace", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"argocd-1/App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		require.Len(t, appList.Items, 1)
+		assert.Equal(t, "argocd-1", appList.Items[0].Namespace)
+	})
+
+	t.Run("List apps with an unqualified name returns the app in every namespace", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 2)
+	})
+
+	t.Run("List apps with a name qualified by an unknown namespace returns nothing", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"argocd-2/App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Empty(t, appList.Items)
+	})
+}
+
+func TestWatchAppsWithNamesFilter(t *testing.T) {
+	matchApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+	})
+	otherApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "other-app"
+	})
+	appServer := newTestAppServer(t, matchApp, otherApp)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so Watch returns after emitting the initial ADDED events for the existing
+	// applications instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+
+	err := appServer.Watch(&application.ApplicationQuery{Names: []string{"match-app"}}, ws)
+	require.NoError(t, err)
+
+	// The initial send loop always emits the matching application, and the names filter must never
+	// let a non-matching application through.
+	require.NotEmpty(t, ws.sent)
+	for _, event := range ws.sent {
+		assert.Equal(t, "match-app", event.Application.Name)
+	}
+}
+
+func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
+	// The same application name in two namespaces, as possible with apps-in-any-namespace.
+	matchApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+		app.Namespace = "argocd-1"
+	})
+	otherApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+	})
+	appServer := newTestAppServer(t, matchApp, otherApp)
+	appServer.enabledNamespaces = []string{"argocd-1"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so Watch returns after emitting the initial ADDED events for the existing
+	// applications instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+
+	err := appServer.Watch(&application.ApplicationQuery{Names: []string{"argocd-1/match-app"}}, ws)
+	require.NoError(t, err)
+
+	// A namespace qualified name must not let the same name in another namespace through.
+	require.NotEmpty(t, ws.sent)
+	for _, event := range ws.sent {
+		assert.Equal(t, "argocd-1", event.Application.Namespace)
+	}
+}
+
 func TestListApps(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "bcd"
@@ -2333,6 +2473,204 @@ func TestSyncMultiSource_PosTooSmall(t *testing.T) {
 		"should fail because source position is less than 1")
 }
 
+func TestSync_UsesSyncPolicyPruneDefault(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-prune-default"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)}}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.True(t, syncedApp.Operation.Sync.Prune, "nil sync request prune should use syncPolicy.manualDefaults.prune")
+
+	// Clear in-progress operation so a second sync can be initiated.
+	syncedApp.Operation = nil
+	syncedApp.Status.OperationState = nil
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(syncedApp.Namespace).Update(ctx, syncedApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	explicitFalse := false
+	syncedApp, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name, Prune: &explicitFalse})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.False(t, syncedApp.Operation.Sync.Prune, "explicit prune=false should override syncPolicy.manualDefaults.prune")
+}
+
+// TestSync_NoManualDefaults_OmittedPruneIsFalse ensures backwards compatibility:
+// apps without syncPolicy.manualDefaults must not prune when the sync request
+// omits prune (e.g. `argocd app sync myapp` without --prune).
+func TestSync_NoManualDefaults_OmittedPruneIsFalse(t *testing.T) {
+	cases := []struct {
+		name       string
+		syncPolicy *v1alpha1.SyncPolicy
+	}{
+		{name: "nil syncPolicy", syncPolicy: nil},
+		// SyncPolicy without ManualDefaults: GetPrune() is false (legacy); Sync must not prune.
+		{name: "syncPolicy without manualDefaults", syncPolicy: &v1alpha1.SyncPolicy{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			//nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+			appServer := newTestAppServer(t)
+
+			testApp := newTestApp()
+			testApp.Name = "test-app-sync-prune-unset-" + strings.ReplaceAll(tc.name, " ", "-")
+			testApp.Spec.SyncPolicy = tc.syncPolicy
+			app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+			require.NoError(t, err)
+			require.True(t, app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.ManualDefaults == nil)
+
+			// Request without prune field (nil pointer), same as CLI/API omitting prune.
+			syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+			require.NoError(t, err)
+			require.NotNil(t, syncedApp.Operation)
+			require.NotNil(t, syncedApp.Operation.Sync)
+			assert.False(t, syncedApp.Operation.Sync.Prune, "no manualDefaults + request without prune → Prune == false")
+			assert.False(t, syncedApp.Operation.Sync.DryRun, "without manualDefaults, omitted dryRun must keep legacy false")
+			assert.Nil(t, syncedApp.Operation.Sync.SyncStrategy, "without manualDefaults, omitted strategy must stay nil")
+		})
+	}
+}
+
+func TestSync_EmptyManualDefaultsAppliesFieldDefaults(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-empty-manual-defaults"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{}}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.True(t, syncedApp.Operation.Sync.Prune, "empty manualDefaults should apply prune default true")
+	assert.False(t, syncedApp.Operation.Sync.DryRun, "empty manualDefaults should apply dryRun default false")
+	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy)
+	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy.Hook, "empty manualDefaults should use hook strategy")
+	assert.False(t, syncedApp.Operation.Sync.SyncStrategy.Force())
+}
+
+func TestSync_UsesSyncPolicyManualDefaults(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-manual-defaults"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+		Prune:     new(false),
+		DryRun:    new(true),
+		ApplyOnly: new(true),
+		Force:     new(true),
+	}}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.False(t, syncedApp.Operation.Sync.Prune)
+	assert.True(t, syncedApp.Operation.Sync.DryRun)
+	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy)
+	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy.Apply)
+	assert.True(t, syncedApp.Operation.Sync.SyncStrategy.Force())
+}
+
+func TestSync_LocalManifestsWithAutomatedUsesManualDefaultsDryRun(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-local-manual-defaults-dry-run"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated:      &v1alpha1.SyncPolicyAutomated{},
+		ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{DryRun: new(true)},
+	}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	manifests := []string{`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+  namespace: default
+data:
+  foo: bar`}
+
+	// Omit DryRun on the request so manualDefaults.dryRun applies; local sync must be allowed.
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{
+		Name:      &app.Name,
+		Manifests: manifests,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.True(t, syncedApp.Operation.Sync.DryRun)
+
+	syncedApp.Operation = nil
+	syncedApp.Status.OperationState = nil
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(syncedApp.Namespace).Update(ctx, syncedApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	explicitFalse := false
+	_, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{
+		Name:      &app.Name,
+		Manifests: manifests,
+		DryRun:    &explicitFalse,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
+}
+
+func TestEffectiveSyncRequestDryRun(t *testing.T) {
+	t.Parallel()
+
+	appWithDryRun := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{DryRun: new(true)},
+			},
+		},
+	}
+
+	t.Run("request value wins when set", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, effectiveSyncRequestDryRun(appWithDryRun, &application.ApplicationSyncRequest{DryRun: new(false)}))
+		assert.True(t, effectiveSyncRequestDryRun(appWithDryRun, &application.ApplicationSyncRequest{DryRun: new(true)}))
+	})
+
+	t.Run("falls back to manualDefaults when request omits dryRun", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, effectiveSyncRequestDryRun(appWithDryRun, &application.ApplicationSyncRequest{}))
+	})
+
+	t.Run("legacy false without manualDefaults", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, effectiveSyncRequestDryRun(&v1alpha1.Application{}, &application.ApplicationSyncRequest{}))
+		assert.False(t, effectiveSyncRequestDryRun(nil, nil))
+	})
+}
+
 func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
@@ -3191,6 +3529,47 @@ func TestMaxPodLogsRender(t *testing.T) {
 	})
 }
 
+// disconnectingPodLogsServer simulates a client that disconnects mid-stream: Send cancels the
+// stream context and fails only after PodLogs has returned, so nothing reads done anymore.
+type disconnectingPodLogsServer struct {
+	TestPodLogsServer
+	cancel          context.CancelFunc
+	podLogsReturned chan struct{}
+}
+
+func (s *disconnectingPodLogsServer) Send(_ *application.LogEntry) error {
+	s.cancel()
+	<-s.podLogsReturned
+	return errors.New("client disconnected")
+}
+
+func TestPodLogsNoGoroutineLeakOnSendError(t *testing.T) {
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, 1)
+	ctx, cancel := context.WithCancel(adminCtx)
+	defer cancel()
+	ws := &disconnectingPodLogsServer{TestPodLogsServer{ctx: ctx}, cancel, make(chan struct{})}
+
+	// Send blocks until podLogsReturned is closed, so PodLogs can only return via ctx.Done().
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: new("test")}, ws)
+	close(ws.podLogsReturned)
+	require.NoError(t, err)
+
+	// The log-sending goroutine must exit once its Send fails, even though nobody reads done anymore.
+	podLogsGoroutines := func() []string {
+		buf := make([]byte, 1<<22)
+		n := goruntime.Stack(buf, true)
+		var found []string
+		for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
+			if strings.Contains(g, "(*Server).PodLogs.func") {
+				found = append(found, g)
+			}
+		}
+		return found
+	}
+	assert.Eventually(t, func() bool { return len(podLogsGoroutines()) == 0 }, 5*time.Second, 50*time.Millisecond,
+		"PodLogs goroutines still running after PodLogs returned: %v", podLogsGoroutines())
+}
+
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
@@ -3685,8 +4064,24 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		projects := map[string]bool{"test-app": false}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, nil, *testApp)
 		assert.False(t, permitted)
+	})
+
+	t.Run("Application name not in names filter", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		names := map[string]bool{"some-other-app": true}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application name in names filter", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		names := map[string]bool{testApp.Name: true}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		assert.True(t, permitted)
 	})
 
 	t.Run("Version is incorrect", func(t *testing.T) {
@@ -3694,7 +4089,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		minVersion := 100000
 		testApp.ResourceVersion = strconv.Itoa(minVersion - 1)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3702,14 +4097,14 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appName := "test"
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
 	t.Run("Application namespace is incorrect", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3718,7 +4113,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
 		appServer.enabledNamespaces = []string{"demo"}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3727,7 +4122,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
 		appServer.enabledNamespaces = []string{testApp.Namespace}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.True(t, permitted)
 	})
 }
@@ -5111,6 +5506,179 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	// Should succeed after retrying with the fresh app
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
+}
+
+// conflictReactors replaces the fake Application clientset's reactors so that Update fails with a conflict for the
+// first `conflicts` calls (or always, if conflicts < 0), and then fails with updateErr (if set) or succeeds.
+type conflictReactors struct {
+	getCalls int
+	// updatedVersions records the resourceVersion of each object passed to Update.
+	updatedVersions []string
+}
+
+func installConflictReactors(t *testing.T, appServer *Server, testApp *v1alpha1.Application, conflicts int, updateErr error) *conflictReactors {
+	t.Helper()
+	r := &conflictReactors{}
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		r.getCalls++
+		fresh := testApp.DeepCopy()
+		// Every Get returns a newer version than the one before.
+		fresh.ResourceVersion = strconv.Itoa(r.getCalls + 1)
+		return true, fresh, nil
+	})
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		obj := action.(kubetesting.UpdateAction).GetObject().(*v1alpha1.Application)
+		r.updatedVersions = append(r.updatedVersions, obj.ResourceVersion)
+		if conflicts < 0 || len(r.updatedVersions) <= conflicts {
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.Name, errors.New("the object has been modified"))
+		}
+		if updateErr != nil {
+			return true, nil, updateErr
+		}
+		res := obj.DeepCopy()
+		// An unparsable resourceVersion makes waitSync return quickly instead of waiting for the informer.
+		res.ResourceVersion = ""
+		return true, res, nil
+	})
+	return r
+}
+
+func TestUpdateAppRetryOnConflict(t *testing.T) {
+	newTestAppWithVersion := func() *v1alpha1.Application {
+		a := newTestApp()
+		a.ResourceVersion = "1"
+		a.Labels = map[string]string{"existing": "label"}
+		return a
+	}
+	newDesiredApp := func(base *v1alpha1.Application) *v1alpha1.Application {
+		desired := base.DeepCopy()
+		desired.Spec.Destination.Namespace = "updated-namespace"
+		desired.Labels = map[string]string{"new": "label"}
+		return desired
+	}
+
+	t.Run("no conflict does not refetch", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 0, nil)
+
+		res, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.NoError(t, err)
+		assert.Equal(t, 0, r.getCalls, "the first attempt should use the application passed in by the caller")
+		assert.Equal(t, []string{"1"}, r.updatedVersions)
+		assert.Equal(t, "updated-namespace", res.Spec.Destination.Namespace)
+		assert.Equal(t, map[string]string{"existing": "label", "new": "label"}, res.Labels)
+	})
+
+	t.Run("conflict retries with fresh application", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 2, nil)
+
+		res, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), false)
+		require.NoError(t, err)
+		assert.Equal(t, 2, r.getCalls)
+		assert.Equal(t, []string{"1", "2", "3"}, r.updatedVersions, "each retry should update the most recently fetched version")
+		assert.Equal(t, "updated-namespace", res.Spec.Destination.Namespace)
+		assert.Equal(t, map[string]string{"new": "label"}, res.Labels)
+	})
+
+	t.Run("too many conflicts", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, -1, nil)
+
+		_, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Equal(t, "Failed to update application. Too many conflicts", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, appUpdateBackoff.Steps)
+	})
+
+	t.Run("non-conflict error is not retried", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, testApp.Name, errors.New("nope"))
+		r := installConflictReactors(t, appServer, testApp, 0, forbidden)
+
+		_, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.Error(t, err)
+		assert.True(t, apierrors.IsForbidden(err), "the Kubernetes error should remain detectable after wrapping: %v", err)
+		assert.Contains(t, err.Error(), "error updating application")
+		assert.Len(t, r.updatedVersions, 1)
+		assert.Equal(t, 0, r.getCalls)
+	})
+}
+
+func TestTerminateOperationRetryOnConflict(t *testing.T) {
+	newRunningApp := func() *v1alpha1.Application {
+		a := newTestApp()
+		a.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		a.Status.OperationState = &v1alpha1.OperationState{Operation: *a.Operation, Phase: synccommon.OperationRunning}
+		return a
+	}
+
+	t.Run("conflict retries with fresh application", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 1, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.NoError(t, err)
+		// The first Get is the initial lookup (resourceVersion 2); the second is the refetch after the conflict.
+		assert.Equal(t, 2, r.getCalls)
+		assert.Equal(t, []string{"2", "3"}, r.updatedVersions)
+	})
+
+	t.Run("too many conflicts", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, -1, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Equal(t, "Failed to terminate app. Too many conflicts", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, appUpdateBackoff.Steps)
+	})
+
+	t.Run("no operation in progress", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 0, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "Unable to terminate operation. No operation is in progress", status.Convert(err).Message())
+		assert.Empty(t, r.updatedVersions)
+	})
+
+	t.Run("operation finishes while retrying", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 1, nil)
+		// After the initial lookup, the controller has completed the operation.
+		fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+			if r.getCalls == 0 {
+				return false, nil, nil // fall through to the default reactor for the initial lookup
+			}
+			r.getCalls++
+			done := testApp.DeepCopy()
+			done.ResourceVersion = "99"
+			done.Operation = nil
+			return true, done, nil
+		})
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "Unable to terminate operation. No operation is in progress", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, 1)
+	})
 }
 
 func TestGetApplicationClusterConfig(t *testing.T) {

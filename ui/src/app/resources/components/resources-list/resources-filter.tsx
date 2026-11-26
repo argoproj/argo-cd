@@ -1,5 +1,5 @@
 import {useData} from 'argo-ui/v2';
-import * as minimatch from 'minimatch';
+import {minimatch} from 'minimatch';
 import * as React from 'react';
 import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {ResourcesListPreferences, services} from '../../../shared/services';
@@ -7,6 +7,7 @@ import {getResourceClusterLabel} from '../../../shared/utils';
 import {resourceHealthStatus} from '../utils';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
+import {resources} from '../../../applications/components/resources';
 
 /** Sentinel namespace filter value for resources without a namespace (cluster-scoped). */
 export const CLUSTER_SCOPED_NAMESPACE_FILTER = '<cluster-scoped>';
@@ -22,6 +23,17 @@ function matchesNamespaceFilter(namespace: string | undefined, namespacesFilter:
         }
         return !!namespace && minimatch(namespace, ns);
     });
+}
+
+/** Sentinel API group filter value for resources in the core API group (empty group). */
+export const CORE_API_GROUP_FILTER = '<core>';
+
+function isCoreApiGroupResource(group: string | undefined): boolean {
+    return !group;
+}
+
+function matchesApiGroupFilter(group: string | undefined, apiGroupFilter: string[]): boolean {
+    return apiGroupFilter.some(g => (g === CORE_API_GROUP_FILTER ? isCoreApiGroupResource(group) : g === group));
 }
 
 export interface FilterResult {
@@ -56,7 +68,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
                         return (inputMatch && inputMatch[0] === app.clusterServer) || (app.clusterName && minimatch(app.clusterName, filterString));
                     }
                 }),
-            apiGroup: pref.apiGroupFilter.length === 0 || pref.apiGroupFilter.includes(app.group),
+            apiGroup: pref.apiGroupFilter.length === 0 || matchesApiGroupFilter(app.group, pref.apiGroupFilter),
             kind: pref.kindFilter.length === 0 || pref.kindFilter.includes(app.kind)
         }
     }));
@@ -195,7 +207,11 @@ const NamespaceFilter = (props: ResourcesFilterProps) => {
 };
 
 const ApiGroupFilter = (props: ResourcesFilterProps) => {
-    const apiGroupOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.group).filter(item => !!item))), props.pref.apiGroupFilter);
+    const hasCoreGroup = props.apps.some(app => isCoreApiGroupResource(app.group));
+    const apiGroupOptions = [
+        ...(hasCoreGroup && props.pref.apiGroupFilter.indexOf(CORE_API_GROUP_FILTER) === -1 ? [{label: CORE_API_GROUP_FILTER}] : []),
+        ...optionsFrom(Array.from(new Set(props.apps.map(app => app.group).filter(item => !!item))), props.pref.apiGroupFilter)
+    ];
     return (
         <Filter
             label='API GROUPS'
@@ -209,7 +225,16 @@ const ApiGroupFilter = (props: ResourcesFilterProps) => {
 
 const KindFilter = (props: ResourcesFilterProps) => {
     const kindOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.kind).filter(item => !!item))), props.pref.kindFilter);
-    return <Filter label='KINDS' selected={props.pref.kindFilter} setSelected={s => props.onChange({...props.pref, kindFilter: s})} field={true} options={kindOptions} />;
+    return (
+        <Filter
+            label='KINDS'
+            selected={props.pref.kindFilter}
+            setSelected={s => props.onChange({...props.pref, kindFilter: s})}
+            field={true}
+            options={kindOptions}
+            abbreviations={resources}
+        />
+    );
 };
 
 export const ResourcesFilter = (props: ResourcesFilterProps) => {
