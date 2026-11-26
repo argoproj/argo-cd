@@ -35,6 +35,9 @@ const (
 	revisionChangedMsg        = "Application has pending changes, setting status to Waiting"
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
 	outOfSyncMsg              = "Application resource is OutOfSync, setting status to Waiting"
+
+	// rollingSyncInitiator is the username on the sync operations that RollingSync starts
+	rollingSyncInitiator = "applicationset-controller"
 )
 
 type deleteInOrder struct {
@@ -548,8 +551,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
 				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was triggered after the pending transition time
-					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+					// Validate that the RollingSync sync started after the pending transition time.
+					// A user operation (for example a dry run) must not end the step.
+					if app.Status.OperationState != nil && app.Status.OperationState.Operation.InitiatedBy.Username == rollingSyncInitiator && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
 						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
@@ -1089,7 +1093,7 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 func syncApplication(application argov1alpha1.Application, opts progressiveSyncOptions, revisions []string) argov1alpha1.Application {
 	operation := argov1alpha1.Operation{
 		InitiatedBy: argov1alpha1.OperationInitiator{
-			Username:  "applicationset-controller",
+			Username:  rollingSyncInitiator,
 			Automated: true,
 		},
 		Info: []*argov1alpha1.Info{
