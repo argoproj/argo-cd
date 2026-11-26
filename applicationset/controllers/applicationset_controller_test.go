@@ -5626,9 +5626,10 @@ func TestStatusWritersHandleGetErrors(t *testing.T) {
 		}
 	}
 
+	errGet := errors.New("get failed")
 	failGet := interceptor.Funcs{
 		Get: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.ObjectKey, _ crtclient.Object, _ ...crtclient.GetOption) error {
-			return errors.New("get failed")
+			return errGet
 		},
 	}
 
@@ -5696,13 +5697,20 @@ func TestStatusWritersHandleGetErrors(t *testing.T) {
 
 	for _, w := range writers {
 		t.Run(w.name+" ignores NotFound", func(t *testing.T) {
-			r := newReconciler(interceptor.Funcs{})
+			gets := 0
+			r := newReconciler(interceptor.Funcs{
+				Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+					gets++
+					return c.Get(ctx, key, obj, opts...)
+				},
+			})
 			require.NoError(t, w.call(r))
+			require.Equal(t, 1, gets)
 		})
 
 		t.Run(w.name+" returns non-NotFound error", func(t *testing.T) {
 			r := newReconciler(failGet)
-			require.ErrorContains(t, w.call(r), "get failed")
+			require.ErrorIs(t, w.call(r), errGet)
 		})
 	}
 }
