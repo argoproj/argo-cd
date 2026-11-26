@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -156,6 +157,31 @@ func TestPrintSyncWindows(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestPrintSyncWindowRefs(t *testing.T) {
+	refs := []v1alpha1.SyncWindowProjectRef{
+		{Ref: v1alpha1.SyncWindowRef{Name: "freeze"}, Applications: []string{"prod-*"}},
+		{Ref: v1alpha1.SyncWindowRef{Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"team": "a"}}}},
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	printSyncWindowRefs(refs)
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, r)
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	require.Len(t, lines, 3)
+	re := regexp.MustCompile(`\s{2,}`)
+	assert.Equal(t, []string{"REF", "NAME", "SELECTOR", "APPLICATIONS", "NAMESPACES", "CLUSTERS"}, re.Split(strings.TrimSpace(lines[0]), -1))
+	assert.Equal(t, []string{"0", "freeze", "-", "prod-*", "-", "-"}, re.Split(strings.TrimSpace(lines[1]), -1))
+	assert.Equal(t, []string{"1", "-", "team=a", "-", "-", "-"}, re.Split(strings.TrimSpace(lines[2]), -1))
 }
 
 func TestFormatListOutput(t *testing.T) {
