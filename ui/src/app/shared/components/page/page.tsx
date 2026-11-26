@@ -15,6 +15,10 @@ function isLoggedIn(): Observable<boolean> {
     return mostRecentLoggedIn;
 }
 
+export function getLoginURL(returnURL: string): string {
+    return `${requests.toAbsURL('/login')}?return_url=${encodeURIComponent(returnURL)}`;
+}
+
 export const AuthOption: React.FC = () => {
     return (
         <DataLoader load={() => isLoggedIn()}>
@@ -29,7 +33,7 @@ export const AuthOption: React.FC = () => {
                         Log out
                     </button>
                 ) : (
-                    <button className='login-logout-button' onClick={() => (window.location.href = `/login?return_url=${encodeURIComponent(location.href)}`)}>
+                    <button className='login-logout-button' onClick={() => (window.location.href = getLoginURL(location.href))}>
                         Log in
                     </button>
                 )
