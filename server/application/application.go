@@ -1276,6 +1276,12 @@ type appWatchEvent struct {
 	oldApplication *v1alpha1.Application
 }
 
+// isFreshEnough reports whether the application's resource version is not below the watch's minimum.
+func isFreshEnough(a v1alpha1.Application, minVersion int) bool {
+	appVersion, err := strconv.Atoi(a.ResourceVersion)
+	return err != nil || appVersion >= minVersion
+}
+
 func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
 		return false
@@ -1331,11 +1337,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
-		if !permitted {
-			return
-		}
+	send := func(a v1alpha1.Application, eventType watch.EventType) {
 		s.inferResourcesStatusHealth(&a)
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
@@ -1346,6 +1348,13 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return
 		}
 	}
+	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
+		if !permitted {
+			return
+		}
+		send(a, eventType)
+	}
 
 	// handleEvent forwards a broadcaster event. An update that makes an application stop matching the
 	// watch's filters (projects, selector) or the caller's RBAC permissions is sent as DELETED, so the
@@ -1354,10 +1363,13 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// new state (e.g. a project the caller cannot see) is leaked.
 	handleEvent := func(event *appWatchEvent) {
 		if event.Type == watch.Modified && event.oldApplication != nil {
-			oldPermitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, *event.oldApplication)
-			newPermitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, event.Application)
-			if oldPermitted && !newPermitted {
-				sendIfPermitted(*event.oldApplication, watch.Deleted)
+			// Whether the client already has the old object does not depend on the watch's minimum
+			// resource version, which only suppresses events older than the client's own starting point.
+			// Freshness is judged by the incoming update instead.
+			oldMatched := s.isApplicationPermitted(selector, 0, claims, appName, appNs, projects, names, *event.oldApplication)
+			newMatches := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, event.Application)
+			if oldMatched && !newMatches && isFreshEnough(event.Application, minVersion) {
+				send(*event.oldApplication, watch.Deleted)
 				return
 			}
 		}

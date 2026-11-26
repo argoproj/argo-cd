@@ -1476,8 +1476,14 @@ func TestWatchSendsDeletedWhenAppStopsMatchingFilter(t *testing.T) {
 		})
 	}
 
+	withRV := func(app *v1alpha1.Application, rv string) *v1alpha1.Application {
+		app.ResourceVersion = rv
+		return app
+	}
+
 	tests := []struct {
 		name          string
+		minVersion    string
 		query         *application.ApplicationQuery
 		oldApp        *v1alpha1.Application
 		newApp        *v1alpha1.Application
@@ -1526,6 +1532,15 @@ func TestWatchSendsDeletedWhenAppStopsMatchingFilter(t *testing.T) {
 			wantNoMessage: true,
 		},
 		{
+			name:        "old object below the minimum resource version still gets DELETED",
+			query:       &application.ApplicationQuery{Projects: []string{"a"}},
+			oldApp:      withRV(newApp("a", nil), "99"),
+			newApp:      withRV(newApp("b", nil), "101"),
+			minVersion:  "100",
+			wantType:    watch.Deleted,
+			wantProject: "a",
+		},
+		{
 			name:         "old project visible but new one is not: DELETED carries the old object",
 			query:        &application.ApplicationQuery{},
 			oldApp:       newApp("a", nil),
@@ -1556,24 +1571,43 @@ func TestWatchSendsDeletedWhenAppStopsMatchingFilter(t *testing.T) {
 			done := make(chan error, 1)
 			q := tt.query
 			q.ResourceVersion = new("1") // no initial ADDED events
+			if tt.minVersion != "" {
+				q.ResourceVersion = new(tt.minVersion)
+			}
 			go func() { done <- appServer.Watch(q, ws) }()
+
+			if tt.wantNoMessage {
+				// The broadcaster does not replay events to late subscribers. Publish an update of an app
+				// that does match the query until it arrives, which proves Watch is subscribed. Only then
+				// publish the update that must not be sent.
+				ready := newApp("c", nil)
+				ready.Name = "ready-app"
+				require.Eventually(t, func() bool {
+					appServer.appBroadcaster.OnUpdate(ready, ready.DeepCopy())
+					return ws.count() > 0
+				}, 2*time.Second, 10*time.Millisecond)
+				before := ws.count()
+				appServer.appBroadcaster.OnUpdate(tt.oldApp, tt.newApp)
+				// A later event is delivered after the earlier one, so once it arrives the earlier one has been processed.
+				appServer.appBroadcaster.OnUpdate(ready, ready.DeepCopy())
+				require.Eventually(t, func() bool { return ws.count() > before }, 2*time.Second, 10*time.Millisecond)
+				cancel()
+				require.NoError(t, <-done)
+				for _, e := range ws.events()[before:] {
+					assert.Equal(t, "ready-app", e.Application.Name, "unexpected event for the non matching update")
+				}
+				return
+			}
 
 			// Give Watch time to subscribe, then publish the update through the broadcaster.
 			require.Eventually(t, func() bool {
 				appServer.appBroadcaster.OnUpdate(tt.oldApp, tt.newApp)
-				return ws.count() > 0 || tt.wantNoMessage
+				return ws.count() > 0
 			}, 2*time.Second, 10*time.Millisecond)
-			if tt.wantNoMessage {
-				time.Sleep(50 * time.Millisecond)
-			}
 			cancel()
 			require.NoError(t, <-done)
 
 			sent := ws.events()
-			if tt.wantNoMessage {
-				assert.Empty(t, sent)
-				return
-			}
 			require.NotEmpty(t, sent)
 			assert.Equal(t, tt.wantType, sent[0].Type)
 			assert.Equal(t, tt.wantProject, sent[0].Application.Spec.GetProject())
@@ -2180,9 +2214,11 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
 
 	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
 	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
@@ -2271,9 +2307,11 @@ func TestPatchResourcesRBAC(t *testing.T) {
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
 
 	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
 	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
@@ -3317,6 +3355,7 @@ func TestUpdateAppProject(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
 
 	t.Run("update without changing project", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
@@ -3380,6 +3419,7 @@ func TestAppJsonPatch(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: new("garbage")})
 	require.Error(t, err)
@@ -3404,6 +3444,7 @@ func TestAppMergePatch(t *testing.T) {
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
 		Name: &testApp.Name, Patch: new(`{"spec": { "source": { "path": "foo" } }}`), PatchType: new("merge"),
