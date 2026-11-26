@@ -29,7 +29,6 @@ type socksRequest struct {
 // socks5TestServer is a minimal SOCKS5 proxy (RFC 1928, with RFC 1929 username/password
 // authentication when user is set) that supports CONNECT and records each request.
 type socks5TestServer struct {
-	ctx        context.Context
 	addr       string
 	user, pass string
 	requests   chan socksRequest
@@ -47,20 +46,20 @@ func startSOCKS5TestServer(t *testing.T, user, pass string) *socks5TestServer {
 	t.Helper()
 	l := listenTCP(t)
 	t.Cleanup(func() { _ = l.Close() })
-	s := &socks5TestServer{ctx: t.Context(), addr: l.Addr().String(), user: user, pass: pass, requests: make(chan socksRequest, 10)}
+	s := &socks5TestServer{addr: l.Addr().String(), user: user, pass: pass, requests: make(chan socksRequest, 10)}
 	go func() {
 		for {
 			conn, err := l.Accept()
 			if err != nil {
 				return
 			}
-			go s.serve(conn)
+			go s.serve(t.Context(), conn)
 		}
 	}()
 	return s
 }
 
-func (s *socks5TestServer) serve(conn net.Conn) {
+func (s *socks5TestServer) serve(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	r := bufio.NewReader(conn)
 	readN := func(n int) ([]byte, error) {
@@ -155,7 +154,7 @@ func (s *socks5TestServer) serve(conn net.Conn) {
 	parsed.port = int(binary.BigEndian.Uint16(port))
 	s.requests <- parsed
 
-	target, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(s.ctx, "tcp", net.JoinHostPort(parsed.host, strconv.Itoa(parsed.port)))
+	target, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(parsed.host, strconv.Itoa(parsed.port)))
 	if err != nil {
 		_, _ = conn.Write([]byte{5, 5, 0, 1, 0, 0, 0, 0, 0, 0}) // connection refused
 		return
