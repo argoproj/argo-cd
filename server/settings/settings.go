@@ -132,6 +132,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		HydratorEnabled:              s.hydratorEnabled,
 		SyncWithReplaceAllowed:       s.syncWithReplaceAllowed,
 		ResourceViewEnabled:          argoCDSettings.ResourceViewEnabled,
+		SsoAutoLogin:                 argoCDSettings.SSOAutoLogin,
 		RollbackAwareAutoSyncEnabled: rollbackAwareAutoSyncEnabled,
 	}
 

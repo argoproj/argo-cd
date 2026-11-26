@@ -1,12 +1,11 @@
 import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {useQueryClient} from '@tanstack/react-query';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {from} from 'rxjs';
 import {mergeMap} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, SearchBar, Spinner} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, SearchBar, Spinner, useRefreshClusterList} from '../../../shared/components';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -28,7 +27,6 @@ import {useLocationSearch, useSearchParams, useObservableQuery} from '../../../s
 import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
 import {isInvalidRegex} from '../../../shared/utils';
 import {loadFailed} from '../../../shared/query-client';
-import {clusterQueries} from '../../../shared/queries';
 
 import './applications-list.scss';
 
@@ -154,12 +152,15 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const query = new URLSearchParams(window.location.search);
-    const appInput = tryJsonParse(query.get('new'));
+    // Subscribe to the query string: the props do not change when only ?new= does,
+    // so reading window.location here would leave the shortcuts enabled behind the
+    // New App panel.
+    const search = useLocationSearch();
+    const appInput = tryJsonParse(new URLSearchParams(search).get('new'));
 
     return (
         <SearchBar
@@ -254,13 +255,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
-    const queryClient = useQueryClient();
-    const clusters = React.useMemo(() => {
-        const list = queryClient.fetchQuery(clusterQueries.list());
-        // Only the summary view awaits this; rows show a failure through the query.
-        list.catch((): void => undefined);
-        return list;
-    }, [queryClient]);
+    useRefreshClusterList();
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);
@@ -304,7 +299,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const sidebarTarget = useSidebarTarget();
 
     return (
-        <ClusterCtx.Provider value={clusters}>
+        <ClusterCtx.Provider value={true}>
             <KeybindingProvider>
                 <Consumer>
                     {ctx => (

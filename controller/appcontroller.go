@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -203,8 +203,12 @@ func NewApplicationController(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
 	hydratorEnabled bool,
+	clusterCacheConfig statecache.ClusterCacheConfig,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
+	if err := clusterCacheConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid cluster cache configuration: %w", err)
+	}
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	if reconciledAtCache == nil {
 		reconciledAtCache = argoCache
@@ -319,7 +323,7 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking(), clusterCacheConfig)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -705,43 +709,37 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceStorage: true,
 		corev1.ResourceMemory:  true,
 	}
-	appPods := map[kube.ResourceKey]bool{}
+	var appPods []kube.ResourceKey
 	for _, node := range appNodes {
 		if node.Group == "" && node.Kind == kube.PodKind {
-			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
+			appPods = append(appPods, kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name))
 		}
 	}
+	if len(appPods) == 0 {
+		return nil, nil
+	}
 
-	allNodesInfo := map[string]statecache.NodeInfo{}
-	allPodsByNode := map[string][]statecache.PodInfo{}
-	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
-		key := res.ResourceKey()
-
-		switch {
-		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodesInfo[key.Name] = *info.NodeInfo
-		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			if appPods[key] {
-				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			} else {
-				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			}
-		}
-	})
-	ts.AddCheckpoint("iterate_resources_ms")
-	if err != nil {
+	// The app's own pods are read live, since their changes are what refresh
+	// the app; only neighbors come from the shared index.
+	livePods, index, err := ctrl.stateCache.GetClusterHosts(destCluster, appPods)
+	ts.AddCheckpoint("get_cluster_hosts_ms")
+	if err != nil || index == nil {
 		return nil, err
 	}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	for _, pod := range livePods {
+		appPodsByNode[pod.NodeName] = append(appPodsByNode[pod.NodeName], pod)
+	}
+	allNodesInfo := index.Nodes
+	neighborRequests := index.NeighborRequests(slices.Collect(maps.Keys(appPodsByNode)), appPods)
+	allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 
 	var hosts []appv1.HostInfo
-	for nodeName, appPods := range appPodsByNode {
+	for nodeName, podsOnNode := range appPodsByNode {
 		node, ok := allNodesInfo[nodeName]
 		if !ok {
 			continue
 		}
-
-		neighbors := allPodsByNode[nodeName]
 
 		resources := map[corev1.ResourceName]appv1.HostResourceInfo{}
 		for name, resource := range node.Capacity {
@@ -751,7 +749,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			resources[name] = info
 		}
 
-		for _, pod := range appPods {
+		for _, pod := range podsOnNode {
 			for name, resource := range pod.ResourceRequests {
 				if !supportedResourceNames[name] {
 					continue
@@ -763,15 +761,13 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			}
 		}
 
-		for _, pod := range neighbors {
-			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
-					continue
-				}
-				info := resources[name]
-				info.RequestedByNeighbors += resource.MilliValue()
-				resources[name] = info
+		for name, total := range neighborRequests[nodeName] {
+			if !supportedResourceNames[name] {
+				continue
 			}
+			info := resources[name]
+			info.RequestedByNeighbors += total
+			resources[name] = info
 		}
 
 		var resourcesInfo []appv1.HostResourceInfo
@@ -784,7 +780,6 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
@@ -1728,14 +1723,18 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
-			ctrl.setOperationState(ctx, app, state)
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
 			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(ctx, app, state)
+		var expectedPhase synccommon.OperationPhase
+		if app.Status.OperationState != nil {
+			expectedPhase = app.Status.OperationState.Phase
+		}
+		ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1753,19 +1752,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
-	case synccommon.OperationRunning:
-		// It's possible for an app to be terminated while we were operating on it. We do not want
-		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
-		if err == nil {
-			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
-				state.Phase = synccommon.OperationTerminating
-				state.Message = "operation is terminating"
-				// after this, we will get requeued to the workqueue, but next time the
-				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
-				// cleanup (e.g. delete jobs, workflows, etc...)
-			}
-		}
 	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
@@ -1790,7 +1776,18 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(ctx, app, state)
+	var expectedPhase synccommon.OperationPhase
+	if state.Phase == synccommon.OperationRunning {
+		// It's possible for an app to be terminated while we were operating on it. We do not want
+		// to clobber the Terminated state with Running, so the patch only applies while the stored
+		// phase is still Running. If it was terminated, the patch is rejected and the retry writes
+		// Terminating instead. We will then get requeued to the workqueue, but next time the
+		// SyncAppState will operate in a Terminating phase, allowing the worker to perform cleanup
+		// (e.g. delete jobs, workflows, etc...)
+		expectedPhase = synccommon.OperationRunning
+	}
+
+	ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
 	ts.AddCheckpoint("final_set_operation_state_ms")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -1815,7 +1812,37 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
+func keepTerminating(freshApp *appv1.Application, state *appv1.OperationState) synccommon.OperationPhase {
+	if freshApp.Status.OperationState == nil {
+		return ""
+	}
+	if freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
+		state.Phase = synccommon.OperationTerminating
+		state.Message = "operation is terminating"
+		state.FinishedAt = nil
+	}
+	return freshApp.Status.OperationState.Phase
+}
+
+func operationStatePatch(state *appv1.OperationState, expectedPhase synccommon.OperationPhase) ([]byte, error) {
+	var patchOps []map[string]any
+	if expectedPhase != "" {
+		patchOps = append(patchOps, map[string]any{"op": "test", "path": "/status/operationState/phase", "value": expectedPhase})
+	}
+	// Replace the whole operationState since we re-evaluated the whole object
+	patchOps = append(patchOps, map[string]any{"op": "add", "path": "/status/operationState", "value": state})
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is in progress.
+		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+	}
+	return json.Marshal(patchOps)
+}
+
 func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
+	ctrl.setOperationStateIfPhase(ctx, app, state, "")
+}
+
+func (ctrl *ApplicationController) setOperationStateIfPhase(ctx context.Context, app *appv1.Application, state *appv1.OperationState, expectedPhase synccommon.OperationPhase) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1830,20 +1857,13 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	// Replace the whole operationState since we re-evaluated the whole object
-	patchOps := []map[string]any{
-		{"op": "add", "path": "/status/operationState", "value": state},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is in progress.
-		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
-	}
-	patchJSON, err := json.Marshal(patchOps)
+	patchJSON, err := operationStatePatch(state, expectedPhase)
 	if err != nil {
 		logCtx.WithError(err).Error("error marshaling json")
 		return
 	}
 
+	var marshalErr error
 	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
@@ -1858,6 +1878,14 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 				nonRetryableError = err
 				return nil
 			}
+			if expectedPhase != "" && apierrors.IsInvalid(err) {
+				if freshApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); getErr == nil {
+					expectedPhase = keepTerminating(freshApp, state)
+					if patchJSON, marshalErr = operationStatePatch(state, expectedPhase); marshalErr != nil {
+						return nil
+					}
+				}
+			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
 			// warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")
@@ -1865,6 +1893,10 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 		return nil
 	})
+	if marshalErr != nil {
+		logCtx.WithError(marshalErr).Error("error marshaling json")
+		return
+	}
 
 	// persistedState is the operation state actually written to the server. On the happy path
 	// that's the state we were asked to persist; on the fallback path it's a different, shrunken
@@ -3366,7 +3398,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		&appv1.Application{},
 		refreshTimeout,
 		cache.Indexers{
-			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
+			cache.NamespaceIndex:       cache.MetaNamespaceIndexFunc,
+			statecache.ManagedCRDIndex: statecache.ManagedCRDIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {

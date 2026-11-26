@@ -1,13 +1,21 @@
 package v1alpha1
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -6132,6 +6140,7 @@ func TestSanitized(t *testing.T) {
 				CertData:   []byte("random bytes we don't want to show in the API response"),
 				KeyData:    []byte("random bytes we don't want to show in the API response"),
 				CAData:     []byte("random bytes we don't want to show in the API response"),
+				CATrust:    ClusterCATrustSystem,
 			},
 			ExecProviderConfig: &ExecProviderConfig{
 				Command:    "this should be omitted in API",
@@ -6164,6 +6173,7 @@ func TestSanitized(t *testing.T) {
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   true,
 				ServerName: "server",
+				CATrust:    ClusterCATrustSystem,
 			},
 		},
 	}, cluster.Sanitized())
@@ -7648,6 +7658,152 @@ func TestSyncPolicy_HasExplicitRollbackAware(t *testing.T) {
 	}
 }
 
+func generateSelfSignedCertPEM(t *testing.T, cn string) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: cn},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
+	systemRootCA := generateSelfSignedCertPEM(t, "system-root-ca")
+	withSystemRootCAs(t, systemRootCA)
+	clusterCA := generateSelfSignedCertPEM(t, "cluster-ca")
+	defaultCA := generateSelfSignedCertPEM(t, "default-ca")
+
+	tests := []struct {
+		name            string
+		caData          []byte
+		insecure        bool
+		caTrust         ClusterCATrust
+		defaultCABundle []byte
+		expectedCAData  []byte
+		expectedErr     string
+	}{
+		{
+			name:            "cluster caData takes precedence and the default bundle is ignored (no merging)",
+			caData:          clusterCA,
+			defaultCABundle: defaultCA,
+			expectedCAData:  clusterCA,
+		},
+		{
+			name:            "only the default bundle is trusted when cluster caData is empty",
+			defaultCABundle: defaultCA,
+			expectedCAData:  defaultCA,
+		},
+		{
+			name:            "bundle trusts only the default bundle",
+			caTrust:         ClusterCATrustBundle,
+			defaultCABundle: defaultCA,
+			expectedCAData:  defaultCA,
+		},
+		{
+			name:        "bundle fails without a default bundle",
+			caTrust:     ClusterCATrustBundle,
+			expectedErr: `caTrust is "bundle" but there is no CA bundle in the ca.crt key of the argocd-default-cluster-ca-cm ConfigMap`,
+		},
+		{
+			name:            "system ignores the default bundle",
+			caTrust:         ClusterCATrustSystem,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:            "bundle-and-system adds the default bundle to the system roots",
+			caTrust:         ClusterCATrustBundleAndSystem,
+			defaultCABundle: defaultCA,
+			expectedCAData:  slices.Concat(systemRootCA, []byte("\n"), defaultCA),
+		},
+		{
+			name:    "bundle-and-system without a default bundle uses the system roots",
+			caTrust: ClusterCATrustBundleAndSystem,
+		},
+		{
+			name:            "cluster caData takes precedence over bundle",
+			caData:          clusterCA,
+			caTrust:         ClusterCATrustBundle,
+			expectedCAData:  clusterCA,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:            "unknown caTrust fails",
+			caTrust:         "both",
+			defaultCABundle: defaultCA,
+			expectedErr:     `invalid caTrust "both"`,
+		},
+		{
+			name:        "unknown caTrust fails even with cluster caData",
+			caData:      clusterCA,
+			caTrust:     "both",
+			expectedErr: `invalid caTrust "both"`,
+		},
+		{
+			name: "no CA is set when neither is configured",
+		},
+		{
+			name:            "empty default bundle leaves the CA unset",
+			defaultCABundle: []byte{},
+		},
+		{
+			name:            "insecure cluster ignores the default bundle and keeps skipping verification",
+			insecure:        true,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:     "insecure cluster without a default bundle is unchanged",
+			insecure: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Cluster{
+				Server:          "https://1.2.3.4",
+				DefaultCABundle: tt.defaultCABundle,
+				Config:          ClusterConfig{TLSClientConfig: TLSClientConfig{CAData: tt.caData, Insecure: tt.insecure, CATrust: tt.caTrust}},
+			}
+			if tt.expectedErr != "" {
+				_, err := c.RawRestConfig()
+				require.ErrorContains(t, err, tt.expectedErr)
+				_, err = c.RESTConfig()
+				require.ErrorContains(t, err, tt.expectedErr)
+				return
+			}
+			rawConfig, err := c.RawRestConfig()
+			require.NoError(t, err)
+			assert.Equal(t, tt.insecure, rawConfig.Insecure)
+			tlsConfig, err := rest.TLSConfigFor(rawConfig)
+			require.NoError(t, err)
+			if len(tt.expectedCAData) == 0 {
+				assert.Empty(t, rawConfig.CAData)
+				if tlsConfig != nil {
+					assert.Nil(t, tlsConfig.RootCAs)
+				}
+			} else {
+				assert.Equal(t, tt.expectedCAData, rawConfig.CAData)
+				expectedPool := x509.NewCertPool()
+				require.True(t, expectedPool.AppendCertsFromPEM(tt.expectedCAData))
+				require.NotNil(t, tlsConfig)
+				assert.True(t, tlsConfig.RootCAs.Equal(expectedPool), "the REST client must trust exactly the expected CA")
+			}
+
+			config, err := c.RESTConfig()
+			require.NoError(t, err)
+			assert.NotNil(t, config.Transport)
+			assert.Empty(t, config.CAData)
+		})
+	}
+}
+
 func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
 	cluster := &Cluster{
 		Server: "https://kubernetes.example",
@@ -7705,4 +7861,22 @@ func TestSyncOperation_IsRollback(t *testing.T) {
 	assert.False(t, (&SyncOperation{Revision: "abc"}).IsRollback())
 	assert.True(t, (&SyncOperation{RolledBackFromRevision: "abc"}).IsRollback())
 	assert.True(t, (&SyncOperation{RolledBackFromRevisions: []string{"abc", "def"}}).IsRollback())
+}
+
+func TestCluster_DefaultCABundle_NotSerializedButDeepCopied(t *testing.T) {
+	c := &Cluster{
+		Server:          "https://1.2.3.4",
+		Name:            "test-cluster",
+		DefaultCABundle: []byte("default-ca-bundle"),
+	}
+
+	data, err := json.Marshal(c)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "DefaultCABundle")
+	assert.NotContains(t, string(data), "default-ca-bundle")
+
+	clone := c.DeepCopy()
+	assert.Equal(t, c.DefaultCABundle, clone.DefaultCABundle)
+	clone.DefaultCABundle[0] = 'X'
+	assert.NotEqual(t, c.DefaultCABundle, clone.DefaultCABundle, "DeepCopy must not share the underlying bundle")
 }

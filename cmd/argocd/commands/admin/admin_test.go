@@ -7,6 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynfake "k8s.io/client-go/dynamic/fake"
+
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func TestGetAdditionalNamespaces(t *testing.T) {
@@ -65,5 +67,20 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 
 		result := getAdditionalNamespaces(t.Context(), argoCDClientsets.configMaps)
 		assert.Equal(t, c.expected, *result)
+	}
+}
+
+func Test_isArgoCDConfigMap(t *testing.T) {
+	for name, expected := range map[string]bool{
+		common.ArgoCDConfigMapName:           true,
+		common.ArgoCDRBACConfigMapName:       true,
+		common.ArgoCDKnownHostsConfigMapName: true,
+		common.ArgoCDTLSCertsConfigMapName:   true,
+		common.ArgoCDClusterCAConfigMapName:  true,
+		"kube-root-ca.crt":                   false,
+		"my-app-config":                      false,
+		"":                                   false,
+	} {
+		assert.Equal(t, expected, isArgoCDConfigMap(name), name)
 	}
 }

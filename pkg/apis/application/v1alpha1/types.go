@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2486,6 +2488,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle is the default CA bundle (from the argocd-default-cluster-ca-cm ConfigMap) used to verify the
+	// cluster API server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the
+	// DB layer and is neither persisted in the cluster secret nor exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -2546,6 +2552,7 @@ func (c *Cluster) Sanitized() *Cluster {
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
+				CATrust:    c.Config.CATrust,
 			},
 			// We can't know what the user has put into args or
 			// env vars on the exec provider that might be sensitive
@@ -2748,7 +2755,23 @@ type TLSClientConfig struct {
 	// CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
 	// CAData takes precedence over CAFile
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
+	// CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
+	// argocd-default-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+	// When empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+	CATrust ClusterCATrust `json:"caTrust,omitempty" protobuf:"bytes,6,opt,name=caTrust"`
 }
+
+// ClusterCATrust selects the certificate authorities a cluster without its own CA data trusts
+type ClusterCATrust string
+
+const (
+	// ClusterCATrustBundle trusts only the CAs in argocd-default-cluster-ca-cm, and fails when it has none
+	ClusterCATrustBundle ClusterCATrust = "bundle"
+	// ClusterCATrustSystem trusts only the system roots and ignores argocd-default-cluster-ca-cm
+	ClusterCATrustSystem ClusterCATrust = "system"
+	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-default-cluster-ca-cm and the system roots
+	ClusterCATrustBundleAndSystem ClusterCATrust = "bundle-and-system"
+)
 
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
 // and a well-known Kubernetes type. This mapping is primarily used for unit conversions
@@ -4317,6 +4340,10 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
+	return setK8SConfigDefaults(config, nil)
+}
+
+func setK8SConfigDefaults(config *rest.Config, rootCAs *x509.CertPool) error {
 	if config.QPS <= 0 {
 		config.QPS = K8sClientConfigQPS
 	}
@@ -4326,6 +4353,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
+	}
+	if rootCAs != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	dial := (&net.Dialer{
@@ -4458,12 +4491,21 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		var trust *defaultCABundleTrust
+		trust, err = c.defaultCABundleTrust()
+		if err != nil {
+			return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
+		}
+		caData := c.Config.CAData
+		if trust != nil {
+			caData = trust.caData
+		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -4549,6 +4591,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.ExecProvider != nil && config.ExecProvider.ProvideClusterInfo &&
+		c.Config.CATrust == ClusterCATrustBundleAndSystem && c.DependsOnDefaultCABundle() && len(c.DefaultCABundle) > 0 {
+		return nil, fmt.Errorf("caTrust %q cannot be used with an exec provider that sets provideClusterInfo: the system root CAs would be passed to the plugin in its environment, which exceeds the size the operating system allows; use caTrust %q or set caData on the cluster",
+			string(ClusterCATrustBundleAndSystem), string(ClusterCATrustBundle))
+	}
 	if K8sServerSideTimeout > 0 {
 		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
 	}
@@ -4561,7 +4608,16 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
-	err = SetK8SConfigDefaults(config)
+	trust, err := c.defaultCABundleTrust()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
+	}
+	var rootCAs *x509.CertPool
+	if trust != nil {
+		rootCAs = trust.pool
+		config.CAData = nil
+	}
+	err = setK8SConfigDefaults(config, rootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}
