@@ -43,3 +43,30 @@ describe('ResourcesToolbar search bar', () => {
         expect(input.closest('.search-bar__input')).toHaveClass('search-bar__input--regex');
     });
 });
+
+describe('ResourcesToolbar health status bar toggle', () => {
+    const renderToolbar = (view: string) => {
+        const pref = {view, search: '', searchRegex: false, page: 0} as ResourcesListPreferences & {page: number; search: string};
+        render(
+            <KeybindingProvider>
+                <ResourcesToolbar
+                    pref={pref}
+                    ctx={{navigation: {goto: jest.fn()}} as unknown as ContextApis}
+                    healthBarPrefs={{showHealthStatusBar: true} as HealthStatusBarPreferences}
+                />
+            </KeybindingProvider>
+        );
+    };
+
+    it('is shown in the list view', () => {
+        renderToolbar('list');
+        expect(screen.getByLabelText('Toggle regex search')).toBeInTheDocument();
+        expect(document.querySelector('.resources-list__accordion')).toBeInTheDocument();
+    });
+
+    it('is hidden in the summary view', () => {
+        renderToolbar('summary');
+        expect(screen.getByLabelText('Toggle regex search')).toBeInTheDocument();
+        expect(document.querySelector('.resources-list__accordion')).not.toBeInTheDocument();
+    });
+});

@@ -189,25 +189,27 @@ export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, he
                     .*
                 </button>
             </Tooltip>
-            <Tooltip content='Toggle Health Status Bar'>
-                <button
-                    className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
-                    style={{border: 'none'}}
-                    onClick={() => {
-                        const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            resourcesList: {
-                                ...pref,
-                                statusBarView: {
-                                    ...healthBarPrefs,
-                                    showHealthStatusBar
+            {pref.view !== ResourcesListViewKey.Summary && (
+                <Tooltip content='Toggle Health Status Bar'>
+                    <button
+                        className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                        style={{border: 'none'}}
+                        onClick={() => {
+                            const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                            services.viewPreferences.updatePreferences({
+                                resourcesList: {
+                                    ...pref,
+                                    statusBarView: {
+                                        ...healthBarPrefs,
+                                        showHealthStatusBar
+                                    }
                                 }
-                            }
-                        });
-                    }}>
-                    <i className={`fas fa-ruler-horizontal`} />
-                </button>
-            </Tooltip>
+                            });
+                        }}>
+                        <i className={`fas fa-ruler-horizontal`} />
+                    </button>
+                </Tooltip>
+            )}
         </div>
     );
 };
