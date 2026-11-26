@@ -39,9 +39,10 @@ func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 	applicationSet *argov1alpha1.ApplicationSet,
 	conditions []argov1alpha1.ApplicationSetCondition,
 	parametersGenerated bool,
+	observedGeneration int64,
 ) error {
 	// Delegate to existing controller method
-	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated)
+	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated, observedGeneration)
 }
 
 func (r *ApplicationSetReconciler) IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet) {
