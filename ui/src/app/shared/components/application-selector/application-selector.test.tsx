@@ -115,6 +115,7 @@ describe('ApplicationSelector', () => {
         const {getApi, rerender} = renderSelector(apps);
         expect(screen.getByTestId('virtualized-list').getAttribute('data-count')).toBe('60');
         expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+        expect(screen.getByText('app-59').getAttribute('title')).toBe('app-59');
 
         fireEvent.click(screen.getByText('all'));
         expect(getSelectedApps(apps, getApi().getFormState().values)).toEqual(apps);

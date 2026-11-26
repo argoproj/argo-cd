@@ -35,7 +35,13 @@ export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]
                 }>
                 <Checkbox checked={selected.has(key)} onChange={checked => toggle(key, checked)} />
                 &nbsp;
-                {virtualized ? <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{name}</span> : name}
+                {virtualized ? (
+                    <span title={name} style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                        {name}
+                    </span>
+                ) : (
+                    name
+                )}
                 &nbsp;
                 <ComparisonStatusIcon status={app.status.sync?.status} />
                 &nbsp;
