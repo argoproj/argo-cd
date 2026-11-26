@@ -214,6 +214,17 @@ func cappedBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Re
 	return wait
 }
 
+// CheckServerAddr returns an error if the server address has a URL scheme such as "https://".
+// The address is HOST[:PORT]. With a scheme the dial would only fail with errors like "too many
+// colons in address" or "unknown port", which do not say what to do.
+func CheckServerAddr(addr string) error {
+	scheme, _, found := strings.Cut(addr, "://")
+	if !found {
+		return nil
+	}
+	return fmt.Errorf("invalid server address %q: remove the %q scheme and use HOST[:PORT] (use --plaintext if the server does not use TLS, and --grpc-web-root-path for a path)", addr, scheme+"://")
+}
+
 // NewClient creates a new API client from a set of config options.
 func NewClient(opts *ClientOptions) (Client, error) {
 	return NewClientWithContext(context.Background(), opts)
@@ -280,6 +291,9 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 	if c.ServerAddr == "" {
 		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
+	}
+	if err := CheckServerAddr(c.ServerAddr); err != nil {
+		return nil, err
 	}
 	// Override auth-token if specified in env variable or CLI flag
 	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)

@@ -178,7 +178,7 @@ Next, create a custom Authorization server:
 
 ### CLI login
 
-In order to login with the CLI `argocd login https://argocd.example.com --sso`, Okta requires a separate dedicated App Integration:
+In order to login with the CLI `argocd login argocd.example.com --sso`, Okta requires a separate dedicated App Integration:
 
 1. Create a new `Create App Integration`, and choose `OIDC`, and then `Single-Page Application`.
 1. Update the following:

@@ -92,6 +92,7 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			default:
 				server = args[0]
+				errors.CheckError(argocdclient.CheckServerAddr(server))
 
 				if !skipTestTLS {
 					dialTime := 30 * time.Second
