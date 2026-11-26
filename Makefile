@@ -585,6 +585,7 @@ start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	mkdir -p /tmp/coverage/commit-server
 	# set paths for locally managed ssh known hosts and tls certs data
 	# OTLP points at the e2e test collector, but sampling is off unless a test enables it
+	# e2e tests send unsigned webhook events, so unauthenticated ones are allowed
 	ARGOCD_E2E_DIR=$(ARGOCD_E2E_DIR) \
 	ARGOCD_SSH_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/tls \
@@ -604,6 +605,7 @@ start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 	ARGOCD_HYDRATOR_ENABLED=true \
+	ARGOCD_WEBHOOK_ALLOW_UNAUTHENTICATED=true \
 	ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL=1ms \
 	ARGOCD_OTLP_ADDRESS=127.0.0.1:4327 \
 	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
