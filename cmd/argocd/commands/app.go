@@ -2460,10 +2460,12 @@ func getPendingResources(app *argoappv1.Application, watch watchOpts, selectedRe
 	var pending []string
 	for _, state := range getResourceStates(app, selectedResources) {
 		if state.Hook != "" {
-			if common.OperationPhase(state.Status).Completed() {
-				continue
+			completed := common.OperationPhase(state.Status).Completed()
+			pendingHook := watch.operation && !completed
+			if len(selectedResources) > 0 {
+				pendingHook = pendingHook || !checkResourceStatus(watch, state.Health, state.Status)
 			}
-			if watch.operation || !checkResourceStatus(watch, state.Health, state.Status) {
+			if pendingHook {
 				pending = append(pending, fmt.Sprintf("%s (hook: %s, result: %s)", state.Key(), state.Status, state.Health))
 			}
 			continue

@@ -2354,6 +2354,7 @@ func TestGetPendingResources(t *testing.T) {
 	}}
 	pendingLabel := "apps/Deployment/ns/pending (sync: OutOfSync, health: Degraded)"
 	runningHookLabel := "/Job/ns/running-hook (hook: Running, result: )"
+	completedHookLabel := "/Job/ns/completed-hook (hook: Succeeded, result: )"
 	tests := []struct {
 		name              string
 		watch             watchOpts
@@ -2363,7 +2364,7 @@ func TestGetPendingResources(t *testing.T) {
 		{
 			name:     "sync and health",
 			watch:    watchOpts{sync: true, health: true},
-			expected: []string{pendingLabel, runningHookLabel},
+			expected: []string{pendingLabel},
 		},
 		{
 			name:              "selected resources",
@@ -2380,6 +2381,17 @@ func TestGetPendingResources(t *testing.T) {
 			name:              "health only does not report hook without health",
 			watch:             watchOpts{health: true},
 			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Job", Name: "running-hook"}},
+		},
+		{
+			name:              "selected completed hook mirrors resource readiness",
+			watch:             watchOpts{sync: true},
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Job", Name: "completed-hook"}},
+			expected:          []string{completedHookLabel},
+		},
+		{
+			name:              "operation only omits selected completed hook",
+			watch:             watchOpts{operation: true},
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Job", Name: "completed-hook"}},
 		},
 		{
 			name:     "operation only",
