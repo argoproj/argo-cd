@@ -140,12 +140,25 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 	return items
 }
 
+func (s *Server) withDefaultCABundle(ctx context.Context, c *appv1.Cluster) {
+	caBundle, err := s.db.GetClusterCABundle(ctx)
+	if err != nil {
+		log.Warnf("Failed to load default cluster CA bundle: %v", err)
+		return
+	}
+	c.DefaultCABundle = caBundle
+}
+
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionCreate, CreateClusterRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
 		return nil, fmt.Errorf("permission denied while creating cluster: %w", err)
 	}
 	c := q.Cluster
+	if err := c.Config.CATrust.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	s.withDefaultCABundle(ctx, c)
 	clusterRESTConfig, err := c.RESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting REST config: %w", err)
@@ -319,6 +332,10 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		}
 		q.Cluster = c
 	}
+	if err := q.Cluster.Config.CATrust.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	s.withDefaultCABundle(ctx, q.Cluster)
 	clusterRESTConfig, err := q.Cluster.RESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get REST config for cluster: %w", err)
