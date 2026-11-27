@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/ProtonMail/go-crypto/openpgp/clearsign"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -174,7 +175,13 @@ func helmProvenanceProblem(ctx context.Context, keys []string, chartName, chartV
 		return fmt.Sprintf("provenance signs chart %q, not %q", signedName, chartName), nil
 	}
 	if chartVersion != "" && signedVersion != chartVersion {
-		return fmt.Sprintf("provenance signs version %q of the chart, not %q", signedVersion, chartVersion), nil
+		// An exact targetRevision is passed through as written, e.g. "v1.0.0" for chart version "1.0.0".
+		// Equal ignores build metadata, which still tells two signed builds apart, so compare it too.
+		want, wantErr := semver.NewVersion(chartVersion)
+		got, gotErr := semver.NewVersion(signedVersion)
+		if wantErr != nil || gotErr != nil || !want.Equal(got) || want.Metadata() != got.Metadata() {
+			return fmt.Sprintf("provenance signs version %q of the chart, not %q", signedVersion, chartVersion), nil
+		}
 	}
 	return "", nil
 }

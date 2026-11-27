@@ -141,6 +141,32 @@ func TestVerifyHelm(t *testing.T) {
 		signer:      provSignerKeyID,
 		wantProblem: `provenance signs version "1.0.0" of the chart, not "2.0.0"`,
 	}, {
+		name:    "v-prefixed version matches signed version",
+		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch:   fetchChart,
+		version: "v1.0.0",
+		signer:  provSignerKeyID,
+	}, {
+		name:    "short version matches signed version",
+		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch:   fetchChart,
+		version: "1.0",
+		signer:  provSignerKeyID,
+	}, {
+		name:        "signed version differs in build metadata",
+		si:          helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch:       fetchChart,
+		version:     "1.0.0+other",
+		signer:      provSignerKeyID,
+		wantProblem: `provenance signs version "1.0.0" of the chart, not "1.0.0+other"`,
+	}, {
+		name:        "signed version is an older release",
+		si:          helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch:       fetchChart,
+		version:     "v1.0.1",
+		signer:      provSignerKeyID,
+		wantProblem: `provenance signs version "1.0.0" of the chart, not "v1.0.1"`,
+	}, {
 		name:    "version not checked when unknown",
 		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
 		fetch:   fetchChart,
