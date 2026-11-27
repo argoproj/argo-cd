@@ -867,5 +867,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 func (a *ArgoCDWebhookHandler) Shutdown() {
 	close(a.queue)
 	a.refreshQueue.ShutDownWithDrain()
+	// delayingType overrides ShutDown but not ShutDownWithDrain, so its waitingLoop goroutine only stops here
+	a.refreshQueue.ShutDown()
 	a.Wait()
 }

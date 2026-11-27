@@ -2088,8 +2088,6 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			// Wait for processing
 			time.Sleep(800 * time.Millisecond)
 			h.Shutdown()
-			// ShutDownWithDrain doesn't stop the delaying queue's waitingLoop; ShutDown does
-			h.refreshQueue.ShutDown()
 
 			elapsed := time.Since(startTime)
 			// Verify delay was applied
@@ -2134,8 +2132,6 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			// Should process quickly without jitter
 			time.Sleep(100 * time.Millisecond)
 			h.Shutdown()
-			// ShutDownWithDrain doesn't stop the delaying queue's waitingLoop; ShutDown does
-			h.refreshQueue.ShutDown()
 		})
 	})
 }
