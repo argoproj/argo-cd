@@ -16,6 +16,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/pre_v0.6_not_paused_rollout.yaml
   result:
     - name: restart
@@ -33,6 +38,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: false
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/pre_v0.6_nil_paused_rollout.yaml
   result:
     - name: restart
@@ -50,6 +60,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: false
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/has_pause_condition_rollout.yaml
   result:
     - name: restart
@@ -67,6 +82,11 @@ discoveryTests:
       disabled: false
     - name: pause
       disabled: false
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/no_pause_condition_rollout.yaml
   result:
     - name: restart
@@ -84,6 +104,11 @@ discoveryTests:
       disabled: false
     - name: pause
       disabled: false
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/healthy_rollout.yaml
   result:
     - name: restart
@@ -101,6 +126,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/v0.9_aborted_rollout.yaml
   result:
     - name: restart
@@ -118,6 +148,11 @@ discoveryTests:
       disabled: false
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/v0.9_aborted_bg_rollout.yaml
   result:
     - name: restart
@@ -135,6 +170,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/aborted_bg_rollout.yaml
   result:
     - name: restart
@@ -152,6 +192,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/no_status_rollout.yaml
   result:
     - name: restart
@@ -169,6 +214,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 - inputPath: testdata/no_status_paused_rollout.yaml
   result:
     - name: restart
@@ -186,6 +236,11 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+    - name: scale
+      disabled: false
+      iconClass: "fa fa-fw fa-plus-circle"
+      params:
+        - name: replicas
 actionTests:
 - action: resume
   inputPath: testdata/pre_v0.6_paused_rollout.yaml
@@ -214,3 +269,41 @@ actionTests:
 - action: skip-current-step
   inputPath: testdata/rollout-step1.yaml
   expectedOutputPath: testdata/rollout-step1-after-skip-current-step.yaml
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedOutputPath: testdata/three_replica_rollout.yaml
+  parameters:
+    replicas: "3"
+- action: scale
+  inputPath: testdata/three_replica_rollout.yaml
+  expectedOutputPath: testdata/one_replica_rollout.yaml
+  parameters:
+    replicas: "1"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedOutputPath: testdata/zero_replica_rollout.yaml
+  parameters:
+    replicas: "0"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedErrorMessage: "invalid number: not_a_number"
+  parameters:
+    replicas: "not_a_number"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedErrorMessage: "invalid number: -1"
+  parameters:
+    replicas: "-1"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedErrorMessage: "invalid number: 1.5"
+  parameters:
+    replicas: "1.5"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedErrorMessage: "invalid number: 2147483648"
+  parameters:
+    replicas: "2147483648"
+- action: scale
+  inputPath: testdata/one_replica_rollout.yaml
+  expectedErrorMessage: "replicas parameter is required"

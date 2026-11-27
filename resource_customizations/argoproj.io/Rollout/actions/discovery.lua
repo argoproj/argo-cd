@@ -32,4 +32,13 @@ end
 
 actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
 
+actions["scale"] = {
+    ["iconClass"] = "fa fa-fw fa-plus-circle",
+    ["params"] = {
+        {
+            ["name"] = "replicas"
+        }
+    },
+}
+
 return actions
