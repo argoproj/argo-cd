@@ -240,35 +240,36 @@ stringData:
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it
   if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
-* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
-  buffers in memory when performing a list operation against the K8s Api server while syncing the cluster cache. This
-  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
-  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
-  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
-  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
-  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
-  compaction interval timeout expires. In the most extreme case, operators can set this value such that
-  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
-  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
-  be buffered in memory -- no api server request will be blocked by processing.
+* `controller.cluster.cache.list.page.buffer.size` - `argocd-cmd-params-cm` key (`--cluster-cache-list-page-buffer-size`
+  flag, `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` environment variable) controlling the number of pages the
+  controller buffers in memory when performing a list operation against the K8s Api server while syncing the cluster
+  cache. This is useful when the cluster contains a large number of resources and cluster sync times exceed the default
+  etcd compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application
+  controller may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a
+  higher value configures the controller with a larger buffer in which to store pre-fetched pages which are processed
+  asynchronously, increasing the likelihood that all pages have been pulled before the etcd compaction interval timeout
+  expires. In the most extreme case, operators can set this value such that
+  `controller.cluster.cache.list.page.size * controller.cluster.cache.list.page.buffer.size` exceeds the largest
+  resource count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all
+  resources will be buffered in memory -- no api server request will be blocked by processing. The default value is `1`.
 
-* `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION` - environment variable controlling how long each watch of a resource
+* `controller.cluster.cache.watch.resync.duration` - `argocd-cmd-params-cm` key (`--cluster-cache-watch-resync-duration`
+  flag, `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION` environment variable) controlling how long each watch of a resource
   type runs before the API server ends it: a random time between this duration and twice it. The controller then
   resumes the watch from its last resource version without listing the resources again. The default value is `10m`.
   Values under `1s` use the API server's default watch timeout.
 
-* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
-  for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of
-  resources,
-  and the controller is overwhelmed by the number of events. The default value is `true`. `false` would mean that the
-  controller
-  would process events one by one.
+* `controller.cluster.cache.batch.events.processing` - `argocd-cmd-params-cm` key
+  (`--cluster-cache-batch-events-processing` flag, `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` environment variable)
+  that enables the controller to collect events for Kubernetes resources and process them in a batch. This is useful
+  when the cluster contains a large number of resources, and the controller is overwhelmed by the number of events. The
+  default value is `true`. `false` would mean that the controller would process events one by one.
 
-* `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing
-  events in a batch.
-  The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is
-  `100ms`.
-  The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
+* `controller.cluster.cache.events.processing.interval` - `argocd-cmd-params-cm` key
+  (`--cluster-cache-events-processing-interval` flag, `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` environment
+  variable) controlling the interval for processing events in a batch. The valid value is in the format of Go time
+  duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`. The setting is used only when
+  `controller.cluster.cache.batch.events.processing` is set to `true`.
 
 * `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
   manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
@@ -535,6 +536,14 @@ Note that some `successful=false` results are expected and not a cause for conce
 yet cached manifests for an application (e.g. after a restart or first sync), so there is nothing to carry forward to
 the new revision.
 
+For source-hydrated applications, a successful cache warm also triggers a normal application reconciliation. This
+allows `status.sync.revision` to advance when a new commit on the sync branch produces no manifest changes for that
+application. The reconciliation reuses the warmed cache and does not trigger another hydration.
+
+This means a single commit to a shared sync branch refreshes every application hydrating to that branch, not only the
+ones whose manifests changed. Each of these refreshes is inexpensive but the number of them scales with the size of
+the hydration group.
+
 #### Disabling Manifest Cache Warming in Webhooks
 
 In some cases, the manifest cache warming done by the webhook handler can hurt performance rather than help it:
@@ -549,7 +558,8 @@ In some cases, the manifest cache warming done by the webhook handler can hurt p
 
 When disabled, the webhook handler will only trigger reconciliation for applications whose files have changed and
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
-with plain YAML manifests.
+with plain YAML manifests. For source-hydrated applications, disabling cache warming also means that a no-op sync
+branch commit will not advance `status.sync.revision` until another refresh, such as the periodic reconciliation.
 
 **Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: "true"` in the repository Secret.
 If you manage repositories [declaratively](declarative-setup.md#repositories), add the key to the Secret:

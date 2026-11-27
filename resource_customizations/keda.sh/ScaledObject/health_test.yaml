@@ -16,9 +16,13 @@ tests:
     message: "ScaledObject is defined correctly and is ready for scaling"
   inputPath: testdata/keda-healthy.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "ScaledObject is paused"
-  inputPath: testdata/keda-suspended.yaml
+  inputPath: testdata/keda-healthy-paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "ScaledObject doesn't have correct triggers specification"
+  inputPath: testdata/keda-degraded-paused.yaml
 - healthStatus:
     status: Degraded
     message: "At least one trigger is falling back on this scaled object"
