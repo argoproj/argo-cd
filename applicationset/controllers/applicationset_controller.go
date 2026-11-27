@@ -1056,14 +1056,14 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 // ApplicationSetReconciler.Reconcile. This handles any defaulting of values - which would otherwise
 // cause the status write at the end of the reconciliation to fail given missing required fields.
 func (r *ApplicationSetReconciler) migrateStatus(appset *argov1alpha1.ApplicationSet, w *applicationsetWriter) {
-	needsDefaulting := false
+	update := false
 	for idx := range appset.Status.ApplicationStatus {
 		if appset.Status.ApplicationStatus[idx].TargetRevisions == nil {
-			needsDefaulting = true
+			update = true
 			break
 		}
 	}
-	if !needsDefaulting {
+	if !update {
 		return
 	}
 
@@ -1100,7 +1100,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(logCtx *log.Entry, apps
 }
 
 // setAppSetApplicationStatus records any new/changed Application statuses on the ApplicationSet's
-// status field. The change is written to the API server when the reconciliation flushes w.
+// status field. The change is written to the API server at the end of reconciliation using ApplicationSetWriter
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus, w progressivesync.ApplicationSetWriter) {
 	needToUpdateStatus := false
 
@@ -1148,14 +1148,14 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(logCtx *log.Entry,
 
 	if needToUpdateStatus {
 		// sort to make sure the array is always in the same order
-		sorted := make([]argov1alpha1.ApplicationSetApplicationStatus, len(applicationStatuses))
-		copy(sorted, applicationStatuses)
-		sort.Slice(sorted, func(i, j int) bool {
-			return sorted[i].Application < sorted[j].Application
+		sortedAppSetStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, len(applicationStatuses))
+		copy(sortedAppSetStatuses, applicationStatuses)
+		sort.Slice(sortedAppSetStatuses, func(i, j int) bool {
+			return sortedAppSetStatuses[i].Application < sortedAppSetStatuses[j].Application
 		})
 
 		w.Apply(applicationSet, func(target *argov1alpha1.ApplicationSet) {
-			target.Status.ApplicationStatus = sorted
+			target.Status.ApplicationStatus = sortedAppSetStatuses
 		})
 	}
 
