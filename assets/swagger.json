@@ -1957,6 +1957,47 @@
         }
       }
     },
+    "/api/v1/applications/{name}/source-integrity/git/inspect": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Inspect the Git source integrity status for an application (problematic signatures)",
+        "operationId": "ApplicationService_InspectGitSourceIntegrity",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationInspectGitSourceIntegrityListResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/spec": {
       "put": {
         "tags": [
@@ -5374,6 +5415,66 @@
         "chunk": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "applicationGitCommitInfo": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "verificationResult": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationInspectGitSourceIntegrityListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationInspectGitSourceIntegrityResponse"
+          }
+        }
+      }
+    },
+    "applicationInspectGitSourceIntegrityResponse": {
+      "type": "object",
+      "properties": {
+        "commits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationGitCommitInfo"
+          }
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "gitPolicy": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicy"
+        },
+        "repoUrl": {
+          "type": "string"
+        },
+        "resolvedRevision": {
+          "type": "string"
+        },
+        "targetRevision": {
+          "type": "string"
         }
       }
     },

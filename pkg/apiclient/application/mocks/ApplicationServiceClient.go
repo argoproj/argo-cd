@@ -828,6 +828,93 @@ func (_c *ApplicationServiceClient_GetResource_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// InspectGitSourceIntegrity provides a mock function for the type ApplicationServiceClient
+func (_mock *ApplicationServiceClient) InspectGitSourceIntegrity(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error) {
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InspectGitSourceIntegrity")
+	}
+
+	var r0 *application.InspectGitSourceIntegrityListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error)); ok {
+		return returnFunc(ctx, in, opts...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) *application.InspectGitSourceIntegrityListResponse); ok {
+		r0 = returnFunc(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*application.InspectGitSourceIntegrityListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) error); ok {
+		r1 = returnFunc(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ApplicationServiceClient_InspectGitSourceIntegrity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InspectGitSourceIntegrity'
+type ApplicationServiceClient_InspectGitSourceIntegrity_Call struct {
+	*mock.Call
+}
+
+// InspectGitSourceIntegrity is a helper method to define mock.On call
+//   - ctx context.Context
+//   - in *application.InspectGitSourceIntegrityQuery
+//   - opts ...grpc.CallOption
+func (_e *ApplicationServiceClient_Expecter) InspectGitSourceIntegrity(ctx any, in any, opts ...any) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	return &ApplicationServiceClient_InspectGitSourceIntegrity_Call{Call: _e.mock.On("InspectGitSourceIntegrity",
+		append([]any{ctx, in}, opts...)...)}
+}
+
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) Run(run func(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *application.InspectGitSourceIntegrityQuery
+		if args[1] != nil {
+			arg1 = args[1].(*application.InspectGitSourceIntegrityQuery)
+		}
+		var arg2 []grpc.CallOption
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) Return(inspectGitSourceIntegrityListResponse *application.InspectGitSourceIntegrityListResponse, err error) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	_c.Call.Return(inspectGitSourceIntegrityListResponse, err)
+	return _c
+}
+
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) RunAndReturn(run func(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error)) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) List(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
 	// grpc.CallOption
