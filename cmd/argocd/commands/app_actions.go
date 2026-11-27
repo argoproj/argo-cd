@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -67,6 +69,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var resourceName string
 	var output string
 	var appNamespace string
+	var includeChildResources bool
 	command := &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
@@ -85,7 +88,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
-		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName, includeChildResources)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
 		errors.CheckError(err)
@@ -139,6 +142,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().StringVarP(&output, "out", "o", "", "Output format. One of: yaml, json")
+	command.Flags().BoolVar(&includeChildResources, "include-child-resources", false, includeChildResourcesUsage)
 
 	return command
 }
@@ -151,10 +155,11 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var kind string
 	var group string
 	var all bool
+	var includeChildResources bool
 	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s) matching the specified filters.",
-		Long:  "All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.",
+		Long:  "All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. By default, actions may only be run on resources that are represented in git. Use --include-child-resources to also run them on child resources, such as resources created by a controller.",
 		Example: templates.Examples(`
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
@@ -168,6 +173,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
+	command.Flags().BoolVar(&includeChildResources, "include-child-resources", false, includeChildResourcesUsage)
 
 	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
@@ -181,7 +187,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
-		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName, includeChildResources)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -231,13 +237,29 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
-func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
-	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+const includeChildResourcesUsage = "Also match child resources that are not represented in git, such as resources created by a controller"
+
+func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string, includeChildResources bool) ([]*v1alpha1.ResourceDiff, error) {
+	query := &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
 		AppNamespace:    appNs,
-	})
-	if err != nil {
-		return nil, err
+	}
+	var resources []*v1alpha1.ResourceDiff
+	if includeChildResources {
+		tree, err := appIf.ResourceTree(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		resources, err = resourceTreeNodesAsResourceDiffs(tree.Nodes)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		managedResources, err := appIf.ManagedResources(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		resources = managedResources.Items
 	}
 	app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
 		Name:         appName,
@@ -253,11 +275,39 @@ func getActionableResourcesForApplication(ctx context.Context, appIf application
 		return nil, err
 	}
 	appGVK := app.GroupVersionKind()
-	return append(resources.Items, &v1alpha1.ResourceDiff{
+	return append(resources, &v1alpha1.ResourceDiff{
 		Group:     appGVK.Group,
 		Kind:      appGVK.Kind,
 		Namespace: app.Namespace,
 		Name:      *appName,
 		LiveState: string(appManifest),
 	}), nil
+}
+
+// resourceTreeNodesAsResourceDiffs converts the nodes of the resource tree, so that they can be filtered like managed
+// resources. The live state only identifies the resource, which is all that's needed to run an action on it.
+func resourceTreeNodesAsResourceDiffs(nodes []v1alpha1.ResourceNode) ([]*v1alpha1.ResourceDiff, error) {
+	resources := make([]*v1alpha1.ResourceDiff, 0, len(nodes))
+	for _, node := range nodes {
+		// Nodes of resources that don't exist yet have no UID.
+		if node.UID == "" {
+			continue
+		}
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: node.Group, Version: node.Version, Kind: node.Kind})
+		obj.SetNamespace(node.Namespace)
+		obj.SetName(node.Name)
+		liveState, err := json.Marshal(obj)
+		if err != nil {
+			return nil, err
+		}
+		resources = append(resources, &v1alpha1.ResourceDiff{
+			Group:     node.Group,
+			Kind:      node.Kind,
+			Namespace: node.Namespace,
+			Name:      node.Name,
+			LiveState: string(liveState),
+		})
+	}
+	return resources, nil
 }
