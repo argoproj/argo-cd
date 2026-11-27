@@ -74,15 +74,17 @@ func TestCliAppWaitMaxPendingResources(t *testing.T) {
 		And(func(_ *Application) {
 			output, err := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "1")
 			require.Error(t, err)
-			assert.Contains(t, output, "timed out (1s) waiting for app")
-			assert.Contains(t, output, "Pending resources:")
-			assert.Contains(t, output, "more")
+			diagnostic := output + "\n" + err.Error()
+			assert.Contains(t, diagnostic, "timed out (1s) waiting for app")
+			assert.Contains(t, diagnostic, "Pending resources:")
+			assert.Contains(t, diagnostic, "more")
 
 			output, err = RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "0")
 			require.Error(t, err)
-			assert.Contains(t, output, "timed out (1s) waiting for app")
-			assert.Contains(t, output, "Pending resources:")
-			assert.NotContains(t, output, "more")
+			diagnostic = output + "\n" + err.Error()
+			assert.Contains(t, diagnostic, "timed out (1s) waiting for app")
+			assert.Contains(t, diagnostic, "Pending resources:")
+			assert.NotContains(t, diagnostic, "more")
 		})
 }
 
