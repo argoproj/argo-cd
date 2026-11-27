@@ -492,7 +492,8 @@ func setupRevisionRepo(t *testing.T) (Client, string) {
 	t.Helper()
 	ctx := t.Context()
 
-	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
+	tempDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
 
