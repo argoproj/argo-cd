@@ -2735,3 +2735,29 @@ func TestRepoURLMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchRepoURL_CacheWarmDisabledByAnyMatchingURL(t *testing.T) {
+	webRegexp, err := GetWebURLRegex("https://gitlab.com/group/name")
+	require.NoError(t, err)
+	sshRegexp, err := GetWebURLRegex("git@gitlab.com:group/name.git")
+	require.NoError(t, err)
+	otherRegexp, err := GetWebURLRegex("https://gitlab.com/group/other")
+	require.NoError(t, err)
+
+	matchers := []webhookRepoMatcher{
+		{repoRegexp: webRegexp, cacheWarmDisabled: false},
+		{repoRegexp: sshRegexp, cacheWarmDisabled: true},
+		{repoRegexp: otherRegexp, cacheWarmDisabled: false},
+	}
+
+	matcher, ok := matchRepoURL("git@gitlab.com:group/name.git", matchers)
+	require.True(t, ok)
+	assert.True(t, matcher.cacheWarmDisabled)
+
+	matcher, ok = matchRepoURL("https://gitlab.com/group/other.git", matchers)
+	require.True(t, ok)
+	assert.False(t, matcher.cacheWarmDisabled)
+
+	_, ok = matchRepoURL("https://gitlab.com/group/missing.git", matchers)
+	assert.False(t, ok)
+}

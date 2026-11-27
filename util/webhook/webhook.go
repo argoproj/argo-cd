@@ -296,7 +296,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		return
 	}
 	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
-	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
 		return
@@ -451,12 +450,19 @@ type webhookRepoMatcher struct {
 }
 
 func matchRepoURL(repoURL string, matchers []webhookRepoMatcher) (webhookRepoMatcher, bool) {
+	var matched webhookRepoMatcher
+	found := false
 	for _, m := range matchers {
-		if RepoURLMatches(repoURL, m.repoRegexp) {
-			return m, true
+		if !RepoURLMatches(repoURL, m.repoRegexp) {
+			continue
 		}
+		if !found {
+			matched = m
+			found = true
+		}
+		matched.cacheWarmDisabled = matched.cacheWarmDisabled || m.cacheWarmDisabled
 	}
-	return webhookRepoMatcher{}, false
+	return matched, found
 }
 
 // GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
