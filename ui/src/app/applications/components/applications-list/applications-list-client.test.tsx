@@ -6,7 +6,7 @@ import {of, Subject} from 'rxjs';
 
 import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {applyWatchEvents, AppsListPaginate, useApplicationsList} from './applications-list-client';
+import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 
 jest.mock('../../../shared/services', () => {
@@ -97,6 +97,21 @@ test('ignores watch events from other namespaces when the list is scoped to one'
     });
 
     await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['d', 'a', 'b']));
+});
+
+test('sends the label filters the server can evaluate and still filters on the client', async () => {
+    const labelled = (name: string, labels: Record<string, string>) => ({...app(name), metadata: {name, namespace: 'argocd', labels}}) as Application;
+    // The server can't evaluate `replicas gt 1`, so it returns an app that only the client filters out.
+    jest.mocked(services.applications.list).mockResolvedValue({
+        items: [labelled('a', {team: 'core', replicas: '2'}), labelled('b', {team: 'core', replicas: '1'})],
+        metadata: {resourceVersion: '5'}
+    } as any);
+    const result = setup({pref: pref({labelsFilter: ['team=core', 'replicas gt 1']}), appNamespace: '', hydratorEnabled: false});
+
+    await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
+    expect(jest.mocked(services.applications.list).mock.calls[0][2]).toMatchObject({selector: 'team=core'});
+    expect(jest.mocked(services.applications.watch).mock.calls[0][2]).toMatchObject({selector: 'team=core'});
+    expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
 });
 
 test('neither lists nor watches when favorites only is on without favorites', async () => {
@@ -191,21 +206,6 @@ test('does not resume the watch from the stale list when the reload after being 
     } finally {
         setHidden(false);
     }
-});
-
-test('applyWatchEvents adds, replaces and removes by instance name without mutating its input', () => {
-    const list = {items: [app('a'), app('b')], metadata: {resourceVersion: '1'}} as any;
-    const updated = applyWatchEvents(list, [
-        {type: 'ADDED', application: app('c')},
-        {type: 'MODIFIED', application: app('a', 'Degraded')},
-        {type: 'DELETED', application: app('b')}
-    ]);
-    expect(updated.items.map((item: Application) => [item.metadata.name, item.status.health.status])).toEqual([
-        ['c', 'Healthy'],
-        ['a', 'Degraded']
-    ]);
-    expect(updated.metadata.resourceVersion).toBe('1');
-    expect(list.items).toHaveLength(2);
 });
 
 test('AppsListPaginate pages through the rows on the client', () => {

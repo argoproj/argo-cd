@@ -590,7 +590,6 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 
 // Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
 func normalizeChartName(chart string) string {
-	strings.Join(strings.Split(chart, "/"), "_")
 	_, nc := path.Split(chart)
 	// We do not want to return the empty string or something else related to filesystem access
 	// Instead, return original string

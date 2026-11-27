@@ -1,8 +1,7 @@
-import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import {ClusterCtx, COLORS} from '../../../shared/components';
+import {COLORS, useClusterList} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
@@ -28,8 +27,8 @@ hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
 export const ApplicationsSummary = ({stats}: {stats: AppsListStats}) => {
-    const clusterP = React.useContext(ClusterCtx);
-    const [clusters = []] = useData(() => clusterP);
+    // Until the list loads, or if it fails, destinations are counted as they are.
+    const {data: clusters = []} = useClusterList();
     const clusterMap = new Map(
         clusters
             .map(

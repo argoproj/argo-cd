@@ -1,7 +1,7 @@
 /**
  * Test cases for annotation and label selectors
  */
-import {createMetadataSelector} from './selectors';
+import {createMetadataSelector, toServerLabelSelector} from './selectors';
 
 describe('Selectors', () => {
     describe('createMetadataSelector', () => {
@@ -52,5 +52,14 @@ describe('Selectors', () => {
             const selector = createMetadataSelector(['env=production', 'tier'], 'label');
             expect(selector(labels)).toBe(true);
         });
+    });
+});
+describe('toServerLabelSelector', () => {
+    it('joins the selectors the server can evaluate and drops the rest', () => {
+        expect(toServerLabelSelector(['team=core', 'replicas gt 1', 'env in prod, staging', 'bad key'])).toBe('team=core,env in (prod,staging)');
+    });
+
+    it('returns an empty selector when there are no label filters', () => {
+        expect(toServerLabelSelector([])).toBe('');
     });
 });

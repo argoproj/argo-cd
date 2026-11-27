@@ -24,18 +24,18 @@ argocd app [flags]
 ### Options
 
 ```
-      --cluster string             The name of the kubeconfig cluster to use
-      --context string             The name of the kubeconfig context to use
-  -h, --help                       help for app
-      --insecure-skip-tls-verify   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string          Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string           If present, the namespace scope for this CLI request
-      --password string            Password for basic authentication to the API server
-      --proxy-url string           If provided, this URL will be used to connect via proxy
-      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --token string               Bearer token for authentication to the API server
-      --user string                The name of the kubeconfig user to use
-      --username string            Username for basic authentication to the API server
+      --cluster string                          The name of the kubeconfig cluster to use
+      --context string                          The name of the kubeconfig context to use
+  -h, --help[=true|false]                       help for app
+      --insecure-skip-tls-verify[=true|false]   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string                       Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string                        If present, the namespace scope for this CLI request
+      --password string                         Password for basic authentication to the API server
+      --proxy-url string                        If provided, this URL will be used to connect via proxy
+      --request-timeout string                  The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --token string                            Bearer token for authentication to the API server
+      --user string                             The name of the kubeconfig user to use
+      --username string                         Username for basic authentication to the API server
 ```
 
 ### Options inherited from parent commands
@@ -47,19 +47,19 @@ argocd app [flags]
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
-      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
+      --core[=true|false]               If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
+      --grpc-web[=true|false]           Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
-      --insecure                        Skip server certificate and domain verification
+      --insecure[=true|false]           Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
-      --plaintext                       Disable TLS
-      --port-forward                    Connect to a random argocd-server port using port forwarding
+      --plaintext[=true|false]          Disable TLS
+      --port-forward[=true|false]       Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --prompts-enabled[=true|false]    Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
@@ -80,6 +80,7 @@ argocd app [flags]
 * [argocd app delete-resource](argocd_app_delete-resource.md)	 - Delete resource in an application
 * [argocd app diff](argocd_app_diff.md)	 - Perform a diff against the target and live state.
 * [argocd app edit](argocd_app_edit.md)	 - Edit application
+* [argocd app events](argocd_app_events.md)	 - List the events of an application or of one of its resources
 * [argocd app get](argocd_app_get.md)	 - Get application details
 * [argocd app get-resource](argocd_app_get-resource.md)	 - Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 * [argocd app history](argocd_app_history.md)	 - Show application deployment history
