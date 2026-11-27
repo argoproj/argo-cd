@@ -351,6 +351,9 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 	targetFile := path.Join(tempDir, name)
 	targetData := []byte("")
 	if target != nil {
