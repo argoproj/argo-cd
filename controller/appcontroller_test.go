@@ -2042,6 +2042,62 @@ func TestFinalizeAppDeletion_DeleteHooksFromLastDeployedRevision(t *testing.T) {
 		})
 	}
 
+	// The fallback must not render sources the target would not: a repository the project no longer
+	// permits, or a source mode other than the one the current spec makes the repo server use.
+	unusableHistory := []struct {
+		name  string
+		setup func(app *v1alpha1.Application) *v1alpha1.AppProject
+	}{
+		{
+			name: "SourceNotPermitted",
+			setup: func(app *v1alpha1.Application) *v1alpha1.AppProject {
+				forbidden := *app.Spec.Source.DeepCopy()
+				forbidden.RepoURL = "https://github.com/argoproj/forbidden.git"
+				app.Status.History = v1alpha1.RevisionHistories{{ID: 1, Revision: deployedRevision, Source: forbidden}}
+				proj := defaultProj.DeepCopy()
+				proj.Spec.SourceRepos = []string{app.Spec.Source.RepoURL}
+				return proj
+			},
+		},
+		{
+			name: "SourceModeChanged",
+			setup: func(app *v1alpha1.Application) *v1alpha1.AppProject {
+				app.Status.History = v1alpha1.RevisionHistories{{ID: 1, Revision: deployedRevision, Source: *app.Spec.Source.DeepCopy()}}
+				app.Spec.Sources = v1alpha1.ApplicationSources{*app.Spec.Source}
+				app.Spec.Source = nil
+				return &defaultProj
+			},
+		},
+	}
+	for _, tc := range unusableHistory {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.SetPostDeleteFinalizer()
+			app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+			proj := tc.setup(app)
+
+			var requested []string
+			ctrl := newFakeController(t.Context(), &fakeData{
+				generateManifest: func(req *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
+					requested = append(requested, req.Revision)
+					if req.Revision == deployedRevision {
+						return &apiclient.ManifestResponse{Manifests: []string{fakePostDeleteHook}}, nil
+					}
+					return nil, missingValues
+				},
+				apps:            []runtime.Object{app, proj},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			}, nil)
+
+			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+				return []*v1alpha1.Cluster{}, nil
+			})
+			require.ErrorContains(t, err, "no such file or directory")
+			assert.NotContains(t, requested, deployedRevision)
+			assert.Empty(t, ctrl.kubectl.(*MockKubectl).CreatedResources)
+		})
+	}
+
 	t.Run("NoHistoryKeepsError", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer()

@@ -105,22 +105,32 @@ func (ctrl *ApplicationController) isAppHook(live *unstructured.Unstructured, ho
 }
 
 // lastDeployedSources returns the sources and revisions of the last sync in the application's history,
-// which is what a rollback deploys.
-func lastDeployedSources(app *appv1.Application) (appv1.ApplicationSources, []string, bool) {
+// which is what a rollback deploys. It returns false when that sync cannot stand in for the target: there
+// is no history, it used a different source mode than the current spec, which decides how the repo server
+// treats the sources, or the project no longer permits one of its sources.
+func lastDeployedSources(app *appv1.Application, proj *appv1.AppProject) (appv1.ApplicationSources, []string, bool) {
 	if len(app.Status.History) == 0 {
 		return nil, nil, false
 	}
 	last := app.Status.History.LastRevisionHistory()
-	if len(last.Sources) > 0 {
-		if len(last.Revisions) != len(last.Sources) {
-			return nil, nil, false
-		}
-		return last.Sources, last.Revisions, true
-	}
-	if last.Revision == "" || last.Source.RepoURL == "" {
+	multipleSources := len(last.Sources) > 0
+	if multipleSources != app.Spec.HasMultipleSources() {
 		return nil, nil, false
 	}
-	return appv1.ApplicationSources{last.Source}, []string{last.Revision}, true
+	sources := appv1.ApplicationSources{last.Source}
+	revisions := []string{last.Revision}
+	if multipleSources {
+		sources, revisions = last.Sources, last.Revisions
+	}
+	if len(revisions) != len(sources) {
+		return nil, nil, false
+	}
+	for i, src := range sources {
+		if src.RepoURL == "" || revisions[i] == "" || !proj.IsSourcePermitted(src) {
+			return nil, nil, false
+		}
+	}
+	return sources, revisions, true
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
@@ -154,7 +164,7 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		// The target often stops rendering when the application is deleted, because the files behind it
 		// are removed from Git in the same commit. The last deployed sync still holds the hooks, so render
 		// them from there rather than blocking the deletion on every reconciliation.
-		deployedSources, deployedRevisions, ok := lastDeployedSources(app)
+		deployedSources, deployedRevisions, ok := lastDeployedSources(app, proj)
 		if !ok {
 			return false, err
 		}

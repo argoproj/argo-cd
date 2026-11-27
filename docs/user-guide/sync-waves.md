@@ -104,7 +104,7 @@ If a PostDelete hook fails:
 
 ### Generating Delete Hooks
 
-PreDelete and PostDelete hooks are generated from the Application's target revision. Deleting an Application often removes the files it is built from in the same commit, such as a values file or the folder a Git generator reads, so the target revision may no longer render. In that case Argo CD generates the hooks from the revision of the last sync in the Application's history, the same sources and revisions a rollback would deploy. An Application without sync history still needs its target revision to render.
+PreDelete and PostDelete hooks are generated from the Application's target revision. Deleting an Application often removes the files it is built from in the same commit, such as a values file or the folder a Git generator reads, so the target revision may no longer render. In that case Argo CD generates the hooks from the revision of the last sync in the Application's history, the same sources and revisions a rollback would deploy. This happens only when the project still permits those sources and the last sync used the same kind of source, single or multiple, as the Application does now. Otherwise, as for an Application without sync history, the target revision still needs to render.
 
 ## How sync waves work?
 
