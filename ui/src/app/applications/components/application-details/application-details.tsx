@@ -283,7 +283,10 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
                     app.metadata.annotations = {};
                 }
                 app.metadata.annotations[appModels.AppDeletionConfirmedAnnotation] = new Date().toISOString();
-                await services.applications.update(app);
+                // Only the annotation needs to be persisted. Validating the spec here would require
+                // regenerating manifests, which fails when the source directory no longer exists
+                // (e.g. after the ApplicationSet stopped generating the Application).
+                await services.applications.update(app, {validate: false});
             }
         },
         [appContext]
