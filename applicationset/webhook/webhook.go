@@ -44,7 +44,7 @@ type WebhookHandler struct {
 type gitGeneratorInfo struct {
 	Revision    string
 	TouchedHead bool
-	RepoRegexp  *regexp.Regexp
+	RepoRegexps []*regexp.Regexp
 }
 
 type prGeneratorInfo struct {
@@ -158,20 +158,22 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	if info == nil || len(info.WebURLs) == 0 {
 		return nil
 	}
-	// Only providers that send a single repository URL reach this handler today.
-	// Bitbucket Server sends both HTTP and SSH clone URLs, so all of them need
-	// matching once it is enabled here.
-	webURL := info.WebURLs[0]
-
-	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, info.Revision, info.TouchedHead)
-	repoRegexp, err := webhook.GetWebURLRegex(webURL)
-	if err != nil {
-		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
+	repoRegexps := make([]*regexp.Regexp, 0, len(info.WebURLs))
+	for _, webURL := range info.WebURLs {
+		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, info.Revision, info.TouchedHead)
+		repoRegexp, err := webhook.GetWebURLRegex(webURL)
+		if err != nil {
+			log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
+			continue
+		}
+		repoRegexps = append(repoRegexps, repoRegexp)
+	}
+	if len(repoRegexps) == 0 {
 		return nil
 	}
 
 	return &gitGeneratorInfo{
-		RepoRegexp:  repoRegexp,
+		RepoRegexps: repoRegexps,
 		TouchedHead: info.TouchedHead,
 		Revision:    info.Revision,
 	}
@@ -278,7 +280,9 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 
-	if !webhook.RepoURLMatches(gen.RepoURL, info.RepoRegexp) {
+	if !slices.ContainsFunc(info.RepoRegexps, func(repoRegexp *regexp.Regexp) bool {
+		return webhook.RepoURLMatches(gen.RepoURL, repoRegexp)
+	}) {
 		return false
 	}
 	if !webhook.RevisionHasChanged(gen.Revision, info.Revision, info.TouchedHead) {

@@ -344,6 +344,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		}
 	}
 
+	matchers := make([]webhookRepoMatcher, 0, len(webURLs))
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
@@ -360,82 +361,102 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				cacheWarmDisabled = true
 			}
 		}
+		matchers = append(matchers, webhookRepoMatcher{repoRegexp: repoRegexp, cacheWarmDisabled: cacheWarmDisabled})
+	}
 
-		appCount := 0
-		enqueueRefresh := func(app *v1alpha1.Application, hydrateType *v1alpha1.HydrateType) {
-			appCount++
-			req := &appRefreshRequest{
-				appName:      app.Name,
-				appNamespace: app.Namespace,
-				hydrateType:  hydrateType,
-			}
-			// Apply jitter only if more than threshold apps are affected
-			if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
-				jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
-				a.refreshQueue.AddAfter(req, jitter)
-			} else {
-				a.refreshQueue.Add(req)
-			}
+	appCount := 0
+	enqueueRefresh := func(app *v1alpha1.Application, hydrateType *v1alpha1.HydrateType) {
+		appCount++
+		req := &appRefreshRequest{
+			appName:      app.Name,
+			appNamespace: app.Namespace,
+			hydrateType:  hydrateType,
 		}
-		// iterate over apps and check if any files specified in their sources have changed
-		for _, app := range filteredApps {
-			logCtx := log.WithFields(applog.GetAppLogFields(&app))
-			refreshAfterCacheWarm := false
-			// get all sources, including sync source and dry source if source hydrator is configured
-			sources := app.Spec.GetSources()
-			if app.Spec.SourceHydrator != nil {
-				// we already have sync source, so add dry source if source hydrator is configured
-				sources = append(sources, app.Spec.SourceHydrator.GetDrySource())
+		// Apply jitter only if more than threshold apps are affected
+		if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
+			jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
+			a.refreshQueue.AddAfter(req, jitter)
+		} else {
+			a.refreshQueue.Add(req)
+		}
+	}
+	// iterate over apps and check if any files specified in their sources have changed
+	for _, app := range filteredApps {
+		logCtx := log.WithFields(applog.GetAppLogFields(&app))
+		refreshAfterCacheWarm := false
+		// get all sources, including sync source and dry source if source hydrator is configured
+		sources := app.Spec.GetSources()
+		if app.Spec.SourceHydrator != nil {
+			// we already have sync source, so add dry source if source hydrator is configured
+			sources = append(sources, app.Spec.SourceHydrator.GetDrySource())
+		}
+
+		// iterate over all sources and check if any files specified in refresh paths have changed
+		for _, source := range sources {
+			if !RevisionHasChanged(source.TargetRevision, revision, touchedHead) {
+				continue
 			}
+			matcher, ok := matchRepoURL(source.RepoURL, matchers)
+			if !ok {
+				continue
+			}
+			refreshPaths := path.GetSourceRefreshPaths(&app, source)
+			if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+				var hydrateType *v1alpha1.HydrateType
+				if app.Spec.SourceHydrator != nil {
+					drySource := app.Spec.SourceHydrator.GetDrySource()
+					if (&source).Equals(&drySource) {
+						ht := v1alpha1.HydrateTypeNormal
+						hydrateType = &ht
+					}
+				}
 
-			// iterate over all sources and check if any files specified in refresh paths have changed
-			for _, source := range sources {
-				if RevisionHasChanged(source.TargetRevision, revision, touchedHead) && RepoURLMatches(source.RepoURL, repoRegexp) {
-					refreshPaths := path.GetSourceRefreshPaths(&app, source)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						var hydrateType *v1alpha1.HydrateType
-						if app.Spec.SourceHydrator != nil {
-							drySource := app.Spec.SourceHydrator.GetDrySource()
-							if (&source).Equals(&drySource) {
-								ht := v1alpha1.HydrateTypeNormal
-								hydrateType = &ht
-							}
-						}
-
-						// refresh paths have changed, so we need to refresh the app
-						logCtx.Info("refreshing app from webhook")
-						if hydrateType != nil {
-							logCtx.Infof("webhook trigger refresh app to hydrate")
-						}
-						enqueueRefresh(&app, hydrateType)
-						refreshAfterCacheWarm = false
-						break // we don't need to check other sources
-					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
-						// update the cached manifests with the new revision cache key
-						cacheWarmed, err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source)
-						if err != nil {
-							// Errors while updating the cache are non-fatal since the manifest will simply be regenerated on
-							// the next reconciliation.
-							logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
-						} else if cacheWarmed && app.Spec.SourceHydrator != nil {
-							syncSource := app.Spec.GetSource()
-							if (&source).Equals(&syncSource) {
-								// Defer the normal refresh until all sources have been checked. If the same push also
-								// changes the dry source, its hydration request must take precedence.
-								refreshAfterCacheWarm = true
-							}
-						}
+				// refresh paths have changed, so we need to refresh the app
+				logCtx.Info("refreshing app from webhook")
+				if hydrateType != nil {
+					logCtx.Infof("webhook trigger refresh app to hydrate")
+				}
+				enqueueRefresh(&app, hydrateType)
+				refreshAfterCacheWarm = false
+				break // we don't need to check other sources
+			} else if change.shaBefore != "" && change.shaAfter != "" && !matcher.cacheWarmDisabled {
+				// update the cached manifests with the new revision cache key
+				cacheWarmed, err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source)
+				if err != nil {
+					// Errors while updating the cache are non-fatal since the manifest will simply be regenerated on
+					// the next reconciliation.
+					logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
+				} else if cacheWarmed && app.Spec.SourceHydrator != nil {
+					syncSource := app.Spec.GetSource()
+					if (&source).Equals(&syncSource) {
+						// Defer the normal refresh until all sources have been checked. If the same push also
+						// changes the dry source, its hydration request must take precedence.
+						refreshAfterCacheWarm = true
 					}
 				}
 			}
-			if refreshAfterCacheWarm {
-				// The no-op sync-source commit now has a warm manifest cache entry. Reconcile the app so its sync
-				// revision can advance without regenerating manifests or triggering hydration.
-				logCtx.Info("refreshing source-hydrated app after warming manifest cache")
-				enqueueRefresh(&app, nil)
-			}
+		}
+		if refreshAfterCacheWarm {
+			// The no-op sync-source commit now has a warm manifest cache entry. Reconcile the app so its sync
+			// revision can advance without regenerating manifests or triggering hydration.
+			logCtx.Info("refreshing source-hydrated app after warming manifest cache")
+			enqueueRefresh(&app, nil)
 		}
 	}
+}
+
+type webhookRepoMatcher struct {
+	repoRegexp        *regexp.Regexp
+	cacheWarmDisabled bool
+}
+
+func matchRepoURL(repoURL string, matchers []webhookRepoMatcher) (webhookRepoMatcher, bool) {
+	for _, m := range matchers {
+		if RepoURLMatches(repoURL, m.repoRegexp) {
+			return m, true
+		}
+	}
+	return webhookRepoMatcher{}, false
 }
 
 // GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
@@ -450,7 +471,17 @@ func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
 	// 6. Required: `:` or `/`
 	// 7. Required: path parsed from `webURL`
 	// 8. Optional: `.git` extension
-	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
+	return getURLRegex(webURLForRegex(webURL), `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
+}
+
+// webURLForRegex rewrites an SCP-like SSH URL (git@host:group/repo) into the
+// ssh:// form that url.Parse accepts, and drops a trailing .git so that sources
+// with and without the suffix both match.
+func webURLForRegex(webURL string) string {
+	if isSSH, _ := git.IsSSHURL(webURL); isSSH && !strings.Contains(webURL, "://") {
+		webURL = "ssh://" + strings.Replace(webURL, ":", "/", 1)
+	}
+	return strings.TrimSuffix(webURL, ".git")
 }
 
 // GetAPIURLRegex compiles a regex that will match any targetRevision referring to the same repo as
