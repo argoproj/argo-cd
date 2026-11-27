@@ -612,7 +612,7 @@ func newSlowFetchRemote(t *testing.T, delay time.Duration) (client Client, revis
 	script := fmt.Sprintf("#!/bin/sh\ntouch '%s'\nsleep %g\nexec git-upload-pack \"$@\"\n", marker, delay.Seconds())
 	require.NoError(t, os.WriteFile(uploadPack, []byte(script), 0o755))
 
-	client, err = NewClient("file://"+remote, NopCreds{}, true, false, "", "")
+	client, err = NewClientExt("file://"+remote, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
 	require.NoError(t, runCmd(ctx, client.Root(), "git", "config", "remote.origin.uploadpack", uploadPack))
@@ -692,7 +692,7 @@ func Test_nativeGitClient_runLsRemote_honoursGitRequestTimeout(t *testing.T) {
 	uploadPack := filepath.Join(t.TempDir(), "hanging-upload-pack.sh")
 	require.NoError(t, os.WriteFile(uploadPack, []byte("#!/bin/sh\nexec 2>/dev/null\nsleep 30\n"), 0o755))
 
-	client, err := NewClient("file://"+remote, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+remote, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	orig := gitClientTimeout
