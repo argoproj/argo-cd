@@ -401,8 +401,19 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
+	// A digest does not pin the chart version an oci:// provenance check holds it to (tags can be
+	// moved onto it), so key the cache on that version too.
+	cacheRevision := revision
+	var chartVersion string
+	if source.IsOCI() && sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+		chartVersion = ociChartVersion(ctx, ociClient, source, unresolvedRevision, revision, settings.noCache || settings.noRevisionCache)
+		if chartVersion != "" {
+			cacheRevision = revision + "|" + chartVersion
+		}
+	}
+
 	if !settings.noCache {
-		if ok, err := cacheFn(revision, repoRefs, true); ok {
+		if ok, err := cacheFn(cacheRevision, repoRefs, true); ok {
 			return err
 		}
 	}
@@ -456,11 +467,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 
-		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			var chartVersion string
-			if sourceintegrity.HasCriteria(sourceIntegrity, *source) {
-				chartVersion = ociChartVersion(ctx, ociClient, source, unresolvedRevision, revision, settings.noCache || settings.noRevisionCache)
-			}
+		return operation(ociPath, revision, cacheRevision, func() (*operationContext, error) {
 			// helm push stores a chart at <repo>/<chart name>.
 			sourceIntegrityResult, err := verifyHelmProvenance(ctx, sourceIntegrity, source, ociPath, path.Base(source.RepoURL), chartVersion)
 			if err != nil {

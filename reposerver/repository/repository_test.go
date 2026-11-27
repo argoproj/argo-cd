@@ -7197,6 +7197,44 @@ func TestGenerateManifest_HelmProvenance(t *testing.T) {
 	require.ErrorContains(t, err, "chart has no provenance file (.prov)")
 }
 
+// Tags pointing at one digest must not share a cached provenance verdict, since each requested
+// version is checked against the version the chart was signed for.
+func TestGenerateManifest_OCIProvenanceCachedPerVersion(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "cm.yaml"), []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm\n"), 0o600))
+	var ociClient *ocimocks.Client
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, c *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient = c
+		c.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		c.EXPECT().Extract(mock.Anything, "sha256:abc123").Return(root, utilio.NopCloser, nil)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	source := &v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/my-chart", Path: ".", TargetRevision: "1.*"}
+	si := &v1alpha1.SourceIntegrity{Helm: &v1alpha1.SourceIntegrityHelm{Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+		Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "oci://registry.example.com/*"}},
+		Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"D56C4FCA57A46444"}},
+	}}}}
+	generate := func(revision string) {
+		t.Helper()
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+			Repo:               &v1alpha1.Repository{Repo: source.RepoURL},
+			ApplicationSource:  source,
+			Revision:           revision,
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+			SourceIntegrity:    si,
+		})
+		require.NoError(t, err)
+	}
+
+	generate("1.0.0")
+	generate("1.0.0")
+	ociClient.AssertNumberOfCalls(t, "Extract", 1)
+	generate("2.0.0")
+	ociClient.AssertNumberOfCalls(t, "Extract", 2)
+}
+
 func TestOCIChartVersion(t *testing.T) {
 	const (
 		current  = "sha256:aaaa"

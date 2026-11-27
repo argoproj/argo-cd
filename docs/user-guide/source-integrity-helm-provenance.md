@@ -16,7 +16,9 @@ helm verify mychart-1.0.0.tgz
 If any step fails, the application gets a `ComparisonError` condition and cannot sync. Failed checks are reported as `HELM/PROVENANCE`.
 
 > [!NOTE]
-> A chart without a `.prov` file also fails with a `ComparisonError`, but it is not reported as `HELM/PROVENANCE`. Helm does not distinguish a missing `.prov` from one that failed to download, so Argo CD treats both as a failure to fetch the chart (`could not access chart for provenance verification: chart has no provenance file (.prov)`) rather than a verification verdict. Manifest generation fails and the sync status is `Unknown`.
+> A chart from a Helm repository without a `.prov` file also fails with a `ComparisonError`, but it is not reported as `HELM/PROVENANCE`. Helm does not distinguish a missing `.prov` from one that failed to download, so Argo CD treats both as a failure to fetch the chart (`could not access chart for provenance verification: chart has no provenance file (.prov)`) rather than a verification verdict. Manifest generation fails and the sync status is `Unknown`.
+>
+> An `oci://` artifact is pinned to a digest, so a missing provenance layer cannot be a transient failure. It is reported as a failed `HELM/PROVENANCE` check, which the repo-server may cache. See [Troubleshooting](#troubleshooting).
 
 For GnuPG verification of Git commits, see [Git GnuPG verification](./source-integrity-git-gpg.md).
 
