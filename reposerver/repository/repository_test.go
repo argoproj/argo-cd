@@ -313,6 +313,151 @@ func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
 	assert.NotNil(t, res)
 }
 
+func TestResolveLocalKustomizeBinaryPath(t *testing.T) {
+	binaryDir := t.TempDir()
+	binary := filepath.Join(binaryDir, "kustomize")
+	require.NoError(t, os.WriteFile(binary, []byte("#!/bin/sh\n"), 0o700))
+
+	assert.Empty(t, resolveLocalKustomizeBinaryPath(""))
+	assert.Equal(t, binary, resolveLocalKustomizeBinaryPath(binary))
+	assert.Empty(t, resolveLocalKustomizeBinaryPath(filepath.Join(binaryDir, "missing")))
+
+	t.Run("relative path becomes absolute", func(t *testing.T) {
+		t.Chdir(binaryDir)
+		assert.Equal(t, binary, resolveLocalKustomizeBinaryPath("./kustomize"))
+	})
+}
+
+func TestGenerateManifests_KustomizeLocalBinary(t *testing.T) {
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "app")
+	require.NoError(t, os.MkdirAll(appPath, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte("resources: []\n"), 0o600))
+	t.Chdir(repoRoot)
+
+	customBinary := writeFakeKustomize(t, filepath.Join(repoRoot, "tools"), "custom-kustomize", "custom")
+	fallbackBinary := writeFakeKustomize(t, filepath.Join(repoRoot, "bin"), "kustomize", "fallback")
+	t.Setenv("PATH", filepath.Dir(fallbackBinary)+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	tests := []struct {
+		name           string
+		binaryPath     string
+		isLocal        bool
+		expectedName   string
+		expectedErr    string
+		expectedNoPath bool
+	}{
+		{
+			name:         "absolute configured binary",
+			binaryPath:   customBinary,
+			isLocal:      true,
+			expectedName: "custom",
+		},
+		{
+			name:         "relative configured binary",
+			binaryPath:   "./tools/custom-kustomize",
+			isLocal:      true,
+			expectedName: "custom",
+		},
+		{
+			name:         "missing configured binary falls back to PATH",
+			binaryPath:   filepath.Join(repoRoot, "missing", "kustomize"),
+			isLocal:      true,
+			expectedName: "fallback",
+		},
+		{
+			name:        "repo server does not fall back",
+			binaryPath:  filepath.Join(repoRoot, "missing", "kustomize"),
+			expectedErr: "no such file or directory",
+		},
+		{
+			name:           "unknown version is still rejected locally",
+			isLocal:        true,
+			expectedErr:    "kustomize version v1.2.3 is not registered",
+			expectedNoPath: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			options := &v1alpha1.KustomizeOptions{}
+			if !tc.expectedNoPath {
+				options.Versions = []v1alpha1.KustomizeVersion{{Name: "v1.2.3", Path: tc.binaryPath}}
+			}
+			originalOptions := options.DeepCopy()
+			source := v1alpha1.ApplicationSource{
+				Path:      "app",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v1.2.3"},
+			}
+			q := apiclient.ManifestRequest{
+				Repo:              &v1alpha1.Repository{},
+				ApplicationSource: &source,
+				KustomizeOptions:  options,
+			}
+
+			res, err := GenerateManifests(t.Context(), appPath, repoRoot, "", &q, tc.isLocal, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+			if tc.expectedErr != "" {
+				require.ErrorContains(t, err, tc.expectedErr)
+				assert.Nil(t, res)
+			} else {
+				require.NoError(t, err)
+				require.Len(t, res.Manifests, 1)
+				var manifest unstructured.Unstructured
+				require.NoError(t, yaml.Unmarshal([]byte(res.Manifests[0]), &manifest))
+				assert.Equal(t, tc.expectedName, manifest.GetName())
+			}
+			assert.Equal(t, originalOptions, q.KustomizeOptions)
+		})
+	}
+}
+
+func TestGenerateManifests_KustomizeLocalSourceOverride(t *testing.T) {
+	repoRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(repoRoot, ".argocd-source.yaml"), []byte("kustomize:\n  version: v1.2.3\n"), 0o600))
+	customBinary := writeFakeKustomize(t, filepath.Join(repoRoot, "tools"), "custom-kustomize", "custom")
+	t.Chdir(repoRoot)
+
+	source := v1alpha1.ApplicationSource{
+		Path:      ".",
+		Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v9.9.9"},
+	}
+	q := apiclient.ManifestRequest{
+		Repo:              &v1alpha1.Repository{},
+		ApplicationSource: &source,
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			Versions: []v1alpha1.KustomizeVersion{{Name: "v1.2.3", Path: customBinary}},
+		},
+	}
+
+	res, err := GenerateManifests(t.Context(), repoRoot, repoRoot, "", &q, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	require.NoError(t, err)
+	require.Len(t, res.Manifests, 1)
+	var manifest unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal([]byte(res.Manifests[0]), &manifest))
+	assert.Equal(t, "custom", manifest.GetName())
+	assert.Equal(t, "v1.2.3", q.ApplicationSource.Kustomize.Version)
+}
+
+func writeFakeKustomize(t *testing.T, dir, name, resourceName string) string {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o700))
+	binary := filepath.Join(dir, name)
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "version" ]; then
+  printf '{kustomize/v5.0.0 2024-01-01T00:00:00Z}\n'
+  exit 0
+fi
+cat <<'MANIFEST'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: %s
+MANIFEST
+`, resourceName)
+	require.NoError(t, os.WriteFile(binary, []byte(script), 0o700))
+	return binary
+}
+
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 	t.Parallel()
 
