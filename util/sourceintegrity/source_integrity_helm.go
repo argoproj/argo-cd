@@ -180,7 +180,8 @@ func helmProvenanceProblem(ctx context.Context, keys []string, chartName, chartV
 	if signedName != chartName {
 		return fmt.Sprintf("provenance signs chart %q, not %q", signedName, chartName), nil
 	}
-	if chartVersion != "" && signedVersion != chartVersion {
+	// Helm resolves a requested "v1.0.0" to the chart versioned "1.0.0".
+	if chartVersion != "" && strings.TrimPrefix(signedVersion, "v") != strings.TrimPrefix(chartVersion, "v") {
 		return fmt.Sprintf("provenance signs version %q of the chart, not %q", signedVersion, chartVersion), nil
 	}
 	return "", nil

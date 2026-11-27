@@ -363,10 +363,11 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, isHelmChart)
 	if err != nil {
 		if manifestsDir != "" {
+			_ = os.RemoveAll(manifestsDir)
 			_ = os.Remove(manifestsDir + helm.ChartDigestSuffix)
 			_ = os.Remove(manifestsDir + helm.ProvenanceSuffix)
 		}
-		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
+		return "", nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
 	if isHelmChart {
 		// Push keeps whichever provenance layer oras.Copy pushed first. With several, that choice is

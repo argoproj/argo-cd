@@ -141,6 +141,12 @@ func TestVerifyHelm(t *testing.T) {
 		signer:      provSignerKeyID,
 		wantProblem: `provenance signs version "1.0.0" of the chart, not "2.0.0"`,
 	}, {
+		name:    "v-prefixed requested version matches",
+		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch:   fetchChart,
+		version: "v1.0.0",
+		signer:  provSignerKeyID,
+	}, {
 		name:    "version not checked when unknown",
 		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
 		fetch:   fetchChart,

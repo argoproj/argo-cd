@@ -96,7 +96,7 @@ As with Git source integrity, `argocd app sync --local` is rejected for applicat
 |-------|---------------|
 | `could not access chart for provenance verification: chart has no provenance file (.prov)` | The chart was published without a `.prov`, or downloading it failed. Publish a signed chart, or narrow the policy's `repos`. The chart is pulled again on the next refresh until its `.prov` is downloaded. |
 | `could not access chart for provenance verification: provenance unavailable: ... is not a Helm chart` | A Helm policy matches an `oci://` source whose artifact is not a Helm chart. Narrow the policy's `repos`. |
-| `could not access chart for provenance verification: provenance unavailable: ... has no provenance layer` | The `oci://` chart was pushed without a `.prov`. Push it again with `helm push` from a directory that also holds the `.prov`. |
+| `could not access chart for provenance verification: provenance unavailable: ... has no provenance layer` | The `oci://` chart was pushed without a `.prov`. Push it again with `helm push` from a directory that also holds the `.prov`. This creates a new digest, so if `targetRevision` is pinned to a digest, update it to the new one. |
 | `provenance signature verification failed: signed with key not in keyring` | Import the signer's public key with `argocd gpg add`. |
 | `provenance signature verification failed: bad signature` | The `.prov` file is corrupt or was modified after signing. |
 | `signed with unallowed key (key_id=...)` | The signature is valid, but neither the signing key nor its primary key is in `provenance.keys`. |
