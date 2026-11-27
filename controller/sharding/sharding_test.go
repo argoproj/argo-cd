@@ -1045,3 +1045,73 @@ spec:
 	}
 	return app
 }
+
+func TestAppDistributionWithDestinationName(t *testing.T) {
+	t.Parallel()
+	cluster1 := createCluster("cluster1", "1")
+	cluster2 := createCluster("cluster2", "2")
+	duplicate1 := createCluster("duplicate", "3")
+	duplicate2 := createCluster("duplicate", "4")
+	unnamed := createCluster("", "5")
+
+	clusterList := getClusterPointers([]v1alpha1.Cluster{cluster1, cluster2, duplicate1, duplicate2, unnamed})
+	appList := getAppPointers([]v1alpha1.Application{
+		createAppWithDestinationName("app1", "cluster1"),
+		createAppWithDestinationName("app2", "cluster1"),
+		createApp("app3", cluster1.Server),
+		createAppWithDestinationName("app4", "cluster2"),
+		createAppWithDestinationName("app5", "duplicate"),
+		createAppWithDestinationName("app6", "unknown"),
+	})
+
+	getClusters := func() []*v1alpha1.Cluster { return clusterList }
+	getApps := func() []*v1alpha1.Application { return appList }
+
+	appDistribution := getAppDistribution(getClusters, getApps)
+
+	assert.Equal(t, int64(3), appDistribution[cluster1.Server])
+	assert.Equal(t, int64(1), appDistribution[cluster2.Server])
+	assert.Equal(t, int64(0), appDistribution[duplicate1.Server])
+	assert.Equal(t, int64(0), appDistribution[duplicate2.Server])
+	assert.Equal(t, int64(2), appDistribution[""])
+}
+
+func TestConsistentHashingWithAppsUsingDestinationName(t *testing.T) {
+	t.Parallel()
+	cluster1 := createCluster("cluster1", "1")
+	cluster2 := createCluster("cluster2", "2")
+	clusters := []v1alpha1.Cluster{cluster1, cluster2}
+
+	apps := []v1alpha1.Application{}
+	for i := range 10 {
+		apps = append(apps,
+			createAppWithDestinationName(fmt.Sprintf("app-cluster1-%d", i), cluster1.Name),
+			createAppWithDestinationName(fmt.Sprintf("app-cluster2-%d", i), cluster2.Name),
+		)
+	}
+
+	replicasCount := 2
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusters), getAppAccessor(apps), replicasCount)
+
+	// Both clusters have the same number of applications, so the bounded loads must place them on different shards.
+	assert.NotEqual(t, distributionFunction(&clusters[0]), distributionFunction(&clusters[1]))
+}
+
+func createAppWithDestinationName(name string, destinationName string) v1alpha1.Application {
+	testApp := `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ` + name + `
+spec:
+  destination:
+    name: ` + destinationName + `
+`
+
+	var app v1alpha1.Application
+	err := yaml.Unmarshal([]byte(testApp), &app)
+	if err != nil {
+		panic(err)
+	}
+	return app
+}
