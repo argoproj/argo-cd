@@ -427,7 +427,7 @@ func TestGetClusterHosts(t *testing.T) {
 		assert.Nil(t, c.hosts[cluster.Server].current.Load())
 
 		build(t, c)
-		c.invalidate(cacheSettings{})
+		c.invalidate(cacheSettings{}, false)
 		assert.Nil(t, c.hosts[cluster.Server].current.Load())
 
 		build(t, c)

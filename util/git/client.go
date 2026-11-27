@@ -140,7 +140,13 @@ type gitRefCache interface {
 	UnlockGitReferences(repo string, lockId string) error
 }
 
-// Client is a generic git client interface
+// Client is a generic git client interface.
+//
+// Methods that write to the clone (Fetch, Checkout*, SetAuthor, GetCommitNote,
+// AddAndPushNote) ignore context cancellation and deadlines, running until
+// they finish or hit ARGOCD_EXEC_TIMEOUT: killing them part way throws away
+// work that later requests on the same shared clone would reuse, and can leave
+// lock files behind (#30953). Read-only methods honour cancellation.
 type Client interface {
 	Root() string
 	RepoURL() string
@@ -704,6 +710,8 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
+	ctx = context.WithoutCancel(ctx)
+
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
@@ -798,6 +806,7 @@ func (m *nativeGitClient) submodule(ctx context.Context) error {
 
 // Checkout checks out the specified revision
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
@@ -1902,6 +1911,7 @@ func (m *nativeGitClient) config(ctx context.Context, args ...string) (string, e
 
 // SetAuthor sets the author name and email in the git configuration.
 func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if name != "" {
 		out, err := m.config(ctx, "--local", "user.name", name)
 		if err != nil {
@@ -1919,6 +1929,7 @@ func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (st
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
@@ -1948,6 +1959,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, s
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
 func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -2041,6 +2053,7 @@ func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision st
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespace string) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
@@ -2063,6 +2076,7 @@ func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespa
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
 // It uses a retry mechanism to handle concurrent note updates from multiple clients.
 func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error {
+	ctx = context.WithoutCancel(ctx)
 	if namespace == "" {
 		namespace = "commit"
 	}
