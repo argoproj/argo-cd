@@ -11,6 +11,10 @@ jest.mock('../../../shared/services', () => ({
         repos: {
             appDetails: jest.fn()
         },
+        authService: {
+            plugins: jest.fn().mockResolvedValue([]),
+            settings: jest.fn().mockResolvedValue({kustomizeVersions: []})
+        },
         viewPreferences: {
             getPreferences: jest.fn().mockResolvedValue({pageSizes: {'5': 10}, sortOptions: {}}),
             updatePreferences: jest.fn()
@@ -20,6 +24,10 @@ jest.mock('../../../shared/services', () => ({
 
 jest.mock('lodash-es', () => ({
     cloneDeep: (value: unknown) => JSON.parse(JSON.stringify(value))
+}));
+
+jest.mock('../revision-form-field/revision-form-field', () => ({
+    RevisionFormField: () => null
 }));
 
 jest.mock('./source-panel', () => ({
@@ -312,5 +320,53 @@ describe.each([false, true])('ApplicationParameters repository details failure (
 
         expect(await screen.findByText('HELM')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+});
+
+describe.each([false, true])('ApplicationParameters Kustomize image save (multi-source: %s)', multiSource => {
+    const appDetails = services.repos.appDetails as jest.Mock;
+
+    const saveWithEdit = async (images: string[], edit: (row: (name: string) => HTMLElement) => Promise<void>) => {
+        const source = {repoURL: 'https://github.com/example/repo', path: 'manifests', targetRevision: 'main', kustomize: {namespace: 'old', images}} as models.ApplicationSource;
+        const app = multiSourceApp();
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockResolvedValue({type: 'Kustomize', kustomize: {images: ['mysql', 'nginx']}});
+        const save = jest.fn().mockResolvedValue(undefined);
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[]} handleCollapse={jest.fn()} />);
+        expect(await screen.findByText('KUSTOMIZE')).toBeInTheDocument();
+        const panel = screen.getByText('KUSTOMIZE').parentElement.parentElement;
+        await user.click(within(panel).getByRole('button', {name: 'Edit', exact: true}));
+        await edit(name => screen.getByText(name).closest('.white-box__details-row') as HTMLElement);
+        await user.click(within(panel).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const saved = save.mock.calls[0][0] as models.Application;
+        return (multiSource ? saved.spec.sources[0] : saved.spec.source).kustomize.images;
+    };
+
+    test('keeps rename-only and digest overrides when another field is saved', async () => {
+        const images = ['mysql=mariadb-next', 'nginx@sha256:0123'];
+        const user = userEvent.setup();
+        const saved = await saveWithEdit(images, async () => {
+            const namespace = screen.getByDisplayValue('old');
+            await user.clear(namespace);
+            await user.type(namespace, 'new');
+        });
+
+        expect(saved).toEqual(images);
+    });
+
+    test('still drops an override whose tag was cleared', async () => {
+        const user = userEvent.setup();
+        const saved = await saveWithEdit(['mysql=mariadb-next', 'nginx:1.2'], async row => {
+            await user.clear(within(row('nginx')).getAllByRole('textbox')[1]);
+        });
+
+        expect(saved).toEqual(['mysql=mariadb-next']);
     });
 });

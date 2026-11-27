@@ -18,7 +18,7 @@
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@tanstack/react-query": "5.104.0",
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#28927a57027a361505ff91d0498a4bc9670bd882",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#b179d542ad350b0727ad03c2fe393f5b708f7ea8",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",

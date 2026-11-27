@@ -6,14 +6,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
-
-	"github.com/stretchr/testify/require"
 )
 
 const pwd = "test-password"
@@ -173,4 +174,131 @@ func TestBoundedFloat64Var(t *testing.T) {
 			assert.Error(t, fs.Parse([]string{"--ratio=" + in}))
 		})
 	}
+}
+
+func TestInteractiveEdit_CleansUpTempFile(t *testing.T) {
+	editorScript := filepath.Join(t.TempDir(), "editor.sh")
+	err := os.WriteFile(editorScript, []byte("#!/bin/sh\necho 'edited: true' > \"$1\"\n"), 0o755)
+	require.NoError(t, err)
+	t.Setenv("EDITOR", editorScript)
+
+	pattern := "test-interactive-edit-*.yaml"
+	globPattern := filepath.Join(os.TempDir(), pattern)
+
+	beforeMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	saved := false
+	InteractiveEdit(pattern, []byte("initial: content"), func(input []byte) error {
+		saved = true
+		assert.Equal(t, []byte("edited: true\n"), input)
+		return nil
+	})
+
+	assert.True(t, saved)
+
+	afterMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	assert.Len(t, afterMatches, len(beforeMatches), "InteractiveEdit should clean up temporary file on success")
+}
+
+func TestInteractiveEdit_CleansUpTempFileOnRetry(t *testing.T) {
+	editorScript := filepath.Join(t.TempDir(), "editor.sh")
+	err := os.WriteFile(editorScript, []byte("#!/bin/sh\necho 'attempt: edit' > \"$1\"\n"), 0o755)
+	require.NoError(t, err)
+	t.Setenv("EDITOR", editorScript)
+
+	pattern := "test-interactive-retry-*.yaml"
+	globPattern := filepath.Join(os.TempDir(), pattern)
+
+	beforeMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	attempts := 0
+	InteractiveEdit(pattern, []byte("initial: content"), func(_ []byte) error {
+		attempts++
+		if attempts == 1 {
+			return errors.New("validation error, retry required")
+		}
+		return nil
+	})
+
+	assert.Equal(t, 2, attempts)
+
+	afterMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	assert.Len(t, afterMatches, len(beforeMatches), "InteractiveEdit should clean up all temporary files across retries")
+}
+
+func TestInteractiveEdit_CleansUpTempFileOnCancel(t *testing.T) {
+	if os.Getenv("TEST_INTERACTIVE_EDIT_CANCEL") == "1" {
+		t.Setenv("EDITOR", "true") // leaves file unchanged, triggering cancellation
+		InteractiveEdit("test-interactive-cancel-*.yaml", []byte("initial: content"), func(_ []byte) error {
+			return nil
+		})
+		return
+	}
+
+	pattern := "test-interactive-cancel-*.yaml"
+	globPattern := filepath.Join(os.TempDir(), pattern)
+
+	beforeMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(os.Environ(), "TEST_INTERACTIVE_EDIT_CANCEL=1")
+	err = cmd.Run()
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, 20, exitErr.ExitCode(), "expected generic error exit code from errors.CheckError")
+
+	afterMatches, err := filepath.Glob(globPattern)
+	require.NoError(t, err)
+
+	assert.Len(t, afterMatches, len(beforeMatches), "InteractiveEdit should clean up temporary file on cancellation")
+}
+
+func TestPrintDiff_CleansUpTempDir(t *testing.T) {
+	live := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": "my-cm",
+			},
+			"data": map[string]any{
+				"key": "val1",
+			},
+		},
+	}
+	target := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": "my-cm",
+			},
+			"data": map[string]any{
+				"key": "val2",
+			},
+		},
+	}
+
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+	t.Setenv("KUBECTL_EXTERNAL_DIFF", "")
+
+	// PrintDiff will run `diff` and return an error because files differ (exit status 1)
+	err := PrintDiff("my-cm", live, target)
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, 1, exitErr.ExitCode())
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "PrintDiff should clean up its temporary directory")
 }

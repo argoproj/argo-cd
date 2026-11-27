@@ -265,7 +265,7 @@ export const ApplicationCreatePanel = (props: {
                 ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
             }>
             {({projects, clusters, reposInfo}) => {
-                const repos = reposInfo.map(info => info.repo).sort();
+                const repos = [...reposInfo].sort((curr, next) => curr.repo.localeCompare(next.repo));
                 return (
                     <div className='application-create-panel'>
                         {(yamlMode && (
