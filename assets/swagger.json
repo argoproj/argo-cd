@@ -11336,6 +11336,10 @@
           "format": "byte",
           "title": "CAData holds PEM-encoded bytes (typically read from a root certificates bundle).\nCAData takes precedence over CAFile"
         },
+        "caTrust": {
+          "description": "CATrust selects the certificate authorities trusted when CAData is empty. \"bundle\" trusts only the CAs in the\nargocd-default-cluster-ca-cm ConfigMap, \"system\" trusts only the system roots, and \"bundle-and-system\" trusts both.\nWhen empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.",
+          "type": "string"
+        },
         "certData": {
           "type": "string",
           "format": "byte",

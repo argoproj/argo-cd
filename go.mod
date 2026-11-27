@@ -77,7 +77,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.2
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.10.0
+	github.com/ktrysmt/go-bitbucket v0.12.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/mattn/go-zglob v0.0.8
 	github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.1-0.20241014080628-3045bdf43455
