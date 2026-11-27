@@ -108,6 +108,10 @@ type apiMeta struct {
 type eventMeta struct {
 	event watch.EventType
 	un    *unstructured.Unstructured
+	// watchGen is the producing watch's relist generation and gen its value when the event was
+	// queued. A batched event whose gen is behind predates a relist and is dropped. Nil never drops.
+	watchGen *atomic.Uint64
+	gen      uint64
 }
 
 // ClusterInfo holds cluster cache stats

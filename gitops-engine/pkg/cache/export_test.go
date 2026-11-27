@@ -29,5 +29,5 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 }
 
 func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstructured) {
-	legacyEngineOf(c).recordEvent(event, un)
+	legacyEngineOf(c).recordEvent(event, un, nil)
 }

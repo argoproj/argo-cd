@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -349,6 +350,7 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 
 func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
 	c := e.c
+	var gen atomic.Uint64
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -393,10 +395,13 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		}
 
 		// Relist after any exit: the retry watcher only stops when it can't resume, and a
-		// recovered panic may have left an event half applied.
+		// recovered panic may have left an event half applied. Bumping gen drops this watch's
+		// events still waiting in a batch, which could otherwise land after the relist and
+		// restore a deleted resource.
 		defer func() {
 			w.Stop()
 			resourceVersion = ""
+			gen.Add(1)
 		}()
 
 		for {
@@ -422,7 +427,7 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
 				}
 
-				e.recordEvent(event.Type, obj)
+				e.recordEvent(event.Type, obj, &gen)
 				if kube.IsCRD(obj) {
 					c.handleCRDEvent(e, event.Type, obj)
 				} else if kube.IsAPIService(obj) {
@@ -433,7 +438,7 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	})
 }
 
-func (e *legacyEngine) recordEvent(event watch.EventType, un *unstructured.Unstructured) {
+func (e *legacyEngine) recordEvent(event watch.EventType, un *unstructured.Unstructured, watchGen *atomic.Uint64) {
 	c := e.c
 	for _, h := range c.getEventHandlers() {
 		h(event, un)
@@ -444,11 +449,15 @@ func (e *legacyEngine) recordEvent(event watch.EventType, un *unstructured.Unstr
 	}
 
 	if c.batchEventsProcessing {
-		e.eventMetaCh <- eventMeta{event, un}
+		evMeta := eventMeta{event: event, un: un, watchGen: watchGen}
+		if watchGen != nil {
+			evMeta.gen = watchGen.Load()
+		}
+		e.eventMetaCh <- evMeta
 	} else {
 		c.lock.Lock()
 		defer c.lock.Unlock()
-		e.processEvent(key, eventMeta{event, un})
+		e.processEvent(key, eventMeta{event: event, un: un})
 	}
 }
 
@@ -513,6 +522,10 @@ func (e *legacyEngine) processEventsBatch(eventMetas []eventMeta) {
 	}()
 
 	for i, evMeta := range eventMetas {
+		// Checked under c.lock, which the relist also takes to replace the cache.
+		if evMeta.watchGen != nil && evMeta.watchGen.Load() != evMeta.gen {
+			continue
+		}
 		key := kube.GetResourceKey(evMeta.un)
 		e.processEventWithResource(key, evMeta, resources[i])
 	}

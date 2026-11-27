@@ -3603,3 +3603,27 @@ func TestWatchEvents_RecoveredPanicRelists(t *testing.T) {
 	// The event may be half applied, so relist rather than resume or replay it.
 	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
 }
+
+func TestWatchEvents_RelistDropsQueuedBatchedEvents(t *testing.T) {
+	t.Parallel()
+	cluster, lists, _, current := watchResumeCluster(t, SetBatchEventsProcessing(true), SetEventProcessingInterval(3*time.Second))
+
+	// Queued for the next batch, then deleted while the watch is expired: the relist doesn't see it
+	// and the resumed watch starts after the deletion.
+	deleted := &unstructured.Unstructured{}
+	deleted.SetAPIVersion("v1")
+	deleted.SetKind("Pod")
+	deleted.SetName("deleted")
+	deleted.SetNamespace("default")
+	deleted.SetResourceVersion("200")
+	current().Modify(deleted)
+	current().Error(&apierrors.NewResourceExpired("too old resource version").ErrStatus)
+	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+
+	// The relist waits out the 1s watch retry interval; the batch flushes 3s after sync.
+	time.Sleep(2500 * time.Millisecond)
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+	assert.NotContains(t, cluster.resources, kube.NewResourceKey("", "Pod", "default", "deleted"))
+	assert.Contains(t, cluster.resources, kube.NewResourceKey("", "Pod", "default", "pod"))
+}
