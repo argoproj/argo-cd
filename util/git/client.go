@@ -31,6 +31,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -139,7 +140,13 @@ type gitRefCache interface {
 	UnlockGitReferences(repo string, lockId string) error
 }
 
-// Client is a generic git client interface
+// Client is a generic git client interface.
+//
+// Methods that write to the clone (Fetch, Checkout*, SetAuthor, GetCommitNote,
+// AddAndPushNote) ignore context cancellation and deadlines, running until
+// they finish or hit ARGOCD_EXEC_TIMEOUT: killing them part way throws away
+// work that later requests on the same shared clone would reuse, and can leave
+// lock files behind (#30953). Read-only methods honour cancellation.
 type Client interface {
 	Root() string
 	RepoURL() string
@@ -169,8 +176,6 @@ type Client interface {
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
 	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
-	// RemoveContents removes all files from the given paths in the git repository.
-	RemoveContents(ctx context.Context, paths []string) (string, error)
 	// Commit stages all changes and creates a single commit. If signingKeyID
 	// is non-empty, the commit is GPG-signed with the given key from the
 	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
@@ -307,19 +312,6 @@ func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.optimizedLsRemoteEnabled = enabled
 	}
-}
-
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
-	r := regexp.MustCompile(`([/:])`)
-	normalizedGitURL := NormalizeGitURL(rawRepoURL)
-	if normalizedGitURL == "" {
-		return nil, fmt.Errorf("repository %q cannot be initialized: %w", SanitizeRepoURL(rawRepoURL), ErrInvalidRepoURL)
-	}
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
-	if root == os.TempDir() {
-		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", SanitizeRepoURL(rawRepoURL), root)
-	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
@@ -718,6 +710,8 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
+	ctx = context.WithoutCancel(ctx)
+
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
@@ -812,6 +806,7 @@ func (m *nativeGitClient) submodule(ctx context.Context) error {
 
 // Checkout checks out the specified revision
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
@@ -892,7 +887,22 @@ func (m *nativeGitClient) getRefsFromCacheOrFetch(cacheKey string, logPrefix str
 			needsUnlock = false
 		}
 	}
-	return res, err
+	return res, annotateInvalidPktLen(err)
+}
+
+// invalidPktLenAuthHint is appended when go-git's pkt-line scanner rejects a
+// ref advertisement. Hosts such as Azure DevOps answer an unauthenticated
+// ls-remote with an HTML login page and HTTP 200, and go-git reports that only
+// as ErrInvalidPktLen (see dagger/dagger#11112).
+const invalidPktLenAuthHint = "check repository authentication"
+
+// annotateInvalidPktLen keeps go-git's original error and adds a short hint
+// when that error is the invalid pkt-len sentinel. Other errors are unchanged.
+func annotateInvalidPktLen(err error) error {
+	if err == nil || !errors.Is(err, pktline.ErrInvalidPktLen) {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, invalidPktLenAuthHint)
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
@@ -955,7 +965,7 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // not be resolved. This method runs with in-memory storage and is safe to run concurrently,
 // or to be run without a git repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
-	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+	for attempt := range maxAttemptsCount {
 		res, err = m.lsRemote(revision)
 		if err == nil {
 			return res, nil
@@ -1286,6 +1296,13 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// A remote can carry a branch literally named "HEAD" alongside the symbolic HEAD. Git follows the
+	// symbolic ref, so "HEAD" must not resolve to refs/heads/HEAD. HEAD is the only advertised ref
+	// living outside refs/, so it is also the only revision whose short name match can be outranked by
+	// a later ref; shortMatch defers that decision. Every other revision still resolves on first match.
+	mayShadowHead := revision == "HEAD"
+	shortMatch := ""
+
 	isShortRef := IsShortRef(revision)
 	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
 
@@ -1298,8 +1315,15 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 		// log.Debugf("%s\t%s", hash, refName)
 		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
-				return hash, nil
+				// No other ref can carry this exact name, so nothing later in the listing can outrank
+				// it - not even a symbolic reference, which would have to be this very ref.
+				if refName == revision || !mayShadowHead {
+					log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+					return hash, nil
+				}
+				if shortMatch == "" {
+					shortMatch = hash
+				}
 			}
 			if ref.Type() == plumbing.SymbolicReference {
 				refToResolve = ref.Target().String()
@@ -1314,6 +1338,11 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			return hash, nil
 		}
+	}
+
+	if shortMatch != "" {
+		log.Debugf("revision '%s' resolved to '%s'", revision, shortMatch)
+		return shortMatch, nil
 	}
 
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
@@ -1882,6 +1911,7 @@ func (m *nativeGitClient) config(ctx context.Context, args ...string) (string, e
 
 // SetAuthor sets the author name and email in the git configuration.
 func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if name != "" {
 		out, err := m.config(ctx, "--local", "user.name", name)
 		if err != nil {
@@ -1899,6 +1929,7 @@ func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (st
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
@@ -1928,6 +1959,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, s
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
 func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -1944,19 +1976,6 @@ func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string
 		if err != nil {
 			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
-	}
-	return "", nil
-}
-
-// RemoveContents removes all files from the path of git repository.
-func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (string, error) {
-	if len(paths) == 0 {
-		return "", nil
-	}
-	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
-	out, err := m.runCmd(ctx, args...)
-	if err != nil {
-		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
 	}
 	return "", nil
 }
@@ -2034,6 +2053,7 @@ func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision st
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespace string) (string, error) {
+	ctx = context.WithoutCancel(ctx)
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
@@ -2056,6 +2076,7 @@ func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespa
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
 // It uses a retry mechanism to handle concurrent note updates from multiple clients.
 func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error {
+	ctx = context.WithoutCancel(ctx)
 	if namespace == "" {
 		namespace = "commit"
 	}

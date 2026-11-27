@@ -59,6 +59,11 @@ const (
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
+	// ArgoCDClusterCAConfigMapName contains the default CA bundle used to verify the Kubernetes API server of clusters
+	// that do not define their own tlsClientConfig.caData. It has no effect on repository connections.
+	ArgoCDClusterCAConfigMapName = "argocd-default-cluster-ca-cm"
+	// ArgoCDClusterCAConfigMapKey is the key in ArgoCDClusterCAConfigMapName holding the PEM encoded CA bundle
+	ArgoCDClusterCAConfigMapKey = "ca.crt"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
 	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"
@@ -130,6 +135,8 @@ const (
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
 	StateCookieName = "argocd.oauthstate"
+	// SSOAutoLoginPausedCookieName is the HTTP cookie name that tells the UI not to redirect to SSO after a logout
+	SSOAutoLoginPausedCookieName = "argocd.sso.autoLoginPaused"
 	// StateCookieMaxAge is the maximum age of the oauth state cookie
 	StateCookieMaxAge = time.Minute * 5
 
@@ -307,6 +314,9 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
+	// EnvControllerReconciledAtHeartbeat bounds how stale the persisted Application
+	// status.reconciledAt field may become while nothing else in status changes
+	EnvControllerReconciledAtHeartbeat = "ARGOCD_APPLICATION_CONTROLLER_RECONCILED_AT_HEARTBEAT"
 	// EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection

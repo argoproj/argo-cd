@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1535,6 +1537,8 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// ManualDefaults controls the default behavior of a manual sync
+	ManualDefaults *SyncPolicyManualDefaults `json:"manualDefaults,omitempty" protobuf:"bytes,5,opt,name=manualDefaults"`
 	// If you add a field here, be sure to update IsZero.
 }
 
@@ -1546,9 +1550,121 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
+// GetPrune returns whether manual syncs should prune by default.
+// This is independent of SyncPolicyAutomated.Prune, which only applies to automated syncs.
+// When ManualDefaults is nil (every existing app without the opt-in), returns false so behavior
+// matches legacy Argo CD. When ManualDefaults is set and prune is omitted, defaults to true.
+func (p *SyncPolicy) GetPrune() bool {
+	if p == nil || p.ManualDefaults == nil {
+		return false
+	}
+	return p.ManualDefaults.GetPrune()
+}
+
+// GetDryRun returns whether manual syncs should dry-run by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetDryRun() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetDryRun()
+}
+
+// GetApplyOnly returns whether manual syncs should use apply-only strategy by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false — hook strategy).
+func (p *SyncPolicy) GetApplyOnly() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetApplyOnly()
+}
+
+// GetForce returns whether manual syncs should force by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetForce() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetForce()
+}
+
+// GetSyncStrategy returns the default sync strategy from syncPolicy.manualDefaults.
+// When ManualDefaults is nil, returns the field-level defaults (hook, no force).
+func (p *SyncPolicy) GetSyncStrategy() *SyncStrategy {
+	if p == nil {
+		return (&SyncPolicyManualDefaults{}).SyncStrategy()
+	}
+	return p.ManualDefaults.SyncStrategy()
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+	return p == nil || (p.Automated == nil && p.ManualDefaults == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+}
+
+// SyncPolicyManualDefaults controls the default behavior of a manual sync
+type SyncPolicyManualDefaults struct {
+	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	// DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+	DryRun *bool `json:"dryRun,omitempty" protobuf:"bytes,2,opt,name=dryRun"`
+	// ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+	ApplyOnly *bool `json:"applyOnly,omitempty" protobuf:"bytes,3,opt,name=applyOnly"`
+	// Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+	Force *bool `json:"force,omitempty" protobuf:"bytes,4,opt,name=force"`
+}
+
+// NewSyncPolicyManualDefaults returns ManualDefaults with prune explicitly false.
+// Use this when creating the object for dryRun/applyOnly/force so GetPrune()'s
+// true-when-nil default does not unexpectedly enable pruning. Callers that intend
+// prune-by-default should set Prune explicitly (or leave it nil after constructing
+// ManualDefaults{} themselves).
+func NewSyncPolicyManualDefaults() *SyncPolicyManualDefaults {
+	return &SyncPolicyManualDefaults{Prune: new(false)}
+}
+
+// GetPrune returns the value of Prune, defaulting to true if nil.
+// Writers that create ManualDefaults for a non-prune field should set prune:false
+// explicitly (see NewSyncPolicyManualDefaults) so enabling force/dryRun/applyOnly
+// alone does not opt into pruning.
+func (m *SyncPolicyManualDefaults) GetPrune() bool {
+	if m == nil || m.Prune == nil {
+		return true
+	}
+	return *m.Prune
+}
+
+// GetDryRun returns the value of DryRun, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetDryRun() bool {
+	if m == nil || m.DryRun == nil {
+		return false
+	}
+	return *m.DryRun
+}
+
+// GetApplyOnly returns the value of ApplyOnly, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetApplyOnly() bool {
+	if m == nil || m.ApplyOnly == nil {
+		return false
+	}
+	return *m.ApplyOnly
+}
+
+// GetForce returns the value of Force, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetForce() bool {
+	if m == nil || m.Force == nil {
+		return false
+	}
+	return *m.Force
+}
+
+// SyncStrategy returns the SyncStrategy implied by ApplyOnly and Force.
+func (m *SyncPolicyManualDefaults) SyncStrategy() *SyncStrategy {
+	force := m.GetForce()
+	if m.GetApplyOnly() {
+		return &SyncStrategy{Apply: &SyncStrategyApply{Force: force}}
+	}
+	return &SyncStrategy{Hook: &SyncStrategyHook{Force: force}}
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -2333,6 +2449,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle is the default CA bundle (from the argocd-default-cluster-ca-cm ConfigMap) used to verify the
+	// cluster API server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the
+	// DB layer and is neither persisted in the cluster secret nor exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -2393,6 +2513,7 @@ func (c *Cluster) Sanitized() *Cluster {
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
+				CATrust:    c.Config.CATrust,
 			},
 			// We can't know what the user has put into args or
 			// env vars on the exec provider that might be sensitive
@@ -2595,7 +2716,23 @@ type TLSClientConfig struct {
 	// CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
 	// CAData takes precedence over CAFile
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
+	// CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
+	// argocd-default-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+	// When empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+	CATrust ClusterCATrust `json:"caTrust,omitempty" protobuf:"bytes,6,opt,name=caTrust"`
 }
+
+// ClusterCATrust selects the certificate authorities a cluster without its own CA data trusts
+type ClusterCATrust string
+
+const (
+	// ClusterCATrustBundle trusts only the CAs in argocd-default-cluster-ca-cm, and fails when it has none
+	ClusterCATrustBundle ClusterCATrust = "bundle"
+	// ClusterCATrustSystem trusts only the system roots and ignores argocd-default-cluster-ca-cm
+	ClusterCATrustSystem ClusterCATrust = "system"
+	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-default-cluster-ca-cm and the system roots
+	ClusterCATrustBundleAndSystem ClusterCATrust = "bundle-and-system"
+)
 
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
 // and a well-known Kubernetes type. This mapping is primarily used for unit conversions
@@ -3544,9 +3681,7 @@ func (w *SyncWindows) hasDeny() (bool, bool) {
 	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyFound {
-				manualEnabled = a.ManualSync
-			} else if manualEnabled {
+			if !denyFound || manualEnabled {
 				manualEnabled = a.ManualSync
 			}
 			denyFound = true
@@ -3942,11 +4077,7 @@ func (app *Application) UnSetCascadedDeletion() {
 
 func isPropagationPolicyFinalizer(finalizer string) bool {
 	switch finalizer {
-	case ResourcesFinalizerName:
-		return true
-	case ForegroundPropagationPolicyFinalizer:
-		return true
-	case BackgroundPropagationPolicyFinalizer:
+	case ResourcesFinalizerName, ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer:
 		return true
 	default:
 		return false
@@ -3982,7 +4113,7 @@ func (app *Application) IsFinalizerPresent(finalizer string) bool {
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
 	now := metav1.Now()
-	for i := 0; i < len(status.Conditions); i++ {
+	for i := range status.Conditions {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
 			if condition.LastTransitionTime == nil {
@@ -4170,6 +4301,10 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
+	return setK8SConfigDefaults(config, nil)
+}
+
+func setK8SConfigDefaults(config *rest.Config, rootCAs *x509.CertPool) error {
 	if config.QPS <= 0 {
 		config.QPS = K8sClientConfigQPS
 	}
@@ -4179,6 +4314,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
+	}
+	if rootCAs != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	dial := (&net.Dialer{
@@ -4311,12 +4452,21 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		var trust *defaultCABundleTrust
+		trust, err = c.defaultCABundleTrust()
+		if err != nil {
+			return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
+		}
+		caData := c.Config.CAData
+		if trust != nil {
+			caData = trust.caData
+		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -4402,6 +4552,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.ExecProvider != nil && config.ExecProvider.ProvideClusterInfo &&
+		c.Config.CATrust == ClusterCATrustBundleAndSystem && c.DependsOnDefaultCABundle() && len(c.DefaultCABundle) > 0 {
+		return nil, fmt.Errorf("caTrust %q cannot be used with an exec provider that sets provideClusterInfo: the system root CAs would be passed to the plugin in its environment, which exceeds the size the operating system allows; use caTrust %q or set caData on the cluster",
+			string(ClusterCATrustBundleAndSystem), string(ClusterCATrustBundle))
+	}
 	if K8sServerSideTimeout > 0 {
 		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
 	}
@@ -4414,7 +4569,16 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
-	err = SetK8SConfigDefaults(config)
+	trust, err := c.defaultCABundleTrust()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
+	}
+	var rootCAs *x509.CertPool
+	if trust != nil {
+		rootCAs = trust.pool
+		config.CAData = nil
+	}
+	err = setK8SConfigDefaults(config, rootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}

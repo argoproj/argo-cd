@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -268,7 +269,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 51
+	const countOfManifests = 52
 
 	res1, err := service.GenerateManifest(t.Context(), &q)
 
@@ -590,13 +591,45 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --include-crds`},
+		Commands:   []string{`helm template . --include-crds`},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
 		ExternalGets: 0,
 	})
 	gitMocks.AssertNotCalled(t, "LsRemote", mock.Anything)
+}
+
+// TestHelmManifestFromChartRepo_InvalidReleaseName asserts that a release name
+// containing Go template syntax is rejected, and that the error identifies the
+// offending field. Helm evaluates --name-template as a Go template with sprig
+// loaded, so such a value must never reach the helm binary.
+func TestHelmManifestFromChartRepo_InvalidReleaseName(t *testing.T) {
+	root := t.TempDir()
+	service, _, _ := newServiceWithMocks(t, root)
+
+	for _, releaseName := range []string{
+		`{{ env "REDIS_PASSWORD" }}`,
+		`{{ printf "%x" (env "REDIS_PASSWORD") }}`,
+		"UPPERCASE",
+		"has_underscore",
+	} {
+		t.Run(releaseName, func(t *testing.T) {
+			source := &v1alpha1.ApplicationSource{
+				Chart:          "my-chart",
+				TargetRevision: ">= 1.0.0",
+				Helm:           &v1alpha1.ApplicationSourceHelm{ReleaseName: releaseName},
+			}
+			request := &apiclient.ManifestRequest{
+				Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true,
+				ProjectName: "something", ProjectSourceRepos: []string{"*"},
+			}
+			_, err := service.GenerateManifest(t.Context(), request)
+			require.Error(t, err)
+			require.ErrorContains(t, err, "invalid spec.source.helm.releaseName")
+			assert.NotContains(t, err.Error(), "REDIS_PASSWORD=")
+		})
+	}
 }
 
 func TestHelmChartReferencingExternalValues(t *testing.T) {
@@ -628,7 +661,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Commands:   []string{`helm template . --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -1110,7 +1143,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
 
-			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
+			for invocationCount := range tt.TotalCacheInvocations {
 				adjustedInvocation := invocationCount % totalAttempts
 
 				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
@@ -1547,7 +1580,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Commands:   []string{`helm template . --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -4297,6 +4330,23 @@ func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
+// https://github.com/argoproj/argo-cd/security/advisories/GHSA-94mc-2ch7-r5r5
+// Only the repositories a chart's dependencies reference may be added to Helm,
+// so that one broken registered repository can't break other charts' dependency builds.
+func TestGetHelmRepos_ExcludesUnrelatedRepos(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{
+		{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true},
+		{Repo: "https://unrelated.example.com/charts", Name: "unrelated", Type: "helm"},
+		{Repo: "https://other-team.example.com/charts", Name: "unrelated", Type: "helm"},
+	}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
 func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
@@ -5972,6 +6022,113 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 	}
 }
 
+// Sibling apps comparing on a cold repo cache share one checkout of the new revision. Fetching the
+// synced revision per caller made concurrent shallow fetches fail on .git/shallow.lock.
+func TestUpdateRevisionForPaths_ConcurrentColdCache(t *testing.T) {
+	const apps = 16
+
+	remoteDir := t.TempDir()
+	runGit := func(args ...string) string {
+		t.Helper()
+		cmd := exec.CommandContext(t.Context(), "git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd.Dir = remoteDir
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return strings.TrimSpace(string(out))
+	}
+	// Random content per commit keeps the fetch of a synced revision slow enough to overlap.
+	commit := func() string {
+		t.Helper()
+		buf := make([]byte, 16*1024)
+		require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "app"), 0o755))
+		for i := range 500 {
+			_, err := rand.Read(buf)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "app", fmt.Sprintf("f%04d", i)), buf, 0o644))
+		}
+		runGit("add", ".")
+		runGit("commit", "-m", "c")
+		return runGit("rev-parse", "HEAD")
+	}
+	runGit("init", "-b", "main")
+	// Apps alternate between two synced revisions.
+	syncedRevisions := []string{commit(), commit()}
+	revision := commit()
+
+	// Detached auto-maintenance after fetch outlives the test and races TempDir cleanup.
+	t.Setenv("GIT_CONFIG_COUNT", "2")
+	t.Setenv("GIT_CONFIG_KEY_0", "maintenance.auto")
+	t.Setenv("GIT_CONFIG_VALUE_0", "false")
+	t.Setenv("GIT_CONFIG_KEY_1", "gc.auto")
+	t.Setenv("GIT_CONFIG_VALUE_1", "0")
+
+	repoURL := "file://" + remoteDir
+	for _, depth := range []int64{0, 1} {
+		t.Run(fmt.Sprintf("depth=%d", depth), func(t *testing.T) {
+			cacheMocks := newCacheMocks()
+			t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+			s := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+			s.gitRepoInitializer = func(_ string) goio.Closer { return utilio.NopCloser }
+
+			start := make(chan struct{})
+			errs := make([]error, apps)
+			var wg sync.WaitGroup
+			for i := range apps {
+				wg.Go(func() {
+					<-start
+					_, errs[i] = s.UpdateRevisionForPaths(t.Context(), &apiclient.UpdateRevisionForPathsRequest{
+						Repo:              &v1alpha1.Repository{Repo: repoURL, Type: "git", Depth: depth},
+						Revision:          revision,
+						SyncedRevision:    syncedRevisions[i%len(syncedRevisions)],
+						Paths:             []string{"app"},
+						AppName:           fmt.Sprintf("app-%d", i),
+						ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: repoURL, Path: "app"},
+					})
+				})
+			}
+			close(start)
+			wg.Wait()
+
+			for i, err := range errs {
+				assert.NoError(t, err, "app-%d", i)
+			}
+		})
+	}
+}
+
+// A synced revision that cannot be fetched (e.g. force-pushed away) falls back to treating the
+// source as changed instead of failing the comparison, and the fallback is not cached.
+func TestUpdateRevisionForPaths_UnfetchableSyncedRevision(t *testing.T) {
+	repoPath := filepath.Join(t.TempDir(), "remote")
+	repoURL := "file://" + repoPath
+	revision := initGitRepo(t, newGitRepoOptions{path: repoPath, createPath: true, remote: repoURL, addEmptyCommit: true})
+	syncedRevision := strings.Repeat("a", 40)
+
+	for _, depth := range []int64{0, 1} {
+		t.Run(fmt.Sprintf("depth=%d", depth), func(t *testing.T) {
+			cacheMocks := newCacheMocks()
+			t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+			s := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+			s.gitRepoInitializer = func(_ string) goio.Closer { return utilio.NopCloser }
+
+			res, err := s.UpdateRevisionForPaths(t.Context(), &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: repoURL, Type: "git", Depth: depth},
+				Revision:          revision,
+				SyncedRevision:    syncedRevision,
+				Paths:             []string{"."},
+				AppName:           "app",
+				ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: repoURL, Path: "."},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Changes)
+			assert.Equal(t, revision, res.Revision)
+
+			_, err = cacheMocks.cache.GetGitFilesChanges(repoURL, revision, syncedRevision)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
+		})
+	}
+}
+
 func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) {
 	// UpdateRevisionForPaths renames the manifest cache entry from the synced
 	// revision to the resolved revision. Callers are expected to persist the
@@ -6149,7 +6306,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	numberOfCallers := 10
 	for range numberOfCallers {
 		wg.Go(func() {
-			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -6176,7 +6333,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
+	client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -6203,7 +6360,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	numberOfCallers := 10
 	for range numberOfCallers {
 		wg.Go(func() {
-			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClientExt("file://"+dir, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -6232,7 +6389,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	repoURL := "file://" + dir
-	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClientExt(repoURL, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -6263,7 +6420,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	repoURL := "file://" + dir
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClientExt(repoURL, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -6415,7 +6572,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
 
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
@@ -6427,7 +6584,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			res, err = service.GenerateManifest(t.Context(), &q)
 
 			require.NoError(t, err)
-			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
+			assert.Equal(t, []string{"helm template different-release-name . --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
 		})
 	})
 
@@ -6460,7 +6617,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --namespace test-namespace --include-crds"}, res.Commands)
 	})
 
 	t.Run("kustomize", func(t *testing.T) {
@@ -6571,7 +6728,7 @@ func Test_SkipSchemaValidation(t *testing.T) {
 		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
+		assert.Equal(t, []string{"helm template test-app . --include-crds --skip-schema-validation"}, res.Commands)
 	})
 	t.Run("helm", func(t *testing.T) {
 		service := newService(t, "testdata/broken-schema-verification")

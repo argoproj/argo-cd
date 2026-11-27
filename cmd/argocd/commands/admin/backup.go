@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -97,6 +99,11 @@ func NewExportCommand() *cobra.Command {
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace, stripStatus)
+			acdClusterCAConfigMap, err := getClusterCAConfigMap(ctx, acdClients.configMaps)
+			errors.CheckError(err)
+			if acdClusterCAConfigMap != nil {
+				export(writer, *acdClusterCAConfigMap, namespace, stripStatus)
+			}
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
@@ -377,28 +384,20 @@ func NewImportCommand() *cobra.Command {
 				}
 
 				if prune {
-					var dynClient dynamic.ResourceInterface
-					switch key.Kind {
-					case "Secret":
-						dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
-					case application.AppProjectKind:
-						dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
-					case application.ApplicationKind:
-						dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
-						if !dryRun {
-							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
-								newLive := liveObj.DeepCopy()
-								newLive.SetFinalizers(nil)
-								_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if err != nil && !apierrors.IsNotFound(err) {
-									errors.CheckError(err)
-								}
+					resource, ok := pruneResource(key)
+					if !ok {
+						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+					}
+					dynClient := client.Resource(resource).Namespace(liveObj.GetNamespace())
+					if key.Kind == application.ApplicationKind && !dryRun {
+						if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
+							newLive := liveObj.DeepCopy()
+							newLive.SetFinalizers(nil)
+							_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+							if err != nil && !apierrors.IsNotFound(err) {
+								errors.CheckError(err)
 							}
 						}
-					case application.ApplicationSetKind:
-						dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
-					default:
-						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
 					isForbidden := false
 
@@ -442,6 +441,22 @@ func NewImportCommand() *cobra.Command {
 	return &command
 }
 
+func pruneResource(key kube.ResourceKey) (schema.GroupVersionResource, bool) {
+	switch key.Kind {
+	case "Secret":
+		return secretResource, true
+	case "ConfigMap":
+		return configMapResource, key.Name == common.ArgoCDClusterCAConfigMapName
+	case application.AppProjectKind:
+		return appprojectsResource, true
+	case application.ApplicationKind:
+		return applicationsResource, true
+	case application.ApplicationSetKind:
+		return appplicationSetResource, true
+	}
+	return schema.GroupVersionResource{}, false
+}
+
 // check app has no need to stop operation.
 func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOperation bool) bool {
 	if !stopOperation {
@@ -451,6 +466,19 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 		return liveObj.Object["operation"] == nil
 	}
 	return true
+}
+
+// getClusterCAConfigMap returns the optional argocd-default-cluster-ca-cm ConfigMap, or nil without an error if it does
+// not exist.
+func getClusterCAConfigMap(ctx context.Context, configMaps dynamic.ResourceInterface) (*unstructured.Unstructured, error) {
+	un, err := configMaps.Get(ctx, common.ArgoCDClusterCAConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get ConfigMap %s: %w", common.ArgoCDClusterCAConfigMapName, err)
+	}
+	return un, nil
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
@@ -494,7 +522,7 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 	switch live.GetKind() {
 	case "Secret", "ConfigMap":
 		newLive.Object["data"] = bak.Object["data"]
-	case application.AppProjectKind:
+	case application.AppProjectKind, "ApplicationSet":
 		newLive.Object["spec"] = bak.Object["spec"]
 	case application.ApplicationKind:
 		newLive.Object["spec"] = bak.Object["spec"]
@@ -504,9 +532,6 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 		if stopOperation {
 			newLive.Object["operation"] = nil
 		}
-
-	case "ApplicationSet":
-		newLive.Object["spec"] = bak.Object["spec"]
 	}
 	return newLive
 }

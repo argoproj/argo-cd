@@ -10,8 +10,6 @@ import (
 	"io"
 	"os"
 
-	log "github.com/sirupsen/logrus"
-
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -184,13 +182,10 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
+	defer tgzstream.CloseAndDelete(tgzFile)
 	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
-	}
-	err = os.Remove(tgzFile.Name())
-	if err != nil {
-		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
 }
@@ -198,7 +193,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum string, maxSize int64) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum string, maxSize int64) (_ *os.File, retErr error) {
 	hasher := sha256.New()
 	tmpDir, err := files.CreateTempDir("")
 	if err != nil {
@@ -206,8 +201,14 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum stri
 	}
 	file, err := os.CreateTemp(tmpDir, "")
 	if err != nil {
+		_ = os.Remove(tmpDir)
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}
+	defer func() {
+		if retErr != nil {
+			tgzstream.CloseAndDelete(file)
+		}
+	}()
 	size := 0
 	for {
 		if ctx != nil {
@@ -246,7 +247,6 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum stri
 
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
-		tgzstream.CloseAndDelete(file)
 		return nil, fmt.Errorf("seek error: %w", err)
 	}
 	return file, nil

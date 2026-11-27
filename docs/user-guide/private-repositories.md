@@ -6,6 +6,12 @@
 > repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
 > adapt your repository URL to be suffixed with `.git`.
 
+> [!NOTE]
+> For Azure DevOps repositories, use fully qualified Git tag references
+> (for example, `refs/tags/v1.0.0`) in `targetRevision` to generate
+> correct revision links in the Argo CD UI. Unqualified tag names are
+> treated as branch names when generating these links.
+
 ## Credentials
 
 If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTPS and SSH Git credentials.
@@ -126,7 +132,7 @@ argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app
 > To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
 
 > [!NOTE]
-> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's organization.
+> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's owner, which can be an organization or a user account.
 
 Using the UI:
 
