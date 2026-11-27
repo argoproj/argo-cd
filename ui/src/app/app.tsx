@@ -405,8 +405,8 @@ export class App extends React.Component<
     }
 
     private onAddSystemLevelExtension(extension: SystemLevelExtension) {
-        const extendedNavItems = this.navItems;
-        const extendedRoutes = this.routes;
+        const extendedNavItems = [...this.navItems];
+        const extendedRoutes = {...this.routes};
         extendedNavItems.push({
             title: extension.title,
             path: extension.path,
@@ -425,6 +425,8 @@ export class App extends React.Component<
         extendedRoutes[extension.path] = {
             component: component as React.ComponentType<React.ComponentProps<any>>
         };
+        this.navItems = extendedNavItems;
+        this.routes = extendedRoutes;
         this.setState(prev => ({...prev, navItems: extendedNavItems, routes: extendedRoutes}));
     }
 }
