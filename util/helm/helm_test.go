@@ -368,9 +368,21 @@ func TestRegistryLoginOCI_UsesProvidedContext(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestHelmEnviron_RespectsExistingRegistryConfig(t *testing.T) {
+	t.Setenv("HELM_REGISTRY_CONFIG", "/etc/helm/registry/config.json")
+
+	c, err := NewCmd(".", "", "", "")
+	require.NoError(t, err)
+	defer c.Close()
+
+	// The inherited value is used by both login and the child process, so no override is returned.
+	assert.Empty(t, c.Environ())
+}
+
 func TestHelmEnviron_IncludesOCIRegistryCAs(t *testing.T) {
 	tlsDataPath := t.TempDir()
 	t.Setenv(common.EnvVarTLSDataPath, tlsDataPath)
+	t.Setenv("HELM_REGISTRY_CONFIG", "")
 
 	c, err := NewCmd(".", "", "", "")
 	require.NoError(t, err)

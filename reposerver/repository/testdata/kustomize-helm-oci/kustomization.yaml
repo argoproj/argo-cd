@@ -3,7 +3,7 @@ kind: Kustomization
 
 helmCharts:
   - name: my-chart
-    repo: oci://example.com/myrepo/my-chart
+    repo: oci://example.com/myrepo
     version: 1.0.0
     releaseName: my-release
     namespace: default

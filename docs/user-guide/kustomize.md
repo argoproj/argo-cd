@@ -298,11 +298,16 @@ kind: Kustomization
 
 helmCharts:
   - name: my-chart
-    repo: oci://my-registry.example.com/charts/my-chart
+    repo: oci://my-registry.example.com/charts
     version: 1.0.0
     releaseName: my-release
     namespace: default
 ```
+
+Kustomize appends `name` to `repo` to build the chart location, so the example above pulls `oci://my-registry.example.com/charts/my-chart`. Do not repeat the chart name in `repo`.
+
+> [!NOTE]
+> Kustomize pulls OCI charts through `helm pull`, which does not support plain HTTP or skipping TLS verification for OCI registries. The registry must be served over HTTPS with a certificate that the repo-server trusts. If the registry uses a private CA, add the CA to `argocd-tls-certs-cm` as described in the [private repositories documentation](private-repositories.md#self-signed-untrusted-tls-certificates). Setting `insecureOCIForceHttp` on the repository allows the `helm registry login` step to succeed but does not make the chart pull work over HTTP.
 
 ## Setting the manifests' namespace
 

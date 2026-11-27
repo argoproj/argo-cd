@@ -7130,7 +7130,7 @@ func TestGetKustomizeHelmRepos_OCIHelmChartsWithHelmRepoCreds(t *testing.T) {
 	require.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetKustomizeHelmRepos_OCIHelmChartsWithRepo(t *testing.T) {
@@ -7141,7 +7141,7 @@ func TestGetKustomizeHelmRepos_OCIHelmChartsWithRepo(t *testing.T) {
 	require.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedHelmRepoCreds(t *testing.T) {
@@ -7154,7 +7154,7 @@ func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedHelmRepoCreds(t *testing
 	require.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedRepo(t *testing.T) {
@@ -7165,7 +7165,7 @@ func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedRepo(t *testing.T) {
 	require.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetKustomizeHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {

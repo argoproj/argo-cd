@@ -574,7 +574,15 @@ func (c *Cmd) Freestyle(args ...string) (string, error) {
 // HELM_REGISTRY_CONFIG is not overridden by kustomize and takes precedence
 // in helm's credential resolution, so the child process will find the
 // registry credentials from our prior helm registry login calls.
+//
+// If HELM_REGISTRY_CONFIG is already set in the process environment, helm registry
+// login writes to that file rather than to the instance path, and the child process
+// inherits the same value from os.Environ(). In that case nothing is returned so
+// that login and the child process keep using the same file.
 func (c *Cmd) Environ() []string {
+	if os.Getenv("HELM_REGISTRY_CONFIG") != "" {
+		return nil
+	}
 	return []string{
 		fmt.Sprintf("HELM_REGISTRY_CONFIG=%s/config/registry/config.json", c.helmHome),
 	}
