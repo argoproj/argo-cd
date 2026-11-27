@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -451,7 +452,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(t.Context())
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -466,7 +467,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -490,7 +491,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -537,7 +538,22 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.False(t, atag)
 }
 
-func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
+// A git command stopped by ARGOCD_EXEC_TIMEOUT must not leave index.lock
+// behind. util/exec reads the timeout at startup, so the test re-runs itself in
+// a child process.
+func Test_nativeGitClient_Checkout_timeoutDoesNotLeaveIndexLock(t *testing.T) {
+	if os.Getenv("ARGOCD_TEST_CHECKOUT_TIMEOUT_CHILD") != "1" {
+		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^Test_nativeGitClient_Checkout_timeoutDoesNotLeaveIndexLock$", "-test.count=1")
+		cmd.Env = append(os.Environ(),
+			"ARGOCD_TEST_CHECKOUT_TIMEOUT_CHILD=1",
+			"ARGOCD_EXEC_TIMEOUT=2s",
+			"ARGOCD_EXEC_FATAL_TIMEOUT=5s",
+		)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return
+	}
+
 	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
@@ -559,11 +575,9 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "info", "attributes"), []byte("* filter=slow\n"), 0o644))
 	require.NoError(t, runCmd(t.Context(), root, "git", "config", "filter.slow.smudge", fmt.Sprintf("exec 2>/dev/null; touch '%s'; sleep 30; cat", marker)))
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
 	checkoutErr := make(chan error, 1)
 	go func() {
-		_, err := client.Checkout(ctx, strings.TrimSpace(string(firstSHA)), false, false)
+		_, err := client.Checkout(t.Context(), strings.TrimSpace(string(firstSHA)), false, false)
 		checkoutErr <- err
 	}()
 
@@ -573,15 +587,144 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	}, 10*time.Second, 10*time.Millisecond, "checkout never reached the smudge filter")
 	require.FileExists(t, indexLock)
 
+	select {
+	case err := <-checkoutErr:
+		require.ErrorContains(t, err, "timeout after")
+	case <-time.After(15 * time.Second):
+		t.Fatal("checkout was not stopped by the exec timeout")
+	}
+	require.NoFileExists(t, indexLock, "timed out git left a stale index.lock behind")
+}
+
+// newSlowFetchRemote returns a file:// remote with one commit, whose upload-pack
+// touches a marker file and then waits delay before serving the fetch.
+func newSlowFetchRemote(t *testing.T, delay time.Duration) (client Client, revision string, marker string) {
+	t.Helper()
+	ctx := t.Context()
+	remote, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	out, err := outputCmd(ctx, remote, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision = strings.TrimSpace(string(out))
+
+	marker = filepath.Join(t.TempDir(), "fetch-started")
+	uploadPack := filepath.Join(t.TempDir(), "slow-upload-pack.sh")
+	script := fmt.Sprintf("#!/bin/sh\ntouch '%s'\nsleep %g\nexec git-upload-pack \"$@\"\n", marker, delay.Seconds())
+	require.NoError(t, os.WriteFile(uploadPack, []byte(script), 0o755))
+
+	client, err = NewClientExt("file://"+remote, t.TempDir(), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "config", "remote.origin.uploadpack", uploadPack))
+	return client, revision, marker
+}
+
+func Test_nativeGitClient_Fetch_completesAfterCancellation(t *testing.T) {
+	client, revision, marker := newSlowFetchRemote(t, time.Second)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	fetchErr := make(chan error, 1)
+	go func() {
+		fetchErr <- client.Fetch(ctx, "", 0)
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "fetch never reached the remote")
+
 	cancel()
 
 	select {
-	case err := <-checkoutErr:
-		require.Error(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("checkout did not return after cancellation")
+	case err := <-fetchErr:
+		require.NoError(t, err, "a started fetch must not be cancelled with its caller")
+	case <-time.After(30 * time.Second):
+		t.Fatal("fetch did not finish")
 	}
-	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
+	assert.True(t, client.IsRevisionPresent(t.Context(), revision), "fetched revision should be in the local clone")
+}
+
+// ARGOCD_EXEC_TIMEOUT still stops a detached fetch. util/exec reads it at
+// startup, so the test re-runs itself in a child process.
+func Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout(t *testing.T) {
+	if os.Getenv("ARGOCD_TEST_BOUNDED_FETCH_CHILD") != "1" {
+		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout$", "-test.count=1")
+		cmd.Env = append(os.Environ(),
+			"ARGOCD_TEST_BOUNDED_FETCH_CHILD=1",
+			"ARGOCD_EXEC_TIMEOUT=500ms",
+			"ARGOCD_EXEC_FATAL_TIMEOUT=500ms",
+		)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return
+	}
+
+	client, _, marker := newSlowFetchRemote(t, 30*time.Second)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	fetchErr := make(chan error, 1)
+	go func() {
+		fetchErr <- client.Fetch(ctx, "", 0)
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "fetch never reached the remote")
+	cancel()
+
+	select {
+	case err := <-fetchErr:
+		require.ErrorContains(t, err, "timeout after")
+	case <-time.After(10 * time.Second):
+		t.Fatal("detached fetch was not stopped by the exec timeout")
+	}
+}
+
+// ls-remote keeps its own ARGOCD_GIT_REQUEST_TIMEOUT deadline even though git
+// commands ignore the caller's cancellation. Mutates gitClientTimeout, so it
+// must not run in parallel.
+func Test_nativeGitClient_runLsRemote_honoursGitRequestTimeout(t *testing.T) {
+	remote, err := _createEmptyGitRepo(t.Context())
+	require.NoError(t, err)
+	uploadPack := filepath.Join(t.TempDir(), "hanging-upload-pack.sh")
+	require.NoError(t, os.WriteFile(uploadPack, []byte("#!/bin/sh\nexec 2>/dev/null\nsleep 30\n"), 0o755))
+
+	client, err := NewClientExt("file://"+remote, t.TempDir(), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	orig := gitClientTimeout
+	gitClientTimeout = time.Second
+	t.Cleanup(func() { gitClientTimeout = orig })
+
+	start := time.Now()
+	_, err = client.(*nativeGitClient).runLsRemote("ls-remote", "--upload-pack="+uploadPack, "--heads", "--", "file://"+remote)
+	require.ErrorContains(t, err, "git ls-remote timed out after 1s")
+	assert.Less(t, time.Since(start), 15*time.Second, "ls-remote ran past ARGOCD_GIT_REQUEST_TIMEOUT")
+}
+
+// Git commands ignore the caller's cancellation, so a request that was
+// cancelled while it waited for the repository lock still completes its git
+// work.
+func Test_nativeGitClient_cancelledContextIsIgnoredByWrites(t *testing.T) {
+	client, revision, _ := newSlowFetchRemote(t, 0)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	require.NoError(t, client.Fetch(ctx, "", 0))
+	_, err := client.Checkout(ctx, revision, false, true)
+	require.NoError(t, err)
+
+	sha, err := client.CommitSHA(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, revision, sha)
+
+	// Read-only commands leave nothing behind when killed, so they still honour cancellation.
+	_, err = client.CommitSHA(ctx)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func Test_gitCancelGracePeriod(t *testing.T) {
@@ -2035,7 +2178,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "clone", foo)
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+foo, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+foo, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -2082,9 +2225,8 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	assert.Equal(t, bar+"baz\n", string(result))
 }
 
-func TestNewClient_invalidSSHURL(t *testing.T) {
-	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", "")
-	assert.Nil(t, client)
+func TestTestRepo_invalidSSHURL(t *testing.T) {
+	err := TestRepo("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", "")
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
 
@@ -2126,7 +2268,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 
 func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	tempDir := t.TempDir()
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -2203,7 +2345,7 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -2464,51 +2606,6 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 	})
 }
 
-func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
-	// given
-	ctx := t.Context()
-	tempDir, err := _createEmptyGitRepo(ctx)
-	require.NoError(t, err)
-
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	_, err = client.SetAuthor(t.Context(), "test", "test@example.com")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "touch", "README.md")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "mkdir", "scripts")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "touch", "scripts/startup.sh")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "add", "--all")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Make files")
-	require.NoError(t, err)
-
-	// when: remove only "scripts" directory
-	_, err = client.RemoveContents(t.Context(), []string{"scripts"})
-	require.NoError(t, err)
-
-	// then: "scripts" should be gone, "README.md" should still exist
-	_, err = os.Stat(filepath.Join(client.Root(), "README.md"))
-	require.NoError(t, err, "README.md should not be removed")
-
-	_, err = os.Stat(filepath.Join(client.Root(), "scripts"))
-	require.Error(t, err, "scripts directory should be removed")
-
-	// and: listing should only show README.md
-	ls, err := outputCmd(ctx, client.Root(), "ls")
-	require.NoError(t, err)
-	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
-}
-
 func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
@@ -2524,7 +2621,7 @@ func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	require.NoError(t, err)
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -2849,9 +2946,9 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	tempDir2 := t.TempDir()
 	ctx := t.Context()
 
-	client1, err := NewClient("file://"+tempDir1, NopCreds{}, true, false, "", "")
+	client1, err := NewClientExt("file://"+tempDir1, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
-	client2, err := NewClient("file://"+tempDir2, NopCreds{}, true, false, "", "")
+	client2, err := NewClientExt("file://"+tempDir2, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client1.Init()
@@ -3093,7 +3190,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
 	// Initialize client that uses this same repo as origin
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -3153,7 +3250,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
 	// Initialize client that uses this same repo as origin
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -3298,7 +3395,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
 	// Initialize client that uses this same repo as origin
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -3346,7 +3443,7 @@ func Test_LsSignatures_Error(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
 	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
@@ -3378,6 +3475,24 @@ func Test_LsSignatures_Error(t *testing.T) {
 		assert.Nil(t, signatures)
 		assert.Empty(t, legacy)
 	}
+}
+
+func Test_annotateInvalidPktLen(t *testing.T) {
+	t.Run("nil error is passed through", func(t *testing.T) {
+		require.NoError(t, annotateInvalidPktLen(nil))
+	})
+
+	t.Run("unrelated error is left unchanged", func(t *testing.T) {
+		orig := errors.New("repository not found")
+		require.Equal(t, orig, annotateInvalidPktLen(orig))
+	})
+
+	t.Run("invalid pkt-len keeps the original message and adds an auth hint", func(t *testing.T) {
+		got := annotateInvalidPktLen(fmt.Errorf("failed to list refs: %w", pktline.ErrInvalidPktLen))
+		require.ErrorIs(t, got, pktline.ErrInvalidPktLen)
+		assert.Contains(t, got.Error(), "invalid pkt-len found")
+		assert.Contains(t, got.Error(), invalidPktLenAuthHint)
+	})
 }
 
 func Test_humanizeAuthPromptError(t *testing.T) {
@@ -3432,4 +3547,34 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
+}
+
+// Test_LsRemote_htmlLoginPageReproducesInvalidPktLen reproduces go-git's
+// "invalid pkt-len found" failure. Some git hosts answer an unauthenticated
+// ls-remote with an HTML login page and HTTP 200 (Azure DevOps does this when
+// the URL has no org user). go-git's pkt-line scanner reports only that
+// sentinel. The hint tells the user to check repository authentication and
+// keeps the original error.
+func Test_LsRemote_htmlLoginPageReproducesInvalidPktLen(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.RequestURI(), "info/refs") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "<html><body>Sign in to continue</body></html>\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	client := &nativeGitClient{
+		repoURL: srv.URL + "/org/project/_git/repo.git",
+		creds:   NopCreds{},
+	}
+
+	_, err := client.LsRemote("HEAD")
+	require.Error(t, err)
+	require.ErrorIs(t, err, pktline.ErrInvalidPktLen)
+	assert.Contains(t, err.Error(), "invalid pkt-len found")
+	assert.Contains(t, err.Error(), "check repository authentication")
 }

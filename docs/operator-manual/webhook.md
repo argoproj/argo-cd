@@ -24,8 +24,10 @@ Application Sets use a separate webhook configuration for generating application
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
 URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
-(e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
-arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
+(e.g. `https://argocd.example.com/api/webhook`). Input an arbitrary value in the secret. This value
+will be used when configuring the webhook in the next step. BitBucket Cloud has no secret field:
+use the UUID it assigns to the webhook instead, see
+[Special handling for BitBucket Cloud](#special-handling-for-bitbucket-cloud).
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB. The same setting also limits the payload size of the [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration).
 
@@ -40,16 +42,25 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 
-Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
+Azure DevOps secures the webhook using basic authentication. Specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
 `webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
 
-## 2. Configure Argo CD With The WebHook Secret (Optional)
+## 2. Configure Argo CD With The WebHook Secret
 
-Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
-related to the Git repository, even with unauthenticated webhook events. This is safe to do since
-the contents of webhook payloads are considered untrusted, and will only result in a refresh of the
-application (a process which already occurs at three-minute intervals). If Argo CD is publicly
-accessible, then configuring a webhook secret is recommended to prevent a DDoS attack.
+Argo CD only accepts webhook events from a provider that has a webhook secret configured. Events
+for a provider with no secret are rejected with `400 Bad Request`, so an event must pass the
+provider's verification to trigger a refresh. BitBucket Cloud events are only checked against the
+webhook UUID, not a signature, so treat that UUID as a secret.
+
+> [!NOTE]
+> To accept unauthenticated events from providers that have no secret configured, set the
+> `ARGOCD_WEBHOOK_ALLOW_UNAUTHENTICATED=true` environment variable on `argocd-server`, and on
+> `argocd-applicationset-controller` for the
+> [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration). A provider that
+> has a secret configured still verifies its events. This does not apply to the Harbor and Docker Hub
+> webhooks, which always require a secret, or to a GitLab webhook that sends a secret token, which is
+> rejected unless the same token is configured. If Argo CD is publicly accessible, anyone can then send
+> forged events, so this is not recommended.
 
 In the `argocd-secret` Kubernetes secret, configure one of the following keys with the Git
 provider's webhook secret configured in step 1.
@@ -153,7 +164,7 @@ kubectl patch secret argocd-secret -n argocd \
 - The repository **must have credentials** stored in Argo CD (basic auth or bearer token). If no matching credential is found, all apps pointing to the repository will be refreshed (safe fallback).
 
 > [!NOTE]
-> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no secret is configured.
+> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository.
 
 ### Special handling for Azure DevOps
 

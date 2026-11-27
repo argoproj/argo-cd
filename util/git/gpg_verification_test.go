@@ -30,7 +30,7 @@ func newGPGReadyRepo(t *testing.T) *gpgReadyRepo {
 	err := os.Chmod(repo.gpgHome, 0o700)
 	require.NoError(t, err)
 
-	repo.git, err = NewClient("https://fake.url/org/repo.git", NopCreds{}, true, false, "", "")
+	repo.git, err = NewClientExt("https://fake.url/org/repo.git", t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	_ = os.RemoveAll(repo.git.Root())
 	t.Cleanup(func() {

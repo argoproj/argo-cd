@@ -1,6 +1,16 @@
-apiVersion: policies.kyverno.io/v1alpha1
+apiVersion: policies.kyverno.io/v1
 kind: NamespacedDeletingPolicy
 metadata:
   name: sample-namespaced-deleting-policy
   namespace: test-namespace
+  generation: 2
 spec: {}
+status:
+  conditionStatus:
+    ready: true
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: Policy is ready
+      observedGeneration: 1
+      status: "True"
+      type: Admitted

@@ -7,7 +7,7 @@ import {SourcePanel} from './source-panel';
 export function CollapsibleMultiSourceSection(props: {
     index: number;
     formApi: FormApi;
-    repos: string[];
+    repos: models.Repository[];
     reposInfo: models.Repository[];
     formApp: models.Application;
     canRemove?: boolean;
@@ -17,7 +17,9 @@ export function CollapsibleMultiSourceSection(props: {
     const src = props.formApp.spec.sources?.[props.index];
     const repoInfoFor = props.reposInfo.find(r => r.repo === src?.repoURL);
     const title = `Source ${props.index + 1}${src?.name ? ` — ${src.name}` : ''}: ${src?.repoURL || ''}`;
-    const desc = [src?.path && `PATH=${src.path}`, src?.chart && `CHART=${src.chart}`, src?.targetRevision && `REVISION=${src.targetRevision}`].filter(Boolean).join(', ');
+    const desc = [src?.path && `PATH=${src.path}`, src?.chart && `CHART=${src.chart}`, src?.ref && `REF=${src.ref}`, src?.targetRevision && `REVISION=${src.targetRevision}`]
+        .filter(Boolean)
+        .join(', ');
 
     if (!expanded) {
         return (
