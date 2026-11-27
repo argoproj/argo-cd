@@ -2484,7 +2484,7 @@ func isResourceOperationPending(app *argoappv1.Application, state *resourceState
 			if res.HookType != "" {
 				return !res.HookPhase.Completed()
 			}
-			return res.Status == ""
+			return res.Status == "" || res.HookPhase == common.OperationRunning
 		}
 	}
 	return false

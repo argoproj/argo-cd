@@ -2415,6 +2415,9 @@ func TestIsResourceOperationPending(t *testing.T) {
 
 	result.Status = synccommon.ResultCodeSynced
 	assert.False(t, isResourceOperationPending(appWithResult(result), state))
+	result.HookPhase = synccommon.OperationRunning
+	assert.True(t, isResourceOperationPending(appWithResult(result), state))
+	result.HookPhase = ""
 	result.Status = synccommon.ResultCodeSyncFailed
 	assert.False(t, isResourceOperationPending(appWithResult(result), state))
 

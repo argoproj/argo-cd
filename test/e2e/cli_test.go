@@ -72,17 +72,17 @@ func TestCliAppWaitMaxPendingResources(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(_ *Application) {
-			_, err := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "1")
+			output, err := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "1")
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "timed out (1s) waiting for app")
-			assert.Contains(t, err.Error(), "Pending resources:")
-			assert.Contains(t, err.Error(), "more")
+			assert.Contains(t, output, "timed out (1s) waiting for app")
+			assert.Contains(t, output, "Pending resources:")
+			assert.Contains(t, output, "more")
 
-			_, err = RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "0")
+			output, err = RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "0")
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "timed out (1s) waiting for app")
-			assert.Contains(t, err.Error(), "Pending resources:")
-			assert.NotContains(t, err.Error(), "more")
+			assert.Contains(t, output, "timed out (1s) waiting for app")
+			assert.Contains(t, output, "Pending resources:")
+			assert.NotContains(t, output, "more")
 		})
 }
 
