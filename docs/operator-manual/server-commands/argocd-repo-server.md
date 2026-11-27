@@ -24,6 +24,7 @@ argocd-repo-server [flags]
       --disable-tls[=true|false]                                Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config[=true|false]                  Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
       --git-ls-remote-optimized[=true|false]                    Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
+      --git-partial-clone-filter string                         Fetch Git repositories as partial clones with this object filter, such as blob:none. Empty fetches all objects, as do repositories with LFS enabled.
       --helm-manifest-max-extracted-size string                 Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string                     Maximum size of registry index file (default "1G")
   -h, --help[=true|false]                                       help for argocd-repo-server

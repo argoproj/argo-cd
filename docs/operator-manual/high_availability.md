@@ -69,6 +69,21 @@ the appropriate tool.
   > The heads/tags query and targeted `HEAD` query run concurrently, and each receives the configured Git request timeout.
   > The optimized cache refresh can therefore wait up to one Git request timeout before falling back to the default resolver.
 
+* For repositories with long histories, set `reposerver.git.partial.clone.filter` to `blob:none` in
+  `argocd-cmd-params-cm`. The repo-server then fetches partial clones: Git downloads every commit and tree, but only
+  the file contents that a checkout needs, and downloads missing contents on demand with the repository credentials.
+  Unlike a shallow clone with `depth`, a partial clone keeps the full commit history. Repositories with Git LFS enabled
+  always fetch all objects, because `git lfs fetch --all` reads file contents from every commit.
+
+  > [!WARNING]
+  > Object filters work only when the Git server supports them. On self-hosted servers, enable
+  > [`uploadpack.allowFilter`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-uploadpackallowFilter).
+  > Otherwise, Git ignores the filter and fetches all objects.
+
+  > [!NOTE]
+  > Git records a filter in each cached repository. Once this setting is removed, `argocd-repo-server` clones each
+  > partial repository again in full on its next request.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected

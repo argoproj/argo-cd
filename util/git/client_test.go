@@ -488,6 +488,207 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// createFilterableRepo creates a repository that allows object filters, with two commits to README.
+// It returns the repository path and the SHA of its last commit.
+func createFilterableRepo(t *testing.T) (string, string) {
+	t.Helper()
+	ctx := t.Context()
+	repo := t.TempDir()
+	require.NoError(t, runCmd(ctx, repo, "git", "init"))
+	require.NoError(t, runCmd(ctx, repo, "git", "config", "uploadpack.allowFilter", "true"))
+	for _, content := range []string{"first", "second"} {
+		require.NoError(t, os.WriteFile(filepath.Join(repo, "README"), []byte(content), 0o644))
+		require.NoError(t, runCmd(ctx, repo, "git", "add", "README"))
+		require.NoError(t, runCmd(ctx, repo, "git", "commit", "-m", content))
+	}
+	sha, err := outputCmd(ctx, repo, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	return repo, strings.TrimSpace(string(sha))
+}
+
+// createLFSRepo commits two versions of a file that Git LFS tracks.
+func createLFSRepo(t *testing.T) (string, string) {
+	t.Helper()
+	if _, err := exec.LookPath("git-lfs"); err != nil {
+		t.Skip("git-lfs is not installed")
+	}
+	ctx := t.Context()
+	repo := t.TempDir()
+	require.NoError(t, runCmd(ctx, repo, "git", "init"))
+	require.NoError(t, runCmd(ctx, repo, "git", "config", "uploadpack.allowFilter", "true"))
+	require.NoError(t, runCmd(ctx, repo, "git", "lfs", "install", "--local"))
+	require.NoError(t, runCmd(ctx, repo, "git", "lfs", "track", "*.bin"))
+	for _, content := range []string{"first-binary", "second-binary"} {
+		require.NoError(t, os.WriteFile(filepath.Join(repo, "data.bin"), []byte(content), 0o644))
+		require.NoError(t, runCmd(ctx, repo, "git", "add", ".gitattributes", "data.bin"))
+		require.NoError(t, runCmd(ctx, repo, "git", "commit", "-m", content))
+	}
+	sha, err := outputCmd(ctx, repo, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+
+	// The client runs git with HOME=/dev/null, and the Argo CD image installs LFS filters in its system config.
+	// Install them in a global config that the client reads, as the image does.
+	config := filepath.Join(t.TempDir(), "gitconfig")
+	install := exec.CommandContext(ctx, "git", "lfs", "install", "--skip-repo")
+	install.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+config)
+	require.NoError(t, install.Run())
+	t.Setenv("GIT_CONFIG_GLOBAL", config)
+	return repo, strings.TrimSpace(string(sha))
+}
+
+func countMissingObjects(t *testing.T, root string) int {
+	t.Helper()
+	out, err := outputCmd(t.Context(), root, "git", "rev-list", "--objects", "--missing=print", "--all")
+	require.NoError(t, err)
+	missing := 0
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if strings.HasPrefix(line, "?") {
+			missing++
+		}
+	}
+	return missing
+}
+
+// environCountingCreds counts how often a git command asks for credentials.
+type environCountingCreds struct {
+	NopCreds
+	calls int
+}
+
+func (c *environCountingCreds) Environ() (io.Closer, []string, error) {
+	c.calls++
+	return NopCloser{}, nil, nil
+}
+
+func Test_nativeGitClient_PartialCloneFilter(t *testing.T) {
+	t.Run("fetch leaves blobs out and checkout downloads them", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		client, err := NewClientExt("file://"+repo, t.TempDir(), NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		promisor, err := outputCmd(ctx, client.Root(), "git", "config", "--get", "remote.origin.promisor")
+		require.NoError(t, err)
+		assert.Equal(t, "true", strings.TrimSpace(string(promisor)))
+		assert.Equal(t, 2, countMissingObjects(t, client.Root()))
+
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(client.Root(), "README"))
+		require.NoError(t, err)
+		assert.Equal(t, "second", string(content))
+		assert.Equal(t, 1, countMissingObjects(t, client.Root()))
+	})
+
+	t.Run("checkout runs with credentials when a filter is set", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		creds := &environCountingCreds{}
+		client, err := NewClientExt("file://"+repo, t.TempDir(), creds, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		creds.calls = 0
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		assert.Equal(t, 1, creds.calls)
+	})
+
+	t.Run("no filter fetches every object and checks out without credentials", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		creds := &environCountingCreds{}
+		client, err := NewClientExt("file://"+repo, t.TempDir(), creds, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		_, err = outputCmd(ctx, client.Root(), "git", "config", "--get", "remote.origin.promisor")
+		require.Error(t, err)
+		assert.Equal(t, 0, countMissingObjects(t, client.Root()))
+
+		creds.calls = 0
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		assert.Equal(t, 0, creds.calls)
+	})
+
+	t.Run("removing a filter clones a partial clone again in full", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createFilterableRepo(t)
+		root := t.TempDir()
+		filtered, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, filtered.Init())
+		require.NoError(t, filtered.Fetch(ctx, "", 0))
+		require.NoError(t, filtered.Init())
+		assert.Equal(t, 2, countMissingObjects(t, root), "Init keeps a partial clone while a filter is set")
+
+		full, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, full.Init())
+		require.NoError(t, full.Fetch(ctx, "", 0))
+		_, err = outputCmd(ctx, root, "git", "config", "--get", "remote.origin.promisor")
+		require.Error(t, err)
+		assert.Equal(t, 0, countMissingObjects(t, root))
+		_, err = full.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("LFS repositories fetch and check out with a filter set", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createLFSRepo(t)
+		client, err := NewClientExt("file://"+repo, t.TempDir(), NopCreds{}, true, true, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+		require.NoError(t, client.Fetch(ctx, "", 0))
+
+		_, err = client.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(client.Root(), "data.bin"))
+		require.NoError(t, err)
+		assert.Equal(t, "second-binary", string(content))
+	})
+
+	t.Run("enabling LFS clones a partial clone again in full", func(t *testing.T) {
+		ctx := t.Context()
+		repo, sha := createLFSRepo(t)
+		root := t.TempDir()
+		filtered, err := NewClientExt("file://"+repo, root, NopCreds{}, true, false, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, filtered.Init())
+		require.NoError(t, filtered.Fetch(ctx, "", 0))
+		_, err = outputCmd(ctx, root, "git", "config", "--get", "remote.origin.promisor")
+		require.NoError(t, err, "a fetch without LFS makes a partial clone")
+
+		lfs, err := NewClientExt("file://"+repo, root, NopCreds{}, true, true, "", "", WithPartialCloneFilter("blob:none"))
+		require.NoError(t, err)
+		require.NoError(t, lfs.Init())
+		require.NoError(t, lfs.Fetch(ctx, "", 0))
+
+		_, err = lfs.Checkout(ctx, sha, false, false)
+		require.NoError(t, err)
+		content, err := os.ReadFile(filepath.Join(root, "data.bin"))
+		require.NoError(t, err)
+		assert.Equal(t, "second-binary", string(content))
+	})
+}
+
+func TestValidatePartialCloneFilter(t *testing.T) {
+	for _, filter := range []string{"", "blob:none", "blob:limit=1m", "tree:0"} {
+		require.NoError(t, ValidatePartialCloneFilter(t.Context(), filter), filter)
+	}
+	for _, filter := range []string{"blb:none", "blob:nonee", "blob:limit=lots"} {
+		err := ValidatePartialCloneFilter(t.Context(), filter)
+		require.Error(t, err, filter)
+		assert.Contains(t, err.Error(), "invalid partial clone filter")
+		assert.Contains(t, err.Error(), "invalid filter-spec")
+	}
+}
+
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()

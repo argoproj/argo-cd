@@ -233,6 +233,8 @@ type nativeGitClient struct {
 	tagPrefix string
 	// optimizedLsRemoteEnabled uses native git ls-remote with server-side ref narrowing when possible.
 	optimizedLsRemoteEnabled bool
+	// partialCloneFilter is passed to git fetch as --filter when set, for example blob:none.
+	partialCloneFilter string
 }
 
 type runOpts struct {
@@ -312,6 +314,47 @@ func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.optimizedLsRemoteEnabled = enabled
 	}
+}
+
+// WithPartialCloneFilter makes fetches create a partial clone with the given Git object filter, such as blob:none.
+func WithPartialCloneFilter(filter string) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.partialCloneFilter = filter
+	}
+}
+
+// activePartialCloneFilter returns the object filter that fetches use. Repositories with LFS enabled fetch all
+// objects, because git lfs fetch --all reads file contents from every commit and fails on a partial clone.
+func (m *nativeGitClient) activePartialCloneFilter() string {
+	if m.enableLfs {
+		return ""
+	}
+	return m.partialCloneFilter
+}
+
+// ValidatePartialCloneFilter checks an object filter with Git's own parser.
+func ValidatePartialCloneFilter(ctx context.Context, filter string) error {
+	if filter == "" {
+		return nil
+	}
+	dir, err := os.MkdirTemp("", "partial-clone-filter-")
+	if err != nil {
+		return fmt.Errorf("failed to create a directory to validate partial clone filter %q: %w", filter, err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	run := func(args ...string) ([]byte, error) {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "HOME=/dev/null")
+		return cmd.CombinedOutput()
+	}
+	if out, err := run("init", "-q"); err != nil {
+		return fmt.Errorf("failed to validate partial clone filter %q: %w: %s", filter, err, strings.TrimSpace(string(out)))
+	}
+	if out, err := run("rev-list", "--objects", "--filter="+filter, "--max-count=0", "--all"); err != nil {
+		return fmt.Errorf("invalid partial clone filter %q: %s", filter, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
@@ -574,11 +617,15 @@ func (m *nativeGitClient) RepoURL() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	_, err := git.PlainOpen(m.root)
+	existing, err := git.PlainOpen(m.root)
 	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, git.ErrRepositoryNotExists) {
+		// A clone keeps a recorded filter after the setting is removed, and its checkouts would then
+		// download contents without credentials. Clone it again in full instead.
+		if m.activePartialCloneFilter() != "" || !isPartialClone(existing) {
+			return nil
+		}
+		log.Infof("Re-initializing %s because it is a partial clone and no filter is set", m.repoURL)
+	} else if !errors.Is(err, git.ErrRepositoryNotExists) {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
@@ -601,6 +648,16 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
+// isPartialClone reports whether Git has marked the origin remote as a promisor, which it does on the
+// first fetch with an object filter.
+func isPartialClone(repo *git.Repository) bool {
+	cfg, err := repo.Config()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(cfg.Raw.Section("remote").Subsection(git.DefaultRemoteName).Option("promisor"), "true")
+}
+
 // IsLFSEnabled returns true if the repository is LFS enabled
 func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
@@ -616,6 +673,9 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 		args = append(args, "--depth", strconv.FormatInt(depth, 10))
 	} else {
 		args = append(args, "--tags")
+	}
+	if filter := m.activePartialCloneFilter(); filter != "" {
+		args = append(args, "--filter="+filter)
 	}
 	args = append(args, "--force", "--prune")
 	return m.runCredentialedCmd(ctx, args...)
@@ -810,7 +870,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
-	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
+	if out, err := m.runBlobReadingCmd(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -1886,7 +1946,7 @@ func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, tar
 		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
-	out, err := m.runCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	out, err := m.runBlobReadingCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
 	}
@@ -2192,6 +2252,16 @@ func (m *nativeGitClient) cmdWithGPG(ctx context.Context, name string, args ...s
 func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	return m.runCmdOutput(cmd, runOpts{})
+}
+
+// runBlobReadingCmd runs a git command that may read file contents. A partial clone downloads missing
+// contents on demand, and that download needs the same credentials as fetch.
+func (m *nativeGitClient) runBlobReadingCmd(ctx context.Context, args ...string) (string, error) {
+	if m.activePartialCloneFilter() == "" {
+		return m.runCmd(ctx, args...)
+	}
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{}, args...)
+	return out, humanizeAuthPromptError(m.repoURL, err)
 }
 
 func credentialedGitArgs(args []string, environ []string) []string {
