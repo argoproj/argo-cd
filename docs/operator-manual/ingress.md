@@ -1089,12 +1089,13 @@ server:
 > [!WARNING]
 > The Gateway API [discourages](https://gateway-api.sigs.k8s.io/reference/api-types/grpcroute/#cross-serving)
 > attaching an `HTTPRoute` and a `GRPCRoute` to the same hostname. Implementations that follow the
-> cross-serving rules reject one of the routes. Traefik v3.7.14 and later report
+> cross-serving rules may reject one of the routes. Traefik v3.7.14 and later report
 > `Accepted: False` with `reason: HostnameConflict`; other implementations may report a
 > different reason, so check the condition message. Prefer separate hostnames for HTTP and gRPC.
 > If you need both protocols on one hostname, use a single `HTTPRoute` and the CLI's `--grpc-web`
-> flag. When switching to the Traefik `IngressRoute` example above, remove both Gateway API routes
-> (`HTTPRoute` and `GRPCRoute`) first.
+> flag. Remove the conflicting `GRPCRoute` before relying on that `HTTPRoute`. When switching to the
+> Traefik `IngressRoute` example above, remove both Gateway API routes (`HTTPRoute` and `GRPCRoute`)
+> first.
 
 The following example shows the routes sharing a hostname and using a request header match to
 separate gRPC traffic. Check that your Gateway implementation supports cross-serving before using it.
