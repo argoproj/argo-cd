@@ -33,7 +33,7 @@ metadata:
 data:
   # add an additional local user with apiKey and login capabilities
   #   apiKey - allows generating API keys
-  #   login - allows to login using UI
+  #   login - allows logging in using UI
   accounts.alice: apiKey, login
   # disables user. User is enabled by default
   accounts.alice.enabled: "false"
@@ -42,7 +42,7 @@ data:
 Each user might have two capabilities:
 
 * apiKey - allows generating authentication tokens for API access
-* login - allows to login using UI
+* login - allows logging in using UI
 
 ### Delete user
 

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -651,7 +652,8 @@ type SettingsManager struct {
 	tlsCertCacheSecretName    string
 	tlsCertCacheSecretVersion string
 	// clusterInformer provides optimized cluster lookups using informer transforms
-	clusterInformer *ClusterInformer
+	clusterInformer      *ClusterInformer
+	clusterCABundleCache clusterCABundleCache
 }
 
 type incompleteSettingsError struct {
@@ -1608,8 +1610,10 @@ func (mgr *SettingsManager) clusterSecretEventHandler() cache.ResourceEventHandl
 // for secrets/configmaps that participate in ArgoCD settings) trigger a full
 // GetSettings() reload. AddFunc only notifies for objects created after now, and
 // UpdateFunc only when the resource version actually changed; this prevents spurious
-// reloads caused by the informer resync period delivering synthetic events. Objects that
-// do not implement the expected metadata interfaces are ignored.
+// reloads caused by the informer resync period delivering synthetic events. DeleteFunc
+// only notifies for the cluster CA ConfigMap, so deleting other settings objects keeps
+// taking effect on the next change or restart. Objects that do not implement the
+// expected metadata interfaces are ignored.
 func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -1630,7 +1634,20 @@ func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.Res
 				}
 			}
 		},
+		DeleteFunc: func(obj any) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isClusterCAConfigMap(obj) {
+				tryNotify()
+			}
+		},
 	}
+}
+
+func isClusterCAConfigMap(obj any) bool {
+	cm, ok := obj.(*corev1.ConfigMap)
+	return ok && cm.Name == common.ArgoCDClusterCAConfigMapName
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
@@ -2052,6 +2069,51 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	return mgr.ResyncInformers()
+}
+
+// GetClusterCABundle returns the PEM encoded default CA bundle for cluster API server connections, stored in the
+// argocd-default-cluster-ca-cm ConfigMap under the ca.crt key. It returns nil without an error when the ConfigMap does
+// not exist, when the key is missing or blank, or when the value does not contain a valid PEM encoded certificate (which
+// is logged as a warning), so that a misconfigured bundle is treated as an absent one by every caller. An error is
+// returned only when the ConfigMap cannot be read. This is called on every cluster lookup, so each distinct value is
+// parsed, and logged when malformed, only once.
+func (mgr *SettingsManager) GetClusterCABundle() ([]byte, error) {
+	cm, err := mgr.GetConfigMapByName(common.ArgoCDClusterCAConfigMapName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get ConfigMap %q: %w", common.ArgoCDClusterCAConfigMapName, err)
+	}
+	return mgr.clusterCABundleCache.get(cm.Data[common.ArgoCDClusterCAConfigMapKey]), nil
+}
+
+type clusterCABundleCache struct {
+	mutex     sync.Mutex
+	evaluated bool
+	raw       string
+	bundle    []byte
+}
+
+func (c *clusterCABundleCache) get(raw string) []byte {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if !c.evaluated || raw != c.raw {
+		c.raw, c.bundle, c.evaluated = raw, parseClusterCABundle(raw), true
+	}
+	return bytes.Clone(c.bundle)
+}
+
+func parseClusterCABundle(raw string) []byte {
+	caBundle := strings.TrimSpace(raw)
+	if caBundle == "" {
+		return nil
+	}
+	if ok := x509.NewCertPool().AppendCertsFromPEM([]byte(caBundle)); !ok {
+		log.Warnf("Ignoring key %q of ConfigMap %q: it does not contain any valid PEM encoded certificate. The default cluster CA bundle is treated as absent.", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
+		return nil
+	}
+	return []byte(caBundle)
 }
 
 type SettingsManagerOpts func(mgs *SettingsManager)
