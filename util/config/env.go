@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kballard/go-shellquote"
 	log "github.com/sirupsen/logrus"
@@ -79,6 +80,19 @@ func GetIntFlag(key string, fallback int) int {
 	}
 
 	v, err := strconv.Atoi(val)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return v
+}
+
+func GetDurationFlag(key string, fallback time.Duration) time.Duration {
+	val, ok := flags[key]
+	if !ok {
+		return fallback
+	}
+
+	v, err := time.ParseDuration(val)
 	if err != nil {
 		log.Fatal(err)
 	}

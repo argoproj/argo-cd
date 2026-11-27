@@ -34,6 +34,7 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
       --as string                               Username to impersonate for the operation
       --as-group stringArray                    Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                           UID to impersonate for the operation
+      --auth-refresh-timeout duration           Maximum time to wait when refreshing an expired auth token with the stored refresh token (default 30s)
       --auth-token string                       Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --certificate-authority string            Path to a cert file for the certificate authority
       --client-certificate string               Path to a client certificate file for TLS

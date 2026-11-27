@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -78,6 +79,24 @@ func TestIntFlagAtEnd(t *testing.T) {
 	loadOpts(t, "--bar baz --foo 2")
 
 	assert.Equal(t, 2, GetIntFlag("foo", 0))
+}
+
+func TestDurationFlag(t *testing.T) {
+	loadOpts(t, "--bar baz --foo 2m --qux")
+
+	assert.Equal(t, 2*time.Minute, GetDurationFlag("foo", time.Second))
+}
+
+func TestDurationFlagWithEqualSign(t *testing.T) {
+	loadOpts(t, "--foo=45s")
+
+	assert.Equal(t, 45*time.Second, GetDurationFlag("foo", time.Second))
+}
+
+func TestDurationFlagFallback(t *testing.T) {
+	loadOpts(t, "--bar baz")
+
+	assert.Equal(t, time.Second, GetDurationFlag("foo", time.Second))
 }
 
 func TestStringSliceFlag(t *testing.T) {

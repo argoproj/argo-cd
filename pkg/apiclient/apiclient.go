@@ -159,6 +159,9 @@ type ClientOptions struct {
 	RedisCompression     string
 	RepoServerName       string
 	PromptsEnabled       bool
+	// AuthRefreshTimeout bounds the exchange of an expired auth token for a
+	// new one. Zero means DefaultAuthRefreshTimeout.
+	AuthRefreshTimeout time.Duration
 }
 
 type client struct {
@@ -184,11 +187,19 @@ type client struct {
 	// RoundTripper (which does not implement CloseIdleConnections), so we keep
 	// a direct reference to close idle connections in the grpc-web proxy.
 	tlsTransport *http.Transport
+	// authRefreshTimeout bounds refreshAuthToken. Zero means
+	// DefaultAuthRefreshTimeout.
+	authRefreshTimeout time.Duration
 }
 
 // retryWaitMax bounds the per-attempt backoff for the retryable HTTP client so
 // retries cannot stack unbounded latency ahead of command-level timeouts.
 const retryWaitMax = 10 * time.Second
+
+// DefaultAuthRefreshTimeout bounds the exchange of an expired auth token for a
+// new one (the settings lookup, OIDC discovery and the token request together)
+// when ClientOptions.AuthRefreshTimeout is not set.
+const DefaultAuthRefreshTimeout = 30 * time.Second
 
 // retryWithStatusError wraps ErrorPropagatedRetryPolicy so that an exhausted
 // retry against a persistent 429 still surfaces the status in the returned
@@ -330,6 +341,10 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		return nil, err
 	}
 	c.Headers = opts.Headers
+	if opts.AuthRefreshTimeout < 0 {
+		return nil, fmt.Errorf("--auth-refresh-timeout must not be negative, got %s", opts.AuthRefreshTimeout)
+	}
+	c.authRefreshTimeout = opts.AuthRefreshTimeout
 
 	// Keep a typed reference to the TLS transport (not http.RoundTripper) so the
 	// grpc-web proxy can close idle connections on it directly: when retries are
@@ -532,8 +547,21 @@ func (c *client) refreshAuthToken(ctx context.Context, localCfg *localconfig.Loc
 	}
 
 	log.Debug("Auth token no longer valid. Refreshing")
-	rawIDToken, refreshToken, err := c.redeemRefreshToken(ctx)
+	// Bound the whole exchange. HTTPClient() caps only the dial and the TLS
+	// handshake, so an OIDC provider (or Dex behind the API server) that
+	// accepts the connection and never answers would otherwise block every
+	// command until the user interrupts it.
+	timeout := c.authRefreshTimeout
+	if timeout <= 0 {
+		timeout = DefaultAuthRefreshTimeout
+	}
+	refreshCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	rawIDToken, refreshToken, err := c.redeemRefreshToken(refreshCtx)
 	if err != nil {
+		if ctx.Err() == nil && errors.Is(refreshCtx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("timed out after %s refreshing the auth token (set --auth-refresh-timeout to change this): %w", timeout, err)
+		}
 		return err
 	}
 	c.AuthToken = rawIDToken
