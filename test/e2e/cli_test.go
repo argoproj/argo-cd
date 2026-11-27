@@ -64,6 +64,28 @@ func TestCliAppCommand(t *testing.T) {
 		})
 }
 
+func TestCliAppWaitMaxPendingResources(t *testing.T) {
+	ctx := Given(t)
+	ctx.Path("guestbook").
+		When().
+		CreateApp().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(_ *Application) {
+			_, err := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "1")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "timed out (1s) waiting for app")
+			assert.Contains(t, err.Error(), "Pending resources:")
+			assert.Contains(t, err.Error(), "more")
+
+			_, err = RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "0")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "timed out (1s) waiting for app")
+			assert.Contains(t, err.Error(), "Pending resources:")
+			assert.NotContains(t, err.Error(), "more")
+		})
+}
+
 // TestNormalArgoCDCommandsExecuteOverPluginsWithSameName verifies that normal Argo CD CLI commands
 // take precedence over plugins with the same name when both exist in the path.
 func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
