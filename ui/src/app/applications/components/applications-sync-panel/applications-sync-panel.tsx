@@ -1,7 +1,7 @@
 import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
-import {Spinner} from '../../../shared/components';
+import {getSelectedApps, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {confirmSyncingAppOfApps} from '../utils';
@@ -13,15 +13,9 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
     const syncHandler = (currentForm: FormApi, ctx: ContextApis, applications: models.Application[]) => {
         const formValues = currentForm.getFormState().values;
         const replaceChecked = formValues.syncOptions?.includes('Replace=true');
-        const selectedApps = [];
+        const selectedApps = getSelectedApps(applications, formValues);
         const selectedAppOfApps: models.Application[] = [];
         let containAppOfApps = false;
-
-        for (const key in formValues) {
-            if (key.startsWith('app/') && formValues[key]) {
-                selectedApps.push(applications[parseInt(key.slice(key.lastIndexOf('/') + 1), 10)]);
-            }
-        }
 
         selectedApps.forEach(app => {
             if (app.isAppOfAppsPattern) {

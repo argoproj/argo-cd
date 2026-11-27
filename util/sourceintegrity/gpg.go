@@ -24,7 +24,7 @@ import (
 )
 
 // Regular expression to match public key beginning
-var subTypeMatch = regexp.MustCompile(`^pub\s+([a-z0-9]+)\s\d+-\d+-\d+\s\[[A-Z]+\].*$`)
+var subTypeMatch = regexp.MustCompile(`^pub\s+([a-zA-Z0-9]+)\s\d+-\d+-\d+\s\[[A-Z]+\].*$`)
 
 // Regular expression to match key ID output from gpg
 var keyIdMatch = regexp.MustCompile(`^\s+([0-9A-Za-z]+)\s*$`)
@@ -353,6 +353,9 @@ func SetPGPTrustLevelById(kids []string, trustLevel string) error {
 	return SetPGPTrustLevel(keys, trustLevel)
 }
 
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
+
 // SetPGPTrustLevel sets the given trust level on specified keys
 func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
@@ -361,21 +364,12 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}
 
 	// We need to store ownertrust specification in a temp file. Format is <fingerprint>:<level>
-	f, err := os.CreateTemp("", "gpg-key-fps")
+	f, err := createTemp("", "gpg-key-fps")
 	if err != nil {
 		return err
 	}
 
 	defer os.Remove(f.Name())
-	ctx := context.Background()
-
-	for _, k := range pgpKeys {
-		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
-		if err != nil {
-			return err
-		}
-	}
-
 	defer func() {
 		err = f.Close()
 		if err != nil {
@@ -385,6 +379,14 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
+	ctx := context.Background()
+
+	for _, k := range pgpKeys {
+		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
 	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--import-ownertrust", f.Name())

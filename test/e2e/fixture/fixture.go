@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +22,9 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -267,13 +271,49 @@ func init() {
 }
 
 func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		attemptCtx, cancelAttempt := context.WithTimeout(ctx, 5*time.Second)
+		err := tryLoginAs(attemptCtx, username, password)
+		cancelAttempt()
+		if !isLoginRetryable(err) || ctx.Err() != nil {
+			return err
+		}
+		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+}
+
+func removeAllRetrying(path string) error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := os.RemoveAll(path)
+		if !stderrors.Is(err, syscall.ENOTEMPTY) || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("%s is still being written to, retrying removal: %v", path, err)
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func isLoginRetryable(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unavailable || code == codes.DeadlineExceeded
+}
+
+func tryLoginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClientWithContext(ctx)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -281,7 +321,7 @@ func loginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
@@ -642,6 +682,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		RecordTestRun(t)
 	})
 
+	t.Cleanup(func() {
+		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
+	})
+
 	// Create TestState to hold test-specific variables
 	state := NewTestState(t)
 
@@ -808,7 +852,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
-			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
+			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=true", "--timeout=60s")
 			return err
 		},
 		func() error {
@@ -839,10 +883,18 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			if err != nil {
 				return err
 			}
-			return updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+			err = updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
+			if err != nil {
+				return err
+			}
+			err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Delete(t.Context(), common.ArgoCDClusterCAConfigMapName, metav1.DeleteOptions{})
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
 		},
 		func() error {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
@@ -903,7 +955,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			for _, entry := range entries {
-				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				err := removeAllRetrying(filepath.Join(tmpDir, entry.Name()))
 				if err != nil {
 					return err
 				}
@@ -1129,7 +1181,54 @@ func GitRevList(t *testing.T, args []string) string {
 	return result
 }
 
-func Patch(t *testing.T, path string, jsonPatch string) {
+func Git(t *testing.T, args ...string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("git")
+	result, err := Run(repoDirectory(), "git", args...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return strings.TrimSpace(result)
+}
+
+// PromoteBranch fast-forwards a target branch to a source branch, simulating an external promotion system.
+func PromoteBranch(t *testing.T, sourceBranch, targetBranch string) string {
+	t.Helper()
+
+	sourceRevision := sourceBranch
+	if IsRemote() {
+		Git(t, "fetch", "origin", sourceBranch)
+		sourceRevision = "origin/" + sourceBranch
+	}
+
+	revision := Git(t, "rev-parse", sourceRevision)
+	if IsRemote() {
+		Git(t, "push", "--force", "origin", revision+":refs/heads/"+targetBranch)
+	} else {
+		Git(t, "branch", "--force", targetBranch, revision)
+	}
+	return revision
+}
+
+func GitChangedFiles(t *testing.T, before, after string) []string {
+	t.Helper()
+	output := Git(t, "diff", "--name-only", before, after)
+	if output == "" {
+		return nil
+	}
+	return strings.Split(output, "\n")
+}
+
+func PushChanges(t *testing.T) {
+	t.Helper()
+	log.Info("pushing changes")
+
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "push changes"))
+
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
+func WritePatch(t *testing.T, path, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -1159,6 +1258,12 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 	}
 
 	require.NoError(t, os.WriteFile(filename, bytes, 0o644))
+}
+
+func Patch(t *testing.T, path string, jsonPatch string) {
+	t.Helper()
+	WritePatch(t, path, jsonPatch)
+
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {

@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +19,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -39,6 +43,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/transport"
+	kutil "sigs.k8s.io/kustomize/api/pkg/util"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -685,21 +690,21 @@ func (ash *ApplicationSourceHelm) IsZero() bool {
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
-func (i KustomizeImage) delim() string {
-	for _, d := range []string{"=", ":", "@"} {
-		if strings.Contains(string(i), d) {
-			return d
-		}
+// imageName returns the target image name being defined or overridden.
+// If an old image name is specified via '=', it returns the part before '='.
+// Otherwise, it returns the image name without tag and digest.
+func (i KustomizeImage) imageName() string {
+	s := string(i)
+	if name, _, ok := strings.Cut(s, "="); ok {
+		return name
 	}
-	return ":"
+	name, _, _ := kutil.SplitImageName(s)
+	return name
 }
 
-// Match returns true if the image name matches (i.e. up to the first delimiter)
+// Match returns true if the image name matches
 func (i KustomizeImage) Match(j KustomizeImage) bool {
-	delim := j.delim()
-	imageName, _, _ := strings.Cut(string(i), delim)
-	otherImageName, _, _ := strings.Cut(string(j), delim)
-	return imageName == otherImageName
+	return i.imageName() == j.imageName()
 }
 
 // KustomizeImages is a list of Kustomize images
@@ -1532,6 +1537,8 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// ManualDefaults controls the default behavior of a manual sync
+	ManualDefaults *SyncPolicyManualDefaults `json:"manualDefaults,omitempty" protobuf:"bytes,5,opt,name=manualDefaults"`
 	// If you add a field here, be sure to update IsZero.
 }
 
@@ -1543,9 +1550,121 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
+// GetPrune returns whether manual syncs should prune by default.
+// This is independent of SyncPolicyAutomated.Prune, which only applies to automated syncs.
+// When ManualDefaults is nil (every existing app without the opt-in), returns false so behavior
+// matches legacy Argo CD. When ManualDefaults is set and prune is omitted, defaults to true.
+func (p *SyncPolicy) GetPrune() bool {
+	if p == nil || p.ManualDefaults == nil {
+		return false
+	}
+	return p.ManualDefaults.GetPrune()
+}
+
+// GetDryRun returns whether manual syncs should dry-run by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetDryRun() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetDryRun()
+}
+
+// GetApplyOnly returns whether manual syncs should use apply-only strategy by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false — hook strategy).
+func (p *SyncPolicy) GetApplyOnly() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetApplyOnly()
+}
+
+// GetForce returns whether manual syncs should force by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetForce() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetForce()
+}
+
+// GetSyncStrategy returns the default sync strategy from syncPolicy.manualDefaults.
+// When ManualDefaults is nil, returns the field-level defaults (hook, no force).
+func (p *SyncPolicy) GetSyncStrategy() *SyncStrategy {
+	if p == nil {
+		return (&SyncPolicyManualDefaults{}).SyncStrategy()
+	}
+	return p.ManualDefaults.SyncStrategy()
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+	return p == nil || (p.Automated == nil && p.ManualDefaults == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+}
+
+// SyncPolicyManualDefaults controls the default behavior of a manual sync
+type SyncPolicyManualDefaults struct {
+	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	// DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+	DryRun *bool `json:"dryRun,omitempty" protobuf:"bytes,2,opt,name=dryRun"`
+	// ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+	ApplyOnly *bool `json:"applyOnly,omitempty" protobuf:"bytes,3,opt,name=applyOnly"`
+	// Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+	Force *bool `json:"force,omitempty" protobuf:"bytes,4,opt,name=force"`
+}
+
+// NewSyncPolicyManualDefaults returns ManualDefaults with prune explicitly false.
+// Use this when creating the object for dryRun/applyOnly/force so GetPrune()'s
+// true-when-nil default does not unexpectedly enable pruning. Callers that intend
+// prune-by-default should set Prune explicitly (or leave it nil after constructing
+// ManualDefaults{} themselves).
+func NewSyncPolicyManualDefaults() *SyncPolicyManualDefaults {
+	return &SyncPolicyManualDefaults{Prune: new(false)}
+}
+
+// GetPrune returns the value of Prune, defaulting to true if nil.
+// Writers that create ManualDefaults for a non-prune field should set prune:false
+// explicitly (see NewSyncPolicyManualDefaults) so enabling force/dryRun/applyOnly
+// alone does not opt into pruning.
+func (m *SyncPolicyManualDefaults) GetPrune() bool {
+	if m == nil || m.Prune == nil {
+		return true
+	}
+	return *m.Prune
+}
+
+// GetDryRun returns the value of DryRun, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetDryRun() bool {
+	if m == nil || m.DryRun == nil {
+		return false
+	}
+	return *m.DryRun
+}
+
+// GetApplyOnly returns the value of ApplyOnly, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetApplyOnly() bool {
+	if m == nil || m.ApplyOnly == nil {
+		return false
+	}
+	return *m.ApplyOnly
+}
+
+// GetForce returns the value of Force, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetForce() bool {
+	if m == nil || m.Force == nil {
+		return false
+	}
+	return *m.Force
+}
+
+// SyncStrategy returns the SyncStrategy implied by ApplyOnly and Force.
+func (m *SyncPolicyManualDefaults) SyncStrategy() *SyncStrategy {
+	force := m.GetForce()
+	if m.GetApplyOnly() {
+		return &SyncStrategy{Apply: &SyncStrategyApply{Force: force}}
+	}
+	return &SyncStrategy{Hook: &SyncStrategyHook{Force: force}}
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -2330,6 +2449,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle is the default CA bundle (from the argocd-default-cluster-ca-cm ConfigMap) used to verify the
+	// cluster API server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the
+	// DB layer and is neither persisted in the cluster secret nor exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -2385,9 +2508,12 @@ func (c *Cluster) Sanitized() *Cluster {
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
+			QPS:                c.Config.QPS,
+			Burst:              c.Config.Burst,
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
+				CATrust:    c.Config.CATrust,
 			},
 			// We can't know what the user has put into args or
 			// env vars on the exec provider that might be sensitive
@@ -2565,6 +2691,12 @@ type ClusterConfig struct {
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
 	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
+
+	// QPS controls the number of queries per second allowed for this cluster.
+	QPS float32 `json:"qps,omitempty" protobuf:"fixed32,9,opt,name=qps"`
+
+	// Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+	Burst int64 `json:"burst,omitempty" protobuf:"varint,10,opt,name=burst"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2584,7 +2716,23 @@ type TLSClientConfig struct {
 	// CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
 	// CAData takes precedence over CAFile
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
+	// CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
+	// argocd-default-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+	// When empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+	CATrust ClusterCATrust `json:"caTrust,omitempty" protobuf:"bytes,6,opt,name=caTrust"`
 }
+
+// ClusterCATrust selects the certificate authorities a cluster without its own CA data trusts
+type ClusterCATrust string
+
+const (
+	// ClusterCATrustBundle trusts only the CAs in argocd-default-cluster-ca-cm, and fails when it has none
+	ClusterCATrustBundle ClusterCATrust = "bundle"
+	// ClusterCATrustSystem trusts only the system roots and ignores argocd-default-cluster-ca-cm
+	ClusterCATrustSystem ClusterCATrust = "system"
+	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-default-cluster-ca-cm and the system roots
+	ClusterCATrustBundleAndSystem ClusterCATrust = "bundle-and-system"
+)
 
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
 // and a well-known Kubernetes type. This mapping is primarily used for unit conversions
@@ -2983,6 +3131,117 @@ func (w *SyncWindows) HasWindows() bool {
 	return w != nil && len(*w) > 0
 }
 
+// syncWindowScheduleParser parses the cron specs of sync windows. cron.Parser
+// is stateless, so one package-level instance is reused.
+var syncWindowScheduleParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+// The caches below are keyed by strings from AppProject.spec.syncWindows, which
+// Validate does not constrain to a fixed set, so each is bounded: past its limit
+// it stops growing and falls back to parsing, which is slower but never wrong.
+
+// Parsed schedules are immutable and safe to share. Parse failures are not
+// cached, so callers keep seeing the error. An entry is 64 bytes, so the limit
+// is set well above the number of distinct schedules any fleet is likely to
+// write; a full cache costs ~512KB.
+const syncWindowScheduleCacheLimit = 8192
+
+var (
+	syncWindowScheduleCache sync.Map // string -> cron.Schedule
+	syncWindowScheduleCount atomic.Int64
+)
+
+// LoadLocation re-reads and re-parses the zoneinfo file on every call (~15us),
+// which dominates sync window evaluation: the controller evaluates once per
+// window per application on every scrape and reconciliation.
+//
+// An entry is ~1.5KB, but the key space of valid names is the ~600 zones in the
+// IANA database, so the limit only bounds invalid ones. Those share the UTC
+// fallback and cost just the key.
+const syncWindowLocationCacheLimit = 1024
+
+var (
+	syncWindowLocationCache sync.Map // string -> *time.Location
+	syncWindowLocationCount atomic.Int64
+)
+
+// count tracks the size, since sync.Map does not. The slot is reserved before
+// the store, so concurrent callers cannot each see room under the limit and
+// then all insert.
+func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, limit int64, key string, value any) {
+	for {
+		n := count.Load()
+		if n >= limit {
+			return
+		}
+		if count.CompareAndSwap(n, n+1) {
+			break
+		}
+	}
+	if _, loaded := cache.LoadOrStore(key, value); loaded {
+		// Another caller cached this key first; release the reservation.
+		count.Add(-1)
+	}
+}
+
+// parseSyncWindowSchedule parses spec without caching it, for callers on the API
+// server write path: they see each string once, and caching there would let
+// project writes fill the cache with schedules that are never evaluated.
+func parseSyncWindowSchedule(spec string) (cron.Schedule, error) {
+	schedule, err := syncWindowScheduleParser.Parse(spec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
+	}
+	return schedule, nil
+}
+
+func syncWindowSchedule(spec string) (cron.Schedule, error) {
+	if cached, ok := syncWindowScheduleCache.Load(spec); ok {
+		return cached.(cron.Schedule), nil
+	}
+	schedule, err := parseSyncWindowSchedule(spec)
+	if err != nil {
+		return nil, err
+	}
+	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, syncWindowScheduleCacheLimit, spec, schedule)
+	return schedule, nil
+}
+
+func syncWindowLocation(name string) *time.Location {
+	if name == "" || name == "UTC" {
+		return time.UTC
+	}
+	if cached, ok := syncWindowLocationCache.Load(name); ok {
+		return cached.(*time.Location)
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		// Caching the fallback warns once per bad name instead of per
+		// evaluation, and is what makes the key space unbounded.
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", name)
+		loc = time.UTC
+	}
+	cacheSyncWindowValue(&syncWindowLocationCache, &syncWindowLocationCount, syncWindowLocationCacheLimit, name, loc)
+	return loc
+}
+
+// isActiveAt reports whether the window is active at currentTime, which the
+// caller must already have converted to UTC.
+func (w *InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
+	schedule, err := syncWindowSchedule(w.Schedule)
+	if err != nil {
+		return false, err
+	}
+	duration, err := time.ParseDuration(w.Duration)
+	if err != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
+	}
+
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone(currentTime)
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
+}
+
 // Active returns a list of sync windows that are currently active
 func (w *SyncWindows) Active() (*SyncWindows, error) {
 	return w.active(time.Now())
@@ -2995,21 +3254,12 @@ func (w *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 
 	if w.HasWindows() {
 		var active SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if isActive {
 				active = append(active, w)
 			}
 		}
@@ -3034,24 +3284,15 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 
 	if w.HasWindows() {
 		var inactive SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
 			if w.Kind != "allow" {
 				continue
 			}
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-			if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if !isActive {
 				inactive = append(inactive, w)
 			}
 		}
@@ -3062,13 +3303,45 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
-func (w *InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
-	loc, err := time.LoadLocation(w.TimeZone)
-	if err != nil {
-		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
-		loc = time.Now().UTC().Location()
+// partition classifies every window once at currentTime, returning the active
+// windows and the inactive allow windows. CanSync needs both; one pass resolves
+// each window's schedule, duration and time zone once rather than twice.
+func (w *SyncWindows) partition(currentTime time.Time) (*SyncWindows, *SyncWindows, error) {
+	if !w.HasWindows() {
+		return nil, nil, nil
 	}
-	_, tzOffset := time.Now().In(loc).Zone()
+	currentTime = currentTime.In(time.UTC)
+
+	var active, inactiveAllows SyncWindows
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			return nil, nil, err
+		}
+		switch {
+		case isActive:
+			active = append(active, window)
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+	return activeWindows, inactiveAllowWindows, nil
+}
+
+// scheduleOffsetByTimeZone returns the window's time zone offset at currentTime.
+// It is read at that instant rather than at time.Now() because callers evaluate
+// instants other than the present one, and a DST transition between the two
+// would shift the window by an hour.
+func (w *InlineSyncWindow) scheduleOffsetByTimeZone(currentTime time.Time) time.Duration {
+	_, tzOffset := currentTime.In(syncWindowLocation(w.TimeZone)).Zone()
 	return time.Duration(tzOffset) * time.Second
 }
 
@@ -3208,14 +3481,147 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 //  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
 //     even after the allow window has ended (and no other allow windows are active).
 func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
+	canSync, _, _, err := w.canSyncWithActiveKinds(isManual, operationStartTime)
+	return canSync, err
+}
+
+// canSyncWithActiveKinds behaves like CanSync, and also reports whether an allow
+// and/or deny window is currently active. All three come from one evaluation, so
+// a boundary crossed between separate calls cannot make them disagree.
+func (w *SyncWindows) canSyncWithActiveKinds(isManual bool, operationStartTime *time.Time) (canSync, allowActive, denyActive bool, err error) {
 	if !w.HasWindows() {
-		return true, nil
+		return true, false, false, nil
 	}
 
-	active, err := w.Active()
+	active, inactiveAllows, err := w.partition(time.Now())
 	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
+		return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
 	}
+	if active.HasWindows() {
+		for _, window := range *active {
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		}
+	}
+
+	canSync, err = w.canSyncFrom(isManual, operationStartTime, active, inactiveAllows)
+	return canSync, allowActive, denyActive, err
+}
+
+// SyncWindowEvaluator answers canSyncWithActiveKinds for many applications of
+// one project at a single instant. Every window is classified once up front, so
+// N applications sharing a project cost one schedule evaluation between them
+// rather than one each, and all of them see the same instant: a window boundary
+// crossed midway through a scrape cannot split them.
+//
+// It is only valid for the SyncWindows it was built from, and only for the
+// instant it was built at. Build a new one per scrape.
+//
+// It is scratch state rather than API surface: it lives here only to reach the
+// unexported window evaluation this package owns, and its maps are not
+// representable as a deepcopy.
+//
+// +k8s:deepcopy-gen=false
+// +k8s:openapi-gen=false
+// +protobuf=false
+type SyncWindowEvaluator struct {
+	windows SyncWindows
+	// Both are keyed by pointer, and Matches returns the same pointers, so a
+	// matched window is always found.
+	active map[*InlineSyncWindow]bool
+	// Windows that could not be resolved. Kept per window rather than failing
+	// the whole project, so a malformed window blocks the applications it
+	// matches and no others, which is what resolving windows per application
+	// did.
+	failed map[*InlineSyncWindow]error
+}
+
+// Evaluator classifies every window at currentTime. The error reports every
+// malformed window once, for callers that log per project; the evaluator is
+// still usable, and answers for the applications none of those windows match.
+func (w *SyncWindows) Evaluator(currentTime time.Time) (*SyncWindowEvaluator, error) {
+	if !w.HasWindows() {
+		return &SyncWindowEvaluator{}, nil
+	}
+	currentTime = currentTime.In(time.UTC)
+
+	evaluator := &SyncWindowEvaluator{windows: *w, active: make(map[*InlineSyncWindow]bool, len(*w))}
+	var errs []error
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			if evaluator.failed == nil {
+				evaluator.failed = map[*InlineSyncWindow]error{}
+			}
+			evaluator.failed[window] = err
+			errs = append(errs, err)
+			continue
+		}
+		evaluator.active[window] = isActive
+	}
+	if len(errs) > 0 {
+		return evaluator, fmt.Errorf("invalid sync windows: %w", errors.Join(errs...))
+	}
+	return evaluator, nil
+}
+
+// CanSyncWithActiveKinds reports the same three values as
+// SyncWindows.canSyncWithActiveKinds does for the windows matching app, read
+// from the instant the evaluator was built at. It takes no operation start
+// time: overrun depends on when a specific operation began, which is not a
+// property the evaluator shares between applications.
+func (e *SyncWindowEvaluator) CanSyncWithActiveKinds(app *Application) (canSync, allowActive, denyActive bool, err error) {
+	matched := e.windows.Matches(app)
+	if !matched.HasWindows() {
+		return true, false, false, nil
+	}
+
+	// Fail closed on a window this application matches but the evaluator could
+	// not resolve, exactly as resolving it here would have. A window the
+	// application does not match cannot block it.
+	for _, window := range *matched {
+		if err := e.failed[window]; err != nil {
+			return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
+		}
+	}
+
+	// The same partition SyncWindows.partition builds, without re-resolving any
+	// schedule, duration or time zone.
+	var active, inactiveAllows SyncWindows
+	for _, window := range *matched {
+		switch {
+		case e.active[window]:
+			active = append(active, window)
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+
+	canSync, err = matched.canSyncFrom(false, nil, activeWindows, inactiveAllowWindows)
+	return canSync, allowActive, denyActive, err
+}
+
+// canSyncFrom decides from an already-partitioned set, so callers that need the
+// partition too do not evaluate the schedules twice.
+func (w *SyncWindows) canSyncFrom(isManual bool, operationStartTime *time.Time, active, inactiveAllows *SyncWindows) (bool, error) {
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
@@ -3241,10 +3647,6 @@ func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (boo
 		return true, nil
 	}
 
-	inactiveAllows, err := w.InactiveAllows()
-	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
-	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
@@ -3279,9 +3681,7 @@ func (w *SyncWindows) hasDeny() (bool, bool) {
 	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyFound {
-				manualEnabled = a.ManualSync
-			} else if manualEnabled {
+			if !denyFound || manualEnabled {
 				manualEnabled = a.ManualSync
 			}
 			denyFound = true
@@ -3363,7 +3763,7 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 		return true, nil
 	}
 
-	active, err := w.active(checkTime)
+	active, inactiveAllows, err := w.partition(checkTime)
 	if err != nil {
 		return false, fmt.Errorf("invalid sync windows: %w", err)
 	}
@@ -3380,10 +3780,6 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 		return true, nil
 	}
 
-	inactiveAllows, err := w.inactiveAllows(checkTime)
-	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
-	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
@@ -3399,26 +3795,10 @@ func (w InlineSyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w InlineSyncWindow) active(currentTime time.Time) (bool, error) {
+func (w *InlineSyncWindow) active(currentTime time.Time) (bool, error) {
 	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
-	currentTime = currentTime.UTC()
-
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, sErr := specParser.Parse(w.Schedule)
-	if sErr != nil {
-		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
-	}
-	duration, dErr := time.ParseDuration(w.Duration)
-	if dErr != nil {
-		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-	}
-
-	// Offset the nextWindow time to consider the timeZone of the sync window
-	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
+	return w.isActiveAt(currentTime.UTC())
 }
 
 // Update updates a sync window's settings with the given parameter
@@ -3472,13 +3852,10 @@ func (w *InlineSyncWindow) Validate() error {
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	_, err := specParser.Parse(w.Schedule)
-	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
+	if _, err := parseSyncWindowSchedule(w.Schedule); err != nil {
+		return err
 	}
-	_, err = time.ParseDuration(w.Duration)
-	if err != nil {
+	if _, err := time.ParseDuration(w.Duration); err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 
@@ -3700,11 +4077,7 @@ func (app *Application) UnSetCascadedDeletion() {
 
 func isPropagationPolicyFinalizer(finalizer string) bool {
 	switch finalizer {
-	case ResourcesFinalizerName:
-		return true
-	case ForegroundPropagationPolicyFinalizer:
-		return true
-	case BackgroundPropagationPolicyFinalizer:
+	case ResourcesFinalizerName, ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer:
 		return true
 	default:
 		return false
@@ -3740,7 +4113,7 @@ func (app *Application) IsFinalizerPresent(finalizer string) bool {
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
 	now := metav1.Now()
-	for i := 0; i < len(status.Conditions); i++ {
+	for i := range status.Conditions {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
 			if condition.LastTransitionTime == nil {
@@ -3928,11 +4301,25 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	return setK8SConfigDefaults(config, nil)
+}
+
+func setK8SConfigDefaults(config *rest.Config, rootCAs *x509.CertPool) error {
+	if config.QPS <= 0 {
+		config.QPS = K8sClientConfigQPS
+	}
+	if config.Burst <= 0 {
+		config.Burst = K8sClientConfigBurst
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
+	}
+	if rootCAs != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	dial := (&net.Dialer{
@@ -4011,6 +4398,32 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	return u, nil
 }
 
+func resolveRateLimits(config ClusterConfig) (float32, int) {
+	qps := K8sClientConfigQPS
+	if config.QPS > 0 {
+		qps = config.QPS
+	}
+	burst := K8sClientConfigBurst
+	if config.Burst > 0 {
+		if config.Burst > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(config.Burst)
+		}
+	} else if config.QPS > 0 {
+		derived := float64(2 * config.QPS)
+		if derived > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(derived)
+		}
+		if burst < 1 {
+			burst = 1
+		}
+	}
+	return qps, burst
+}
+
 func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
@@ -4039,12 +4452,21 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		var trust *defaultCABundleTrust
+		trust, err = c.defaultCABundleTrust()
+		if err != nil {
+			return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
+		}
+		caData := c.Config.CAData
+		if trust != nil {
+			caData = trust.caData
+		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -4120,8 +4542,7 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	}
 	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = 0
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	config.QPS, config.Burst = resolveRateLimits(c.Config)
 	return config, nil
 }
 
@@ -4130,6 +4551,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	config, err := c.rawRestConfig()
 	if err != nil {
 		return nil, err
+	}
+	if config.ExecProvider != nil && config.ExecProvider.ProvideClusterInfo &&
+		c.Config.CATrust == ClusterCATrustBundleAndSystem && c.DependsOnDefaultCABundle() && len(c.DefaultCABundle) > 0 {
+		return nil, fmt.Errorf("caTrust %q cannot be used with an exec provider that sets provideClusterInfo: the system root CAs would be passed to the plugin in its environment, which exceeds the size the operating system allows; use caTrust %q or set caData on the cluster",
+			string(ClusterCATrustBundleAndSystem), string(ClusterCATrustBundle))
 	}
 	if K8sServerSideTimeout > 0 {
 		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
@@ -4143,7 +4569,16 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
-	err = SetK8SConfigDefaults(config)
+	trust, err := c.defaultCABundleTrust()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
+	}
+	var rootCAs *x509.CertPool
+	if trust != nil {
+		rootCAs = trust.pool
+		config.CAData = nil
+	}
+	err = setK8SConfigDefaults(config, rootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}

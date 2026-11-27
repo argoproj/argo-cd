@@ -355,7 +355,7 @@ func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj clie
 
 // A workaround for backward compatibility of the fake client.  Before
 // v0.22 controller runtime fake client was always filling GVK of the
-// returned objects.  Now it allways clears TypeMeta field in the
+// returned objects.  Now it always clears TypeMeta field in the
 // target object if it's a typed object (see
 // https://github.com/kubernetes-sigs/controller-runtime/pull/3229)
 // The new behavior is purposed to discourage relying on the returned

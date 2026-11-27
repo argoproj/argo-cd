@@ -305,6 +305,44 @@ func TestGetAppResource(t *testing.T) {
 		})
 }
 
+func TestAppEvents(t *testing.T) {
+	ctx := Given(t)
+
+	// guestbook-logs runs one replica, so the deployment controller records a ScalingReplicaSet event for the Deployment
+	ctx.
+		Path("guestbook-logs").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				out, err := fixture.RunCli("app", "events", ctx.GetName())
+				require.NoError(c, err)
+				assert.Contains(c, out, "OperationCompleted")
+				assert.Contains(c, out, "Application/"+ctx.GetName())
+			}, 30*time.Second, time.Second)
+		}).
+		And(func(_ *Application) {
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				out, err := fixture.RunCli("app", "events", ctx.GetName(), "--kind", "Deployment", "--group", "apps", "--resource-name", "guestbook-ui")
+				require.NoError(c, err)
+				assert.Contains(c, out, "ScalingReplicaSet")
+				assert.Contains(c, out, "Deployment/guestbook-ui")
+			}, 30*time.Second, time.Second)
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "events", ctx.GetName(), "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, out, `"reason": "OperationCompleted"`)
+		}).
+		And(func(_ *Application) {
+			_, err := fixture.RunCli("app", "events", ctx.GetName(), "--kind", "Deployment", "--resource-name", "missing")
+			require.ErrorContains(t, err, "resource Deployment/missing not found in application "+ctx.GetName())
+		})
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
@@ -1890,9 +1928,8 @@ func TestSyncWithInfos(t *testing.T) {
 // TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh picks up new commits automatically on the original source
 // at the time the sync was triggered
 func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
-	Given(t).
-		Timeout(2). // Quick timeout since Sync operation is expected to retry forever
-		Path(guestbookPath).
+	ctx := Given(t).Path(guestbookPath)
+	ctx.
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
@@ -1912,6 +1949,9 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
+		And(func() {
+			ctx.Timeout(2) // Quick timeout since Sync operation is expected to retry forever
+		}).
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 		Refresh(RefreshTypeNormal).
 		IgnoreErrors().

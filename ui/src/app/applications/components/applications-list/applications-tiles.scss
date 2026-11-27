@@ -15,6 +15,15 @@
         overflow: visible;
     }
 
+    .applications-tiles__virtual-content {
+        display: flex;
+        flex-direction: column;
+
+        > .argo-table-list__row {
+            flex: 1;
+        }
+    }
+
     .ReactVirtualized__Grid {
         // Extra guard against subpixel horizontal overflow from floor() column math.
         overflow-x: hidden !important;
@@ -204,6 +213,7 @@
 
             i {
                 font-size: 14px;
+                line-height: 1;
             }
         }
     }

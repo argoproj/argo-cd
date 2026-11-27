@@ -60,6 +60,16 @@ for _, condition in ipairs(obj.status.conditions) do
     health_status.status = "Healthy"
     health_status.message = "Resource is up-to-date."
   end
+
+  -- A ManagedResourceDefinition with spec.state Inactive never gets a CRD, so it
+  -- stays Established=False by design. Crossplane treats any state other than
+  -- Active as inactive. Once the MRD is switched to Active, the condition keeps
+  -- this reason until Crossplane reconciles it, and the CRD does not exist yet.
+  local inactive = obj.spec == nil or obj.spec.state ~= "Active"
+  if condition.type == "Established" and condition.reason == "InactiveManagedResource" and inactive then
+    health_status.status = "Healthy"
+    health_status.message = "Resource is up-to-date."
+  end
 end
 
 return health_status

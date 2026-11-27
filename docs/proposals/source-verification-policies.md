@@ -292,7 +292,7 @@ In fact, it does not harm UX *and* improves security with:
 A sealing commit is a gpg signed commit that works as a "seal of approval" attesting that all its ancestor commits were either signed by a trusted key, or reviewed and trusted by the commit author.
 Argo CD verifying gpg signatures would then progress only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
 
-In practice, a commiter reviews all commits that are not signed or signed with untrusted keys from the previous "seal" and creates a (possibly empty) commit with a custom trailer.
+In practice, a committer reviews all commits that are not signed or signed with untrusted keys from the previous "seal" and creates a (possibly empty) commit with a custom trailer.
 Such commits can have the following organization level semantics:
 
 - "From now on, we are going to gpg sign all commits in this repository. There is no point in verifying the unsigned ones from before."
@@ -366,5 +366,5 @@ The non-trivial N:M mapping between repositories and Applications (or even Argo 
 Seal-signing marks the point(s) from where not to verify commits *inside* the repository itself, and thus is making sure that all Argo CD instances and their applications have a consistent view of what they are, regardless of application removal from Argo CD, Argo CD migration, etc.
 
 Both approaches, in fact, work as an optimization mechanism by limiting the number of commits to verify.
-For sealing, a commiter needs to add a seal commit manually even if there are no unsigned changes to speed things up.
+With sealing, a committer adds seal commits manually. Adding one even when there are no unsigned changes still speeds up verification.
 Additionally, the implementation can cache the last `strict`-verified commit per repository & strategy, to optimize verification speed on a best effort basis.

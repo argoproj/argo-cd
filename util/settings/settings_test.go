@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -80,6 +83,166 @@ func TestGetConfigMapByName(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotContains(t, cm2.Data, "test")
 	})
+}
+
+func TestGetClusterCABundle(t *testing.T) {
+	validCABundle := testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")
+	clusterCAConfigMap := func(caBundle string) *corev1.ConfigMap {
+		return &corev1.ConfigMap{
+			Name:      common.ArgoCDClusterCAConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+			Data: map[string]string{
+				common.ArgoCDClusterCAConfigMapKey: caBundle,
+			},
+		}
+	}
+
+	t.Run("returns nil when the ConfigMap does not exist", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns nil when ca.crt is blank", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("   \n"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns nil without error when ca.crt does not contain a valid PEM certificate", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("not a certificate"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err, "a malformed bundle must be treated as absent, not as an error that could stop callers such as the controller")
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns the trimmed PEM bundle when ca.crt is valid", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("\n"+validCABundle+"\n"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Equal(t, []byte(strings.TrimSpace(validCABundle)), caBundle)
+	})
+}
+
+func TestGetClusterCABundle_EvaluatesEachValueOnce(t *testing.T) {
+	validCABundle := strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+	malformedWarnings := func() int {
+		count := 0
+		for _, entry := range hook.AllEntries() {
+			if entry.Level == log.WarnLevel && strings.Contains(entry.Message, common.ArgoCDClusterCAConfigMapName) {
+				count++
+			}
+		}
+		return count
+	}
+	kubeClient, settingsManager := fixtures(t.Context(), nil)
+	cm := &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: "not a certificate",
+		},
+	}
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), cm, metav1.CreateOptions{})
+	require.NoError(t, err)
+	caBundleIs := func(expected []byte) func() bool {
+		return func() bool {
+			caBundle, err := settingsManager.GetClusterCABundle()
+			return err == nil && bytes.Equal(expected, caBundle)
+		}
+	}
+	updateCABundle := func(value string) {
+		t.Helper()
+		cm.Data[common.ArgoCDClusterCAConfigMapKey] = value
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Update(t.Context(), cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+	}
+
+	for range 5 {
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	}
+	assert.Equal(t, 1, malformedWarnings(), "a malformed value must be logged once, not on every lookup")
+
+	updateCABundle(validCABundle)
+	require.Eventually(t, caBundleIs([]byte(validCABundle)), 10*time.Second, 50*time.Millisecond, "a changed value must be evaluated again")
+
+	returned, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	returned[0] = 'X'
+	assert.True(t, caBundleIs([]byte(validCABundle))(), "callers must receive a copy of the bundle")
+
+	updateCABundle("still not a certificate")
+	require.Eventually(t, caBundleIs(nil), 10*time.Second, 50*time.Millisecond)
+	for range 3 {
+		_, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 2, malformedWarnings(), "a new malformed value must be logged once more")
+}
+
+func TestSettingsManager_NotifiesWhenClusterCAConfigMapIsDeleted(t *testing.T) {
+	caBundle := testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")
+	kubeClient, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) {
+		secret.Data["server.secretkey"] = []byte("test-secret-key")
+	})
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: caBundle,
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	before, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	require.NotNil(t, before)
+
+	updates := make(chan *ArgoCDSettings, 1)
+	settingsManager.Subscribe(updates)
+	defer settingsManager.Unsubscribe(updates)
+	select {
+	case <-updates:
+		t.Fatal("unexpected settings notification before the ConfigMap was deleted")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	err = kubeClient.CoreV1().ConfigMaps("default").Delete(t.Context(), common.ArgoCDClusterCAConfigMapName, metav1.DeleteOptions{})
+	require.NoError(t, err)
+
+	select {
+	case <-updates:
+	case <-time.After(10 * time.Second):
+		t.Fatal("deleting argocd-default-cluster-ca-cm did not notify settings subscribers")
+	}
+	after, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	assert.Nil(t, after)
 }
 
 func TestGetSecretByName(t *testing.T) {
@@ -2037,8 +2200,10 @@ func TestRedirectURLForRequest(t *testing.T) {
 		Name        string
 		Settings    *ArgoCDSettings
 		RequestURL  string
+		RequestURI  string
 		ExpectedURL string
 		ExpectError bool
+		ErrorText   string
 	}{
 		{
 			Name: "Single URL",
@@ -2077,16 +2242,115 @@ func TestRedirectURLForRequest(t *testing.T) {
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
+		{
+			Name: "Additional URL after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login?return_url=%2Fargocd%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Absolute request URI after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "https://anotherhost.org/argocd/auth/login",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a different path does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/other"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a shared path prefix does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argocd/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Shared path prefix after root path stripping does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Exact additional URL path with query matches",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo?return_url=%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches child path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo/login",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches exact path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Encoded separator does not create a path boundary",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo%2Flogin",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Invalid request URI",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			RequestURL:  "https://example.org/auth/login",
+			RequestURI:  "/%invalid",
+			ExpectError: true,
+			ErrorText:   "error parsing request URI:",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
 			require.NoError(t, err)
+			request.RequestURI = tc.RequestURI
 			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
-				assert.Error(t, err)
+				require.Error(t, err)
+				if tc.ErrorText != "" {
+					require.ErrorContains(t, err, tc.ErrorText)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -3059,6 +3323,29 @@ func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
 			settings := &ArgoCDSettings{}
 			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
 			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
+		})
+	}
+}
+
+func TestGetSettings_SSOAutoLogin(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]string
+		expected bool
+	}{
+		{name: "unset", data: map[string]string{}, expected: false},
+		{name: "true", data: map[string]string{"sso.autoLogin": "true"}, expected: true},
+		{name: "false", data: map[string]string{"sso.autoLogin": "false"}, expected: false},
+		{name: "not a boolean", data: map[string]string{"sso.autoLogin": "yes"}, expected: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(t.Context(), tt.data, func(secret *corev1.Secret) {
+				secret.Data["server.secretkey"] = []byte("test")
+			})
+			s, err := settingsManager.GetSettings()
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, s.SSOAutoLogin)
 		})
 	}
 }

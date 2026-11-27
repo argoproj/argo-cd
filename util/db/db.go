@@ -42,6 +42,8 @@ type ArgoDB interface {
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, server string) error
+	// GetClusterCABundle returns the default CA bundle for cluster API server connections, or nil if none is configured
+	GetClusterCABundle(ctx context.Context) ([]byte, error)
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
@@ -147,7 +149,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	if err != nil {
 		appControllerDeployment = nil
 		if !apierrors.IsNotFound(err) {
-			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
+			log.Warnf("error retrieving Argo CD controller deployment: %s", err)
 		}
 	}
 	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {

@@ -1,11 +1,12 @@
-import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
+import {ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
-import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
+import {type ReactNode, useCallback, useContext, useState, Fragment} from 'react';
 import {Form, type FormApi} from 'argo-ui';
 import {helpTip} from '../app-utils';
 import {Context} from '../../context';
 import {Spinner} from '../spinner';
+import {useAutoSaveForm} from './use-auto-save-form';
 
 import './editable-panel.scss';
 
@@ -18,6 +19,44 @@ export interface EditablePanelItem {
     view: string | ReactNode;
     edit?: (formApi: FormApi) => ReactNode;
     titleEdit?: (formApi: FormApi) => ReactNode;
+}
+
+export function EditablePanelItemTitle({item, formApi}: {item: EditablePanelItem; formApi?: FormApi}) {
+    const [hintDismissed, setHintDismissed] = useState(false);
+    const hintId = React.useId();
+    if (formApi && item.titleEdit) {
+        return <>{item.titleEdit(formApi)}</>;
+    }
+    return (
+        <>
+            {item.customTitle || item.title}
+            {item.hint && (
+                <span style={{marginLeft: '0.25em'}}>
+                    <Tooltip content={item.hint} visible={hintDismissed ? false : undefined}>
+                        <button
+                            type='button'
+                            className='editable-panel__hint'
+                            aria-label={`Help for ${item.title}`}
+                            aria-describedby={hintId}
+                            onFocus={() => setHintDismissed(false)}
+                            onMouseEnter={() => setHintDismissed(false)}
+                            onKeyDown={event => {
+                                if (event.key === 'Escape' && !hintDismissed) {
+                                    // Dismiss the hint without closing the surrounding editor.
+                                    event.stopPropagation();
+                                    setHintDismissed(true);
+                                }
+                            }}>
+                            <i className='fa fa-question-circle help-tip' aria-hidden='true' />
+                        </button>
+                    </Tooltip>
+                    <span id={hintId} hidden>
+                        {item.hint}
+                    </span>
+                </span>
+            )}
+        </>
+    );
 }
 
 export interface EditablePanelSubsection {
@@ -71,8 +110,7 @@ function EditablePanel<T extends {} = {}>({
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
-    const formApiRef = useRef<FormApi | null>(null);
-    const initialValuesRef = useRef<T>(values);
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
 
     // Sync the collapsed state when the controlling prop changes, adjusting
     // during render instead of in an effect to avoid a cascading re-render.
@@ -80,20 +118,6 @@ function EditablePanel<T extends {} = {}>({
         setPrevCollapsedProp(collapsedProp);
         setIsCollapsed(collapsedProp);
     }
-
-    useEffect(() => {
-        const initialValuesString = JSON.stringify(initialValuesRef.current);
-        const valuesString = JSON.stringify(values);
-
-        if (formApiRef.current && initialValuesString !== valuesString) {
-            if (noReadonlyMode) {
-                formApiRef.current.setAllValues(values);
-            }
-            initialValuesRef.current = values;
-        } else if (initialValuesString !== valuesString) {
-            initialValuesRef.current = values;
-        }
-    }, [values, noReadonlyMode]);
 
     const onModeSwitch = useCallback(() => {
         if (onModeSwitchProp) {
@@ -132,18 +156,7 @@ function EditablePanel<T extends {} = {}>({
             {item.before}
             <div className='row white-box__details-row'>
                 <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
-                    {api && item.titleEdit ? (
-                        item.titleEdit(api)
-                    ) : (
-                        <>
-                            {item.customTitle || item.title}
-                            {item.hint && (
-                                <span style={{marginLeft: '0.25em'}}>
-                                    <HelpIcon title={item.hint} />
-                                </span>
-                            )}
-                        </>
-                    )}
+                    <EditablePanelItemTitle item={item} formApi={api} />
                 </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>
@@ -231,11 +244,7 @@ function EditablePanel<T extends {} = {}>({
                         ) : (
                             <Form
                                 getApi={api => (formApiRef.current = api)}
-                                formDidUpdate={async form => {
-                                    if (noReadonlyMode && save) {
-                                        await save(form.values as any, {});
-                                    }
-                                }}
+                                formDidUpdate={onFormDidUpdate}
                                 onSubmit={handleSubmit}
                                 defaultValues={values}
                                 validateError={validate}>

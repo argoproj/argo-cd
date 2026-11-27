@@ -125,6 +125,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		HydratorEnabled:           s.hydratorEnabled,
 		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
 		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
+		SsoAutoLogin:              argoCDSettings.SSOAutoLogin,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -157,6 +158,8 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			CLIClientID:              oidcConfig.CLIClientID,
 			Scopes:                   oidcConfig.RequestedScopes,
 			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
+			DeviceURL:                oidcConfig.DeviceURL,
+			TokenURL:                 oidcConfig.TokenURL,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
