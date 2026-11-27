@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"text/template"
 	"time"
 
@@ -2038,94 +2039,104 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 	}
 
 	t.Run("items are processed after jitter delay", func(t *testing.T) {
-		var patched bool
-		reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			if action.GetVerb() == "patch" {
-				patched = true
-			}
-			return true, nil, nil
-		}
-
-		appClientset := appclientset.NewSimpleClientset(&app)
-		defaultReactor := appClientset.ReactionChain[0]
-		appClientset.ReactionChain = nil
-		appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
-		appClientset.AddReactor("patch", "applications", reaction)
-
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-		h := NewHandler(
-			"argocd",
-			[]string{},
-			10,
-			5,
-			appClientset,
-			&fakeAppsLister{clientset: appClientset},
-			&settings.ArgoCDSettings{},
-			&fakeSettingsSrc{},
-			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
-			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
-			&mocks.ArgoDB{},
-			int64(50)*1024*1024,
-			2*time.Second,
-			10,
-			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
-		)
+		// created outside the bubble: go-cache starts a janitor goroutine that never exits
+		synctest.Test(t, func(t *testing.T) {
+			var patched bool
+			reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				if action.GetVerb() == "patch" {
+					patched = true
+				}
+				return true, nil, nil
+			}
 
-		req := &appRefreshRequest{
-			appName:      "test-app",
-			appNamespace: "argocd",
-			hydrateType:  nil,
-		}
+			appClientset := appclientset.NewSimpleClientset(&app)
+			defaultReactor := appClientset.ReactionChain[0]
+			appClientset.ReactionChain = nil
+			appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			appClientset.AddReactor("patch", "applications", reaction)
 
-		startTime := time.Now()
-		h.refreshQueue.AddAfter(req, 500*time.Millisecond)
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				5,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+				servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+				&mocks.ArgoDB{},
+				int64(50)*1024*1024,
+				2*time.Second,
+				10,
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
+			)
 
-		// Wait for processing
-		time.Sleep(800 * time.Millisecond)
-		h.Shutdown()
+			req := &appRefreshRequest{
+				appName:      "test-app",
+				appNamespace: "argocd",
+				hydrateType:  nil,
+			}
 
-		elapsed := time.Since(startTime)
-		// Verify delay was applied
-		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(500))
-		// Verify app was actually patched (refresh processed)
-		assert.True(t, patched, "app should be patched after jitter delay")
+			startTime := time.Now()
+			h.refreshQueue.AddAfter(req, 500*time.Millisecond)
+
+			// Wait for processing
+			time.Sleep(800 * time.Millisecond)
+			h.Shutdown()
+			// ShutDownWithDrain doesn't stop the delaying queue's waitingLoop; ShutDown does
+			h.refreshQueue.ShutDown()
+
+			elapsed := time.Since(startTime)
+			// Verify delay was applied
+			assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(500))
+			// Verify app was actually patched (refresh processed)
+			assert.True(t, patched, "app should be patched after jitter delay")
+		})
 	})
 
-	t.Run("no jitter applied when threshold not exceeded", func(_ *testing.T) {
-		appClientset := appclientset.NewSimpleClientset(&app)
+	t.Run("no jitter applied when threshold not exceeded", func(t *testing.T) {
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-		h := NewHandler(
-			"argocd",
-			[]string{},
-			10,
-			5,
-			appClientset,
-			&fakeAppsLister{clientset: appClientset},
-			&settings.ArgoCDSettings{},
-			&fakeSettingsSrc{},
-			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
-			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
-			&mocks.ArgoDB{},
-			int64(50)*1024*1024,
-			2*time.Second,
-			100, // High threshold - won't be exceeded
-			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
-		)
+		// created outside the bubble: go-cache starts a janitor goroutine that never exits
+		synctest.Test(t, func(_ *testing.T) {
+			appClientset := appclientset.NewSimpleClientset(&app)
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				5,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+				servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+				&mocks.ArgoDB{},
+				int64(50)*1024*1024,
+				2*time.Second,
+				100, // High threshold - won't be exceeded
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
+			)
 
-		req := &appRefreshRequest{
-			appName:      "test-app",
-			appNamespace: "argocd",
-			hydrateType:  nil,
-		}
+			req := &appRefreshRequest{
+				appName:      "test-app",
+				appNamespace: "argocd",
+				hydrateType:  nil,
+			}
 
-		// Add without explicit delay
-		h.refreshQueue.Add(req)
+			// Add without explicit delay
+			h.refreshQueue.Add(req)
 
-		// Should process quickly without jitter
-		time.Sleep(100 * time.Millisecond)
-		h.Shutdown()
+			// Should process quickly without jitter
+			time.Sleep(100 * time.Millisecond)
+			h.Shutdown()
+			// ShutDownWithDrain doesn't stop the delaying queue's waitingLoop; ShutDown does
+			h.refreshQueue.ShutDown()
+		})
 	})
 }
 

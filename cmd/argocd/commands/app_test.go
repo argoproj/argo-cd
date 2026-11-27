@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -2040,24 +2041,25 @@ apps   Deployment  default    test           Synced  Healthy
 }
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T) {
-	acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
-	ctx := t.Context()
-	var selectResource []*v1alpha1.SyncOperationResource
-	watch := watchOpts{
-		sync:      false,
-		health:    false,
-		operation: true,
-		suspended: false,
-	}
-	watch = getWatchOpts(watch)
+	synctest.Test(t, func(t *testing.T) {
+		acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
+		ctx := t.Context()
+		var selectResource []*v1alpha1.SyncOperationResource
+		watch := watchOpts{
+			sync:      false,
+			health:    false,
+			operation: true,
+			suspended: false,
+		}
+		watch = getWatchOpts(watch)
 
-	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
-		return nil
-	})
-	output = maskResourceTimestamps(output)
+		output, _ := captureOutput(func() error {
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+			return nil
+		})
+		output = maskResourceTimestamps(output)
 
-	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+		expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
 YYYY-MM-DDTHH:MM:SS+HH:MM            Service     default         service-name1    Synced  Healthy
 YYYY-MM-DDTHH:MM:SS+HH:MM   apps  Deployment     default                  test    Synced  Healthy
 
@@ -2093,22 +2095,23 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
        Service     default    service-name1  Synced  Healthy
 apps   Deployment  default    test           Synced  Healthy
 `
-	expectationParts := strings.Split(expectation, "\n")
-	// Trim trailing whitespace from each line
-	for i := range expectationParts {
-		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
-	}
-	slices.Sort(expectationParts)
-	expectationSorted := strings.Join(expectationParts, "\n")
-	outputParts := strings.Split(output, "\n")
-	// Trim trailing whitespace from each line
-	for i := range outputParts {
-		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
-	}
-	slices.Sort(outputParts)
-	outputSorted := strings.Join(outputParts, "\n")
-	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
-	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+		expectationParts := strings.Split(expectation, "\n")
+		// Trim trailing whitespace from each line
+		for i := range expectationParts {
+			expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+		}
+		slices.Sort(expectationParts)
+		expectationSorted := strings.Join(expectationParts, "\n")
+		outputParts := strings.Split(output, "\n")
+		// Trim trailing whitespace from each line
+		for i := range outputParts {
+			outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+		}
+		slices.Sort(outputParts)
+		outputSorted := strings.Join(outputParts, "\n")
+		// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+		assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+	})
 }
 
 // TestCheckAppWaitConditions covers the branches of the pure readiness helper

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -1615,78 +1616,15 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.Equal(t, 1, callCount)
 	})
 	t.Run("Parses TLS cert key pair when TLS secret update causes cache miss", func(t *testing.T) {
-		cm := &corev1.ConfigMap{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		}
-		secret := &corev1.Secret{
-			Name:            common.ArgoCDSecretName,
-			Namespace:       "default",
-			ResourceVersion: "1",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-			Data: map[string][]byte{
-				"server.secretkey": nil,
-			},
-		}
-		tlsSecret := &corev1.Secret{
-			Name:            externalServerTLSSecretName,
-			Namespace:       "default",
-			ResourceVersion: "1",
-			Data: map[string][]byte{
-				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
-				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
-			},
-		}
-
-		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
-		callCount := 0
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
-			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
-				callCount++
-
-				return tls.X509KeyPair(certpem, keypem)
+		synctest.Test(t, func(t *testing.T) {
+			cm := &corev1.ConfigMap{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
 			}
-		})
-
-		// should be called by first call to GetSettings
-		settings, err := settingsManager.GetSettings()
-		require.NoError(t, err)
-		assert.Equal(t, 1, callCount)
-		assert.NotNil(t, settings.Certificate)
-		assert.True(t, settings.CertificateIsExternal)
-		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
-
-		// update secret
-		tlsSecret.SetResourceVersion("2")
-		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
-		require.NoError(t, err)
-
-		// allow time for the update to resolve to avoid timing issues below
-		time.Sleep(250 * time.Millisecond)
-
-		// should be called again after secret update resolves
-		settings, err = settingsManager.GetSettings()
-		require.NoError(t, err)
-		assert.Equal(t, 2, callCount)
-		assert.NotNil(t, settings.Certificate)
-		assert.True(t, settings.CertificateIsExternal)
-		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
-	})
-	t.Run("Overrides cached internal TLS cert when external TLS secret added", func(t *testing.T) {
-		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			&corev1.Secret{
+			secret := &corev1.Secret{
 				Name:            common.ArgoCDSecretName,
 				Namespace:       "default",
 				ResourceVersion: "1",
@@ -1695,64 +1633,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"server.secretkey": nil,
-					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
-					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
-			},
-		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
-		require.NoError(t, err)
-		// should have internal cert at this point
-		assert.NotNil(t, settings.Certificate)
-		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
-
-		externalTLSSecret := &corev1.Secret{
-			Name:            externalServerTLSSecretName,
-			Namespace:       "default",
-			ResourceVersion: "1",
-			Data: map[string][]byte{
-				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
-				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
-			},
-		}
-		_, err = kubeClient.CoreV1().Secrets("default").Create(t.Context(), externalTLSSecret, metav1.CreateOptions{})
-		require.NoError(t, err)
-
-		// allow time for the create to resolve to avoid timing issues below
-		time.Sleep(250 * time.Millisecond)
-
-		settings, err = settingsManager.GetSettings()
-		require.NoError(t, err)
-		// should now have an external cert
-		assert.NotNil(t, settings.Certificate)
-		assert.True(t, settings.CertificateIsExternal)
-		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
-	})
-	t.Run("Falls back to internal TLS cert when external TLS secret deleted", func(t *testing.T) {
-		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			&corev1.Secret{
-				Name:            common.ArgoCDSecretName,
-				Namespace:       "default",
-				ResourceVersion: "1",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-				Data: map[string][]byte{
-					"server.secretkey": nil,
-					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
-					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
-				},
-			},
-			&corev1.Secret{
+			}
+			tlsSecret := &corev1.Secret{
 				Name:            externalServerTLSSecretName,
 				Namespace:       "default",
 				ResourceVersion: "1",
@@ -1760,28 +1643,152 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
 					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
 				},
-			},
-		)
-		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		settings, err := settingsManager.GetSettings()
-		require.NoError(t, err)
-		// should have external cert at this point
-		assert.NotNil(t, settings.Certificate)
-		assert.True(t, settings.CertificateIsExternal)
-		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+			}
 
-		err = kubeClient.CoreV1().Secrets("default").Delete(t.Context(), externalServerTLSSecretName, metav1.DeleteOptions{})
-		require.NoError(t, err)
+			kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+			callCount := 0
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
+				mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+					callCount++
 
-		// allow time for the delete to resolve to avoid timing issues below
-		time.Sleep(250 * time.Millisecond)
+					return tls.X509KeyPair(certpem, keypem)
+				}
+			})
 
-		settings, err = settingsManager.GetSettings()
-		require.NoError(t, err)
-		// should now have an internal cert
-		assert.NotNil(t, settings.Certificate)
-		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
+			// should be called by first call to GetSettings
+			settings, err := settingsManager.GetSettings()
+			require.NoError(t, err)
+			assert.Equal(t, 1, callCount)
+			assert.NotNil(t, settings.Certificate)
+			assert.True(t, settings.CertificateIsExternal)
+			assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+			// update secret
+			tlsSecret.SetResourceVersion("2")
+			_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
+			require.NoError(t, err)
+
+			// wait for the informer to observe the update
+			synctest.Wait()
+
+			// should be called again after secret update resolves
+			settings, err = settingsManager.GetSettings()
+			require.NoError(t, err)
+			assert.Equal(t, 2, callCount)
+			assert.NotNil(t, settings.Certificate)
+			assert.True(t, settings.CertificateIsExternal)
+			assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+		})
+	})
+	t.Run("Overrides cached internal TLS cert when external TLS secret added", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			kubeClient := fake.NewClientset(
+				&corev1.ConfigMap{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				&corev1.Secret{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+					Data: map[string][]byte{
+						"server.secretkey": nil,
+						"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+						"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+					},
+				},
+			)
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			settings, err := settingsManager.GetSettings()
+			require.NoError(t, err)
+			// should have internal cert at this point
+			assert.NotNil(t, settings.Certificate)
+			assert.False(t, settings.CertificateIsExternal)
+			assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
+
+			externalTLSSecret := &corev1.Secret{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			}
+			_, err = kubeClient.CoreV1().Secrets("default").Create(t.Context(), externalTLSSecret, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			// wait for the informer to observe the create
+			synctest.Wait()
+
+			settings, err = settingsManager.GetSettings()
+			require.NoError(t, err)
+			// should now have an external cert
+			assert.NotNil(t, settings.Certificate)
+			assert.True(t, settings.CertificateIsExternal)
+			assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+		})
+	})
+	t.Run("Falls back to internal TLS cert when external TLS secret deleted", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			kubeClient := fake.NewClientset(
+				&corev1.ConfigMap{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				&corev1.Secret{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+					Data: map[string][]byte{
+						"server.secretkey": nil,
+						"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+						"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+					},
+				},
+				&corev1.Secret{
+					Name:            externalServerTLSSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Data: map[string][]byte{
+						"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+						"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+					},
+				},
+			)
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			settings, err := settingsManager.GetSettings()
+			require.NoError(t, err)
+			// should have external cert at this point
+			assert.NotNil(t, settings.Certificate)
+			assert.True(t, settings.CertificateIsExternal)
+			assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+			err = kubeClient.CoreV1().Secrets("default").Delete(t.Context(), externalServerTLSSecretName, metav1.DeleteOptions{})
+			require.NoError(t, err)
+
+			// wait for the informer to observe the delete
+			synctest.Wait()
+
+			settings, err = settingsManager.GetSettings()
+			require.NoError(t, err)
+			// should now have an internal cert
+			assert.NotNil(t, settings.Certificate)
+			assert.False(t, settings.CertificateIsExternal)
+			assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
+		})
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(

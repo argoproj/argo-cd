@@ -329,7 +329,9 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
-	time.Sleep(10 * time.Second)
+	// backdate the first-seen error past the grace period instead of sleeping through it
+	manager := ctrl.appStateManager.(*appStateManager)
+	manager.repoErrorCache.Store(app.Name, time.Now().Add(-manager.repoErrorGracePeriod-time.Second))
 	// expect to not get error as outside of grace period, but status should be unknown
 	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
