@@ -387,6 +387,9 @@ data:
   reposerver.git.lsremote.optimized.enabled: "false"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Use the repo-server's AWS identity (IRSA, EKS Pod Identity) to authenticate to AWS CodeCommit HTTPS repositories
+  # that have no credentials configured. (default "false")
+  reposerver.git.codecommit.iam.enabled: "false"
   # Cache TTL for locks that prevent duplicate requests on the same revision. Set to "0" to disable. (default "10s")
   reposerver.revision.cache.lock.timeout: "10s"
   # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
@@ -428,6 +431,9 @@ data:
   commitserver.signing.key.passphrase.file: ""
   # Timeout for git requests and GitHub App API requests (token fetch and installation ID discovery) (default "15s").
   commitserver.git.request.timeout: "15s"
+  # Use the commit-server's AWS identity (IRSA, EKS Pod Identity) to authenticate to AWS CodeCommit HTTPS repositories
+  # that have no write credentials configured. (default "false")
+  commitserver.git.codecommit.iam.enabled: "false"
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"

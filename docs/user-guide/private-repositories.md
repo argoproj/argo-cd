@@ -278,6 +278,81 @@ Using the UI:
 
 3. Click `Connect` to test the connection and have the repository added
 
+### AWS CodeCommit using the Pod's IAM Identity
+
+Argo CD can access AWS CodeCommit repositories over HTTPS with the AWS identity of its own Pods, using
+[IAM roles for service accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+or [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html). No IAM user and no
+static Git credentials are needed. For every Git operation, Argo CD generates a short-lived Git password from the Pod's
+temporary AWS credentials, using the same scheme as the AWS CodeCommit credential helper.
+
+1. Associate an IAM role with the `argocd-repo-server` service account. The role needs `codecommit:GitPull` on the
+   repositories Argo CD should read. If you use the [Source Hydrator](./source-hydrator.md) or another feature that
+   pushes to CodeCommit, also associate a role with `codecommit:GitPush` with the `argocd-commit-server` service account.
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "codecommit:GitPull",
+          "Resource": "arn:aws:codecommit:us-east-2:123456789012:config"
+        }
+      ]
+    }
+    ```
+
+2. Enable the feature in the `argocd-cmd-params-cm` ConfigMap and restart the affected components:
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-cmd-params-cm
+      namespace: argocd
+    data:
+      reposerver.git.codecommit.iam.enabled: "true"
+      # only needed when Argo CD pushes to CodeCommit
+      commitserver.git.codecommit.iam.enabled: "true"
+    ```
+
+3. Register the repository without credentials:
+
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: codecommit-config
+      namespace: argocd
+      labels:
+        argocd.argoproj.io/secret-type: repository
+    stringData:
+      type: git
+      url: https://git-codecommit.us-east-2.amazonaws.com/v1/repos/config
+    ```
+
+    You can also run `argocd repo add https://git-codecommit.us-east-2.amazonaws.com/v1/repos/config`, or connect the
+    repository over HTTPS in the UI and leave the credential fields empty.
+
+The Pod's AWS identity is only used when all of the following are true:
+
+- The feature is enabled for the component.
+- The repository has no credentials configured, either directly or through a [credential template](#credential-templates).
+  Repositories with a username and password, SSH key or any other credential keep using it.
+- The URL uses `https` and its host is a CodeCommit Git endpoint: `git-codecommit.<region>.amazonaws.com`,
+  `git-codecommit-fips.<region>.amazonaws.com`, or the `amazonaws.com.cn` and `amazonaws.eu` equivalents.
+  The region is taken from the host, so repositories in different regions work.
+
+VPC interface endpoint host names are not supported. All repositories use the same IAM role, so to access
+repositories in several AWS accounts, the role needs access to each of them.
+
+> [!WARNING]
+> Enabling this feature works like a credential template that matches every CodeCommit URL. Any Application whose
+> project allows a CodeCommit URL in its `sourceRepos` can read that repository if the IAM role can, whether or not
+> the repository is registered in Argo CD. Grant the role access only to the repositories Argo CD should use, and
+> restrict `sourceRepos` in your [projects](./projects.md).
+
 ## Credential templates
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.

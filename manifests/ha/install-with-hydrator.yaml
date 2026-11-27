@@ -36749,6 +36749,12 @@ spec:
               key: commitserver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_GIT_CODECOMMIT_IAM_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.git.codecommit.iam.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -37517,6 +37523,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_CODECOMMIT_IAM_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.codecommit.iam.enabled
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED

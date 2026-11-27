@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 )
@@ -17,6 +18,31 @@ func TestGetGitCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testing
 
 	_, ok := creds.(git.AzureWorkloadIdentityCreds)
 	require.Truef(t, ok, "expected AzureWorkloadIdentityCreds but got %T", creds)
+}
+
+func TestGetGitCredsCodeCommitIAM(t *testing.T) {
+	const codeCommitURL = "https://git-codecommit.us-east-2.amazonaws.com/v1/repos/config"
+
+	tests := []struct {
+		name           string
+		enabled        string
+		repo           Repository
+		wantCodeCommit bool
+	}{
+		{name: "enabled, CodeCommit URL without credentials", enabled: "true", repo: Repository{Repo: codeCommitURL}, wantCodeCommit: true},
+		{name: "disabled", enabled: "false", repo: Repository{Repo: codeCommitURL}},
+		{name: "enabled, static credentials take precedence", enabled: "true", repo: Repository{Repo: codeCommitURL, Username: "user", Password: "pass"}},
+		{name: "enabled, SSH key takes precedence", enabled: "true", repo: Repository{Repo: codeCommitURL, SSHPrivateKey: "ssh-key"}},
+		{name: "enabled, non-CodeCommit URL", enabled: "true", repo: Repository{Repo: "https://github.com/argoproj/argo-cd"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(common.EnvGitCodeCommitIAMEnabled, tt.enabled)
+			creds := tt.repo.GetGitCreds(git.NoopCredsStore{})
+			_, isCodeCommit := creds.(git.CodeCommitCreds)
+			assert.Equalf(t, tt.wantCodeCommit, isCodeCommit, "got %T", creds)
+		})
+	}
 }
 
 func TestGetHelmCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testing.T) {

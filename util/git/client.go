@@ -546,6 +546,12 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.TokenAuth{Token: token}
 		return &auth, nil
+	case CodeCommitCreds:
+		username, password, err := creds.basicAuth()
+		if err != nil {
+			return nil, err
+		}
+		return &githttp.BasicAuth{Username: username, Password: password}, nil
 	}
 
 	// Without explicit credentials, go-git's DefaultAuthBuilder would fall
