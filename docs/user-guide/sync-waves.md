@@ -102,6 +102,10 @@ If a PostDelete hook fails:
 - After fixing the hook, Argo CD will automatically retry on the next reconciliation
 - Alternatively, the user can manually delete the failing hook resource to complete the Application deletion
 
+### Generating Delete Hooks
+
+PreDelete and PostDelete hooks are generated from the Application's target revision. Deleting an Application often removes the files it is built from in the same commit, such as a values file or the folder a Git generator reads, so the target revision may no longer render. In that case Argo CD generates the hooks from the revision of the last sync in the Application's history, the same sources and revisions a rollback would deploy. An Application without sync history still needs its target revision to render.
+
 ## How sync waves work?
 
 Argo CD also offers an alternative method of changing the sync order of resources. These are sync waves. They are defined by the argocd.argoproj.io/sync-wave annotation. The value is an integer that defines the ordering (ArgoCD will start deploying from the lowest number and finish with the highest number).

@@ -104,6 +104,25 @@ func (ctrl *ApplicationController) isAppHook(live *unstructured.Unstructured, ho
 		resourceTracking.GetAppName(live, appLabelKey, trackingMethod, installationID) == app.InstanceName(ctrl.namespace)
 }
 
+// lastDeployedSources returns the sources and revisions of the last sync in the application's history,
+// which is what a rollback deploys.
+func lastDeployedSources(app *appv1.Application) (appv1.ApplicationSources, []string, bool) {
+	if len(app.Status.History) == 0 {
+		return nil, nil, false
+	}
+	last := app.Status.History.LastRevisionHistory()
+	if len(last.Sources) > 0 {
+		if len(last.Revisions) != len(last.Sources) {
+			return nil, nil, false
+		}
+		return last.Sources, last.Revisions, true
+	}
+	if last.Revision == "" || last.Source.RepoURL == "" {
+		return nil, nil, false
+	}
+	return appv1.ApplicationSources{last.Source}, []string{last.Revision}, true
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
@@ -132,7 +151,18 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 	// Fetch target objects from Git to know which hooks should exist
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
-		return false, err
+		// The target often stops rendering when the application is deleted, because the files behind it
+		// are removed from Git in the same commit. The last deployed sync still holds the hooks, so render
+		// them from there rather than blocking the deletion on every reconciliation.
+		deployedSources, deployedRevisions, ok := lastDeployedSources(app)
+		if !ok {
+			return false, err
+		}
+		logCtx.WithError(err).Warnf("Failed to generate %s hooks at the target revision, generating them from the last deployed revision", hookType)
+		targets, _, _, err = ctrl.appStateManager.GetRepoObjs(ctx, app, deployedSources, appLabelKey, deployedRevisions, false, false, nil, proj, true)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	// Find existing hooks of the specified type
