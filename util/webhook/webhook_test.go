@@ -3388,7 +3388,7 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 					{ChangeType: "edit"},
 				},
 			}),
-			expectedFiles: []string{"apps/my-app/values.yaml"},
+			expectedErr: "change without path",
 		},
 		{
 			name:        "truncated response",
@@ -3555,7 +3555,7 @@ func TestNewADOHTTPClientUsesRepositoryTransportSettings(t *testing.T) {
 		Username: "test-user",
 		Password: "test-pat",
 		Proxy:    "http://proxy.example.com:8080",
-		NoProxy:  "localhost",
+		NoProxy:  "direct.example.com",
 	}
 
 	client := newADOHTTPClient(repo)
@@ -3568,7 +3568,7 @@ func TestNewADOHTTPClientUsesRepositoryTransportSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "http://proxy.example.com:8080", proxyURL.String())
 
-	noProxyReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost/_apis", http.NoBody)
+	noProxyReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://direct.example.com/_apis", http.NoBody)
 	require.NoError(t, err)
 	proxyURL, err = transport.Proxy(noProxyReq)
 	require.NoError(t, err)

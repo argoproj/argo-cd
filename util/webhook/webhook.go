@@ -1193,9 +1193,10 @@ func fetchChangedFilesFromADO(ctx context.Context, newHTTPClient func(*v1alpha1.
 		if c.Item.IsFolder {
 			continue
 		}
-		if c.Item.Path != "" {
-			changedFiles = append(changedFiles, strings.TrimPrefix(c.Item.Path, "/"))
+		if c.Item.Path == "" {
+			return nil, errors.New("change without path in Azure DevOps diffs API response")
 		}
+		changedFiles = append(changedFiles, strings.TrimPrefix(c.Item.Path, "/"))
 		// A renamed file also affects applications that watched its previous location.
 		if c.OriginalPath != "" && c.OriginalPath != c.Item.Path {
 			changedFiles = append(changedFiles, strings.TrimPrefix(c.OriginalPath, "/"))
