@@ -451,6 +451,32 @@ func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
 	}
 }
 
+const unsortedDiscoveryLua = `
+actions = {}
+actions["restart"] = {}
+actions["pause"] = {}
+actions["scale"] = {}
+actions["abort"] = {}
+actions["resume"] = {}
+return actions
+`
+
+func TestExecuteResourceActionDiscoverySortsActionsByName(t *testing.T) {
+	t.Parallel()
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	// The actions are collected in a map, so a single run could be sorted by chance.
+	for range 10 {
+		actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{unsortedDiscoveryLua, additionalValidDiscoveryLua})
+		require.NoError(t, err)
+		names := make([]string, 0, len(actions))
+		for _, action := range actions {
+			names = append(names, action.Name)
+		}
+		assert.Equal(t, []string{"abort", "pause", "prebuilt", "restart", "resume", "scale"}, names)
+	}
+}
+
 const discoveryLuaWithInvalidResourceAction = `
 resume = {name = 'resume', invalidField: "test""}
 a = {resume = resume}

@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -155,6 +158,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}
 
 	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(nil, nil).Maybe()
 
 	clusters := []appv1.Cluster{
 		{
@@ -319,6 +323,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(nil, nil).Maybe()
 	var updated *appv1.Cluster
 
 	clusters := []appv1.Cluster{
@@ -357,6 +362,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 
 func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(nil, nil).Maybe()
 	var updated *appv1.Cluster
 	db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1").Return(&appv1.Cluster{
 		Name:       "minikube",
@@ -737,6 +743,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 
 func TestNoClusterEnumeration(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(nil, nil).Maybe()
 
 	mockCluster := appv1.Cluster{
 		Name:       "test/ing",
@@ -847,4 +854,162 @@ func TestCreateDeepLinksObject_ManagedByURL(t *testing.T) {
 		_, exists := result[deeplinks.ManagedByURLKey]
 		require.False(t, exists)
 	})
+}
+
+func TestCreateCluster_DefaultCABundle(t *testing.T) {
+	caBundle := []byte(test.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(caBundle, nil)
+	db.EXPECT().CreateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+		// The bundle must be attached to the request object, which is also what the pre-save connection check uses.
+		return bytes.Equal(c.DefaultCABundle, caBundle) && len(c.Config.CAData) == 0
+	})).RunAndReturn(func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+		return c, nil
+	})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	created, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+		Cluster: &appv1.Cluster{
+			Name:   "uses-default-ca",
+			Server: "https://uses-default-ca",
+			Config: appv1.ClusterConfig{BearerToken: "token"},
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "https://uses-default-ca", created.Server)
+	db.AssertExpectations(t)
+}
+
+func TestUpdateCluster_DefaultCABundle(t *testing.T) {
+	caBundle := []byte(test.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(caBundle, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(&appv1.ClusterList{
+		Items: []appv1.Cluster{{Name: "uses-default-ca", Server: "https://uses-default-ca"}},
+	}, nil)
+	db.EXPECT().UpdateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+		return bytes.Equal(c.DefaultCABundle, caBundle) && len(c.Config.CAData) == 0
+	})).Return(&appv1.Cluster{}, nil)
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	// A full update (no UpdatedFields) validates the connection using the request object.
+	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
+		Cluster: &appv1.Cluster{
+			Name:   "uses-default-ca",
+			Config: appv1.ClusterConfig{BearerToken: "token"},
+		},
+	})
+	require.NoError(t, err)
+	db.AssertExpectations(t)
+}
+
+func TestCreateCluster_InvalidCATrust(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	for _, upsert := range []bool{false, true} {
+		_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+			Upsert: upsert,
+			Cluster: &appv1.Cluster{
+				Name:   "bad-ca-trust",
+				Server: "https://bad-ca-trust",
+				Config: appv1.ClusterConfig{
+					BearerToken:     "token",
+					TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"},
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), `invalid caTrust "both"`)
+	}
+	db.AssertNotCalled(t, "CreateCluster", mock.Anything, mock.Anything)
+	db.AssertNotCalled(t, "UpdateCluster", mock.Anything, mock.Anything)
+}
+
+func TestCreateCluster_ValidCATrust(t *testing.T) {
+	caBundle := []byte(test.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	for _, trust := range []appv1.ClusterCATrust{appv1.ClusterCATrustBundle, appv1.ClusterCATrustSystem, appv1.ClusterCATrustBundleAndSystem} {
+		t.Run(string(trust), func(t *testing.T) {
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetClusterCABundle(mock.Anything).Return(caBundle, nil)
+			db.EXPECT().CreateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+				return c.Config.CATrust == trust
+			})).RunAndReturn(func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+				return c, nil
+			})
+			server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+			_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+				Cluster: &appv1.Cluster{
+					Name:   "valid-ca-trust",
+					Server: "https://valid-ca-trust",
+					Config: appv1.ClusterConfig{
+						BearerToken:     "token",
+						TLSClientConfig: appv1.TLSClientConfig{CATrust: trust},
+					},
+				},
+			})
+			require.NoError(t, err)
+			db.AssertExpectations(t)
+		})
+	}
+}
+
+func TestUpdateCluster_InvalidCATrust(t *testing.T) {
+	newDB := func() *dbmocks.ArgoDB {
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().ListClusters(mock.Anything).Return(&appv1.ClusterList{
+			Items: []appv1.Cluster{{Name: "bad-ca-trust", Server: "https://bad-ca-trust"}},
+		}, nil)
+		return db
+	}
+	badCluster := func() *appv1.Cluster {
+		return &appv1.Cluster{
+			Name: "bad-ca-trust",
+			Config: appv1.ClusterConfig{
+				BearerToken:     "token",
+				TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"},
+			},
+		}
+	}
+
+	for name, updatedFields := range map[string][]string{
+		"full update":          nil,
+		"config field updated": {"config"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			db := newDB()
+			server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+			_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{Cluster: badCluster(), UpdatedFields: updatedFields})
+			require.Error(t, err)
+			assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			assert.Contains(t, err.Error(), `invalid caTrust "both"`)
+			db.AssertNotCalled(t, "UpdateCluster", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestCreateCluster_InsecureClusterIgnoresDefaultCABundle(t *testing.T) {
+	caBundle := []byte(test.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterCABundle(mock.Anything).Return(caBundle, nil)
+	db.EXPECT().CreateCluster(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+		return c, nil
+	})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+		Cluster: &appv1.Cluster{
+			Name:   "insecure",
+			Server: "https://insecure",
+			Config: appv1.ClusterConfig{
+				BearerToken:     "token",
+				TLSClientConfig: appv1.TLSClientConfig{Insecure: true},
+			},
+		},
+	})
+	require.NoError(t, err, "an insecure cluster must pass the pre-save connection check while a default bundle is configured")
+	db.AssertExpectations(t)
 }

@@ -52,6 +52,13 @@ func (g *generatorMock) GetRequeueAfter(_ *v1alpha1.ApplicationSetGenerator) tim
 	return d
 }
 
+// The tests in this package exercise payload handling with unsigned requests,
+// so they run with unauthenticated events allowed.
+func TestMain(m *testing.M) {
+	os.Setenv(webhook.EnvWebhookAllowUnauthenticated, "true")
+	os.Exit(m.Run())
+}
+
 func TestWebhookHandler(t *testing.T) {
 	t.Parallel()
 	tt := []struct {

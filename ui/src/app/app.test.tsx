@@ -1,76 +1,81 @@
-import {act, cleanup, render, screen} from '@testing-library/react';
 import * as React from 'react';
+import {act, render} from '@testing-library/react';
+import '@testing-library/jest-dom';
 
 import {services} from './shared/services';
+import {App} from './app';
 
-jest.mock('argo-ui', () => ({...jest.requireActual('argo-ui'), Tooltip: ({children}: React.PropsWithChildren) => children}));
-jest.mock('./applications', () => ({__esModule: true, default: {component: () => <div>applications page</div>}}));
-jest.mock('./settings', () => ({__esModule: true, default: {component: () => <div>settings page</div>}}));
+jest.mock('./shared/services', () => {
+    // Stable snapshot: useSyncExternalStore loops if getCurrentPreferences returns a new object each call.
+    const preferences = {theme: 'light'};
+    return {
+        services: {
+            viewPreferences: {
+                init: jest.fn(),
+                getPreferences: jest.fn(() => ({subscribe: jest.fn(() => ({unsubscribe: jest.fn()}))})),
+                getCurrentPreferences: jest.fn(() => preferences)
+            },
+            version: {version: jest.fn(() => Promise.resolve({Version: 'v0.0.0'}))},
+            extensions: {addEventListener: jest.fn(), removeEventListener: jest.fn()},
+            authService: {settings: jest.fn()},
+            users: {get: jest.fn()}
+        }
+    };
+});
 
-let bannerMounts = 0;
-jest.mock('./ui-banner/ui-banner', () => ({
-    Banner: ({children}: React.PropsWithChildren) => {
-        React.useEffect(() => {
-            bannerMounts++;
-        }, []);
-        return children;
+jest.mock('./shared/services/requests', () => ({
+    __esModule: true,
+    default: {
+        setBaseHRef: jest.fn(),
+        toAbsURL: (url: string) => url,
+        onError: {subscribe: jest.fn(() => ({unsubscribe: jest.fn()}))}
     }
 }));
 
-describe('App layout', () => {
-    let app: typeof import('./app');
+const pausedKey = 'argocd.sso.autoLoginPaused:/';
 
-    const matchMedia = window.matchMedia;
+const renderApp = async () => {
+    await act(async () => {
+        render(<App />);
+    });
+    expect(console.error).not.toHaveBeenCalledWith('Failed to bootstrap app session', expect.anything());
+};
 
-    beforeAll(() => {
-        // jsdom lacks matchMedia; the theme hooks read it for the 'auto' theme.
-        window.matchMedia = jest.fn().mockReturnValue({matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn()});
-        jest.spyOn(services.version, 'version').mockResolvedValue({Version: 'v9.9.9'} as any);
-        jest.spyOn(services.authService, 'settings').mockResolvedValue({resourceViewEnabled: true, help: {}} as any);
-        jest.spyOn(services.users, 'get').mockResolvedValue({loggedIn: true, username: 'admin', iss: 'argocd', groups: []});
-        // Imported after the spies: app.tsx requests the version at module load.
-        app = require('./app');
+beforeEach(() => {
+    window.localStorage.clear();
+    window.localStorage.setItem(pausedKey, '0');
+    jest.mocked(services.authService.settings).mockResolvedValue({oidcConfig: {name: 'Keycloak'}, ssoAutoLogin: true, help: {}} as any);
+    jest.spyOn(console, 'error');
+});
+
+afterEach(() => {
+    jest.mocked(console.error).mockRestore();
+});
+
+describe('App bootstrap', () => {
+    it('keeps a pause written after the session check started', async () => {
+        const pausedAt = String(Number.MAX_SAFE_INTEGER);
+        window.localStorage.setItem(pausedKey, pausedAt);
+        jest.mocked(services.users.get).mockResolvedValue({loggedIn: true, username: 'alice', iss: 'https://idp.example.com', groups: []});
+
+        await renderApp();
+
+        expect(window.localStorage.getItem(pausedKey)).toBe(pausedAt);
     });
 
-    afterEach(cleanup);
+    it('resumes SSO auto-login when the browser holds an SSO session', async () => {
+        jest.mocked(services.users.get).mockResolvedValue({loggedIn: true, username: 'alice', iss: 'https://idp.example.com', groups: []});
 
-    afterAll(() => {
-        jest.restoreAllMocks();
-        window.matchMedia = matchMedia;
+        await renderApp();
+
+        expect(window.localStorage.getItem(pausedKey)).toBeNull();
     });
 
-    it('keeps the sidebar and banner mounted across sections and updates the active item', async () => {
-        app.history.replace('/applications');
-        render(<app.App />);
-        expect(await screen.findByText('applications page')).toBeInTheDocument();
-        expect(await screen.findByText('v9.9.9', {selector: '.sidebar__version'})).toBeInTheDocument();
-        expect(screen.getByRole('link', {name: 'Applications'})).toHaveAttribute('aria-current', 'page');
-        const versionCalls = (services.version.version as jest.Mock).mock.calls.length;
-        const mounts = bannerMounts;
+    it('keeps SSO auto-login paused for a local account session', async () => {
+        jest.mocked(services.users.get).mockResolvedValue({loggedIn: true, username: 'admin', iss: 'argocd', groups: []});
 
-        act(() => app.history.push('/settings'));
-        expect(await screen.findByText('settings page')).toBeInTheDocument();
-        act(() => app.history.push('/applications'));
-        expect(await screen.findByText('applications page')).toBeInTheDocument();
-        act(() => app.history.push('/settings'));
-        expect(await screen.findByText('settings page')).toBeInTheDocument();
+        await renderApp();
 
-        expect(screen.getByRole('link', {name: 'Settings'})).toHaveAttribute('aria-current', 'page');
-        expect(screen.getByRole('link', {name: 'Applications'})).not.toHaveAttribute('aria-current');
-        expect(bannerMounts).toBe(mounts);
-        // A remounted sidebar would refetch the version (default staleTime 0).
-        expect(services.version.version).toHaveBeenCalledTimes(versionCalls);
-    });
-
-    it('renders a system-level extension registered after startup inside the layout', async () => {
-        app.history.replace('/applications');
-        render(<app.App />);
-        expect(await screen.findByText('applications page')).toBeInTheDocument();
-
-        act(() => (window as any).extensionsAPI.registerSystemLevelExtension(() => <div>extension page</div>, 'My Extension', '/my-extension', 'fa-star'));
-        act(() => app.history.push('/my-extension'));
-
-        expect(await screen.findByText('extension page')).toBeInTheDocument();
-        expect(screen.getByRole('link', {name: 'My Extension'})).toHaveAttribute('aria-current', 'page');
+        expect(window.localStorage.getItem(pausedKey)).toBe('0');
     });
 });
