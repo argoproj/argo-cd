@@ -385,14 +385,23 @@ func (proj *AppProject) normalizePolicy(policy string) string {
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {
-		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.Name, role.Name, proj.Name)
-		policies = append(policies, projectPolicy)
-		policies = append(policies, role.Policies...)
-		for _, groupName := range role.Groups {
-			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.Name, role.Name))
-		}
+		policies = append(policies, proj.rolePolicies(role)...)
 	}
 	return strings.Join(policies, "\n")
+}
+
+// RolePoliciesString returns a Casbin formatted string of the policies of a single project role
+func (proj *AppProject) RolePoliciesString(role ProjectRole) string {
+	return strings.Join(proj.rolePolicies(role), "\n")
+}
+
+func (proj *AppProject) rolePolicies(role ProjectRole) []string {
+	policies := []string{fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.Name, role.Name, proj.Name)}
+	policies = append(policies, role.Policies...)
+	for _, groupName := range role.Groups {
+		policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.Name, role.Name))
+	}
+	return policies
 }
 
 // IsGroupKindNamePermitted validates if the given resource group/kind is permitted to be deployed in the project
