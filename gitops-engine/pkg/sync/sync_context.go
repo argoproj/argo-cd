@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -638,7 +639,9 @@ func (sc *syncContext) Sync(ctx context.Context) {
 		}
 	}
 
-	// collect all completed hooks which have appropriate delete policy
+	// collect all completed hooks which have appropriate delete policy. The delete policy is
+	// evaluated against the outcome of the hook itself, not the outcome of the whole sync, so
+	// both lists have to be considered on every path that ends the operation.
 	hooksPendingDeletionSuccessful := tasks.Filter(func(task *syncTask) bool {
 		return task.isHook() && task.liveObj != nil && !task.running() && task.deleteOnPhaseSuccessful()
 	})
@@ -646,6 +649,8 @@ func (sc *syncContext) Sync(ctx context.Context) {
 	hooksPendingDeletionFailed := tasks.Filter(func(task *syncTask) bool {
 		return task.isHook() && task.liveObj != nil && !task.running() && task.deleteOnPhaseFailed()
 	})
+
+	hooksPendingDeletion := slices.Concat(hooksPendingDeletionSuccessful, hooksPendingDeletionFailed)
 
 	// syncFailTasks only run during failure, so separate them from regular tasks
 	syncFailTasks, tasks := tasks.Split(func(t *syncTask) bool { return t.phase == common.SyncPhaseSyncFail })
@@ -655,7 +660,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 	// if there are any completed but unsuccessful tasks, sync is a failure.
 	// we already know tasks do not contain running tasks
 	if tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() }) {
-		sc.deleteHooks(ctx, hooksPendingDeletionFailed)
+		sc.deleteHooks(ctx, hooksPendingDeletion)
 		sc.executeSyncFailPhase(ctx, syncFailTasks, syncFailedTasks, "one or more synchronization tasks completed unsuccessfully")
 		return
 	}
@@ -672,7 +677,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 	// the sync operation is successful.
 	if len(tasks) == 0 {
 		// delete all completed hooks which have appropriate delete policy
-		sc.deleteHooks(ctx, hooksPendingDeletionSuccessful)
+		sc.deleteHooks(ctx, hooksPendingDeletion)
 		sc.setOperationPhase(common.OperationSucceeded, "successfully synced (no more tasks)")
 		return
 	}
@@ -718,7 +723,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 		} else {
 			completed := sc.executeSyncFailPhase(ctx, syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
 			if completed {
-				sc.deleteHooks(ctx, hooksPendingDeletionFailed)
+				sc.deleteHooks(ctx, hooksPendingDeletion)
 			}
 		}
 	case successful:
@@ -729,7 +734,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 			// an (asynchronous) kubectl apply of manifests, which succeeds immediately.
 
 			// delete all completed hooks which have appropriate delete policy
-			sc.deleteHooks(ctx, hooksPendingDeletionSuccessful)
+			sc.deleteHooks(ctx, hooksPendingDeletion)
 			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
 		} else {
 			sc.setRunningPhase(tasks, false)
@@ -848,8 +853,11 @@ func (sc *syncContext) terminateHooksPreemptively(ctx context.Context, tasks syn
 		}
 
 		// delete the hook if it is running, if we dont know that it is running,
-		// or if it has just completed and is meant to be deleted on sync failed
-		if statusErr != nil || phase.Running() || task.deleteOnPhaseFailed() {
+		// or if it has just completed and is meant to be deleted on sync failed.
+		// Deleting is driven by the delete policy only here: terminating is a failure of the
+		// whole operation, so hooks configured for failure have to be cleaned up even when
+		// they completed successfully before the termination request was processed.
+		if statusErr != nil || phase.Running() || task.hasHookDeletePolicy(common.HookDeletePolicyHookFailed) {
 			err := sc.deleteResource(ctx, task)
 			if err != nil && !apierrors.IsNotFound(err) {
 				sc.setResourceResult(task, task.syncStatus, common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
