@@ -38,7 +38,13 @@ jest.mock('../../../shared/services', () => ({
             }),
             updatePreferences: jest.fn()
         }
-    }
+    },
+    AppsListViewKey: {List: 'list', Tiles: 'tiles', Summary: 'summary'}
+}));
+
+jest.mock('../../../shared/components', () => ({
+    ...jest.requireActual('../../../shared/components'),
+    SearchBar: (): null => null
 }));
 
 jest.mock('./appset-tile', () => ({
@@ -76,7 +82,7 @@ jest.mock('react-virtualized/dist/commonjs/List', () => ({
     )
 }));
 
-import {ApplicationSetTable, ApplicationSetTiles} from './application-sets-list';
+import {ApplicationSetsToolbar, ApplicationSetTable, ApplicationSetTiles} from './application-sets-list';
 
 const makeAppSets = (count: number): ApplicationSet[] =>
     Array.from({length: count}, (_, i) => ({
@@ -141,5 +147,28 @@ describe('ApplicationSetTable virtual scrolling', () => {
         expect(screen.queryByTestId('virtualized-table-list')).toBeNull();
         expect(screen.getByTestId('appset-row-appset-0')).toBeInTheDocument();
         expect(screen.getByTestId(`appset-row-appset-${VIRTUAL_THRESHOLD - 1}`)).toBeInTheDocument();
+    });
+});
+
+describe('ApplicationSetsToolbar health status bar toggle', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    const renderToolbar = (view: string) => {
+        const pref = {view, search: '', searchRegex: false, page: 0} as any;
+        render(<ApplicationSetsToolbar appSets={[]} pref={pref} ctx={{navigation: {goto: jest.fn()}} as any} healthBarPrefs={{showHealthStatusBar: true}} />);
+    };
+
+    it.each(['list', 'tiles'])('is shown in the %s view', view => {
+        renderToolbar(view);
+        expect(screen.getByLabelText('Toggle regex search')).toBeInTheDocument();
+        expect(document.querySelector('.applications-list__accordion')).toBeInTheDocument();
+    });
+
+    it('is hidden in the summary view', () => {
+        renderToolbar('summary');
+        expect(screen.getByLabelText('Toggle regex search')).toBeInTheDocument();
+        expect(document.querySelector('.applications-list__accordion')).not.toBeInTheDocument();
     });
 });

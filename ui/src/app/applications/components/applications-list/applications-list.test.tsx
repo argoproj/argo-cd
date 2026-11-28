@@ -28,7 +28,13 @@ jest.mock('../../../shared/services', () => ({
 jest.mock('../../../shared/components', () => ({
     ...jest.requireActual('../../../shared/components'),
     Page: ({children}: {children: React.ReactNode}) => <>{children}</>,
-    FlexTopBar: () => null
+    SearchBar: () => null,
+    FlexTopBar: ({toolbar}: {toolbar: {tools: React.ReactNode}}) => <>{toolbar.tools}</>
+}));
+
+jest.mock('argo-ui', () => ({
+    ...jest.requireActual('argo-ui'),
+    Tooltip: ({children}: {children: React.ReactNode}) => <>{children}</>
 }));
 
 jest.mock('../../../sidebar/sidebar', () => {
@@ -142,6 +148,18 @@ test('keeps the list scoped to the namespace in the URL across syncing an applic
 
     expect(params(history).get('appNamespace')).toBe('team-a');
     expect(listedNamespace()).toBe('team-a');
+});
+
+test.each(['list', 'tiles'])('shows the health status bar toggle in the %s view', async view => {
+    renderAt(`/applications?view=${view}`);
+    expect(await screen.findByLabelText('Toggle regex search')).toBeInTheDocument();
+    expect(document.querySelector('.applications-list__accordion')).toBeInTheDocument();
+});
+
+test('hides the health status bar toggle in the summary view', async () => {
+    renderAt('/applications?view=summary');
+    expect(await screen.findByLabelText('Toggle regex search')).toBeInTheDocument();
+    expect(document.querySelector('.applications-list__accordion')).not.toBeInTheDocument();
 });
 
 test('a failed cluster list is not an unhandled rejection outside the summary view', async () => {

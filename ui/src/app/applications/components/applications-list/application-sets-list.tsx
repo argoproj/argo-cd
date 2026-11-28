@@ -146,7 +146,7 @@ const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean;
     );
 };
 
-const ApplicationSetsToolbar = (props: {
+export const ApplicationSetsToolbar = (props: {
     appSets: models.ApplicationSet[];
     pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
@@ -178,21 +178,23 @@ const ApplicationSetsToolbar = (props: {
                     .*
                 </button>
             </Tooltip>
-            <Tooltip content='Toggle Health Status Bar'>
-                <button
-                    className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
-                    style={{border: 'none'}}
-                    onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...props.pref,
-                                statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
-                            }
-                        });
-                    }}>
-                    <i className='fas fa-ruler-horizontal' />
-                </button>
-            </Tooltip>
+            {props.pref.view !== AppsListViewKey.Summary && (
+                <Tooltip content='Toggle Health Status Bar'>
+                    <button
+                        className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                        style={{border: 'none'}}
+                        onClick={() => {
+                            services.viewPreferences.updatePreferences({
+                                appList: {
+                                    ...props.pref,
+                                    statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
+                                }
+                            });
+                        }}>
+                        <i className='fas fa-ruler-horizontal' />
+                    </button>
+                </Tooltip>
+            )}
         </div>
     );
 };
