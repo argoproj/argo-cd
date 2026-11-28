@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -26,6 +27,7 @@ const (
 // Service is the service that handles commit requests.
 type Service struct {
 	metricsServer     *metrics.Server
+	gitCredsStore     git.CredsStore
 	repoClientFactory RepoClientFactory
 	// signingConfig is non-nil when the commit server has been configured to
 	// sign hydrated commits. When set, every commit produced by this service
@@ -43,6 +45,7 @@ type Service struct {
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, signingConfig *gpgsign.Config) *Service {
 	return &Service{
 		metricsServer:     metricsServer,
+		gitCredsStore:     gitCredsStore,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		signingConfig:     signingConfig,
 		branchLock:        sync.NewKeyLock(),
@@ -283,22 +286,22 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
-	// FIXME: make it work for GHE
-	// logCtx.Debugf("Getting user info for repo credentials")
-	// gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	// startTime := time.Now()
-	// authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
-	// s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
-	// if err != nil {
-	//	 cleanupOrLog()
-	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
-	// }
-	// Use author name and email from request, defaulting to "Argo CD" if not provided
+	// Author precedence: values from the request (configured in argocd-cm), then the identity associated with the
+	// repository credentials, then the "Argo CD" defaults. A failure to look up the credentials' identity is not fatal.
 	authorName := r.AuthorName
+	authorEmail := r.AuthorEmail
+	if authorName == "" || authorEmail == "" {
+		credsName, credsEmail := s.getCredsUserInfo(ctx, logCtx, r.Repo)
+		if authorName == "" {
+			authorName = credsName
+		}
+		if authorEmail == "" {
+			authorEmail = credsEmail
+		}
+	}
 	if authorName == "" {
 		authorName = "Argo CD"
 	}
-	authorEmail := r.AuthorEmail
 	if authorEmail == "" {
 		authorEmail = "argo-cd@example.com"
 	}
@@ -314,4 +317,23 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	return gitClient, dirPath, cleanupOrLog, nil
+}
+
+// getCredsUserInfo returns the name and email associated with the repository's credentials, if a complete identity is
+// available. Errors are logged and result in empty values so that callers can fall back to defaults.
+func (s *Service) getCredsUserInfo(ctx context.Context, logCtx *log.Entry, repo *v1alpha1.Repository) (string, string) {
+	logCtx.Debug("Getting user info for repo credentials")
+	gitCreds := repo.GetGitCreds(s.gitCredsStore)
+	startTime := time.Now()
+	name, email, err := gitCreds.GetUserInfo(ctx)
+	s.metricsServer.ObserveUserInfoRequestDuration(repo.Repo, getCredentialType(repo), time.Since(startTime))
+	if err != nil {
+		logCtx.WithError(err).Warn("failed to get user info from repo credentials, using default author")
+		return "", ""
+	}
+	// Some credential types only know a username (e.g. HTTPS). A name without an email is not a usable commit identity.
+	if email == "" {
+		return "", ""
+	}
+	return name, email
 }
