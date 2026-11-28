@@ -42,6 +42,33 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
+// Parent references supplied by the controller can cross namespace boundaries.
+// Visit nodes once per root, but keep every edge in a DAG, including shared children.
+export function walkResourceTree(
+    start: ResourceTreeNode,
+    childrenByParentKey: Map<string, ResourceTreeNode[]>,
+    visitNode: (node: ResourceTreeNode) => void,
+    visitEdge: (parent: ResourceTreeNode, child: ResourceTreeNode) => void,
+    rootKey = treeNodeKey(start)
+) {
+    const visited = new Set<string>();
+    function visit(node: ResourceTreeNode) {
+        const key = treeNodeKey(node);
+        if (visited.has(key)) {
+            return;
+        }
+        visited.add(key);
+        visitNode(node);
+        (childrenByParentKey.get(key) || []).sort(compareNodes).forEach(child => {
+            if (treeNodeKey(child) !== rootKey) {
+                visitEdge(node, child);
+                visit(child);
+            }
+        });
+    }
+    visit(start);
+}
+
 // When pods are grouped into their parent's pod group (compact view), a grouped Pod is not
 // rendered as its own node. Resources owned by such a Pod (e.g. LeaderWorkerSet worker
 // StatefulSets, which are owned by the leader Pod) would otherwise be unreachable, so attach
@@ -1391,22 +1418,19 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
-        if (props.showCompactNodes && node.podGroup) {
-            setPodGroupNode(node, root);
-        } else {
-            graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
-        }
-        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
-            if (treeNodeKey(child) === treeNodeKey(root)) {
-                return;
-            }
-            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
-            const isParentClusterScoped = !node.namespace || node.namespace === '';
-            if (node.namespace === child.namespace || isParentClusterScoped) {
-                graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
-            }
-            processNode(child, root, colors);
-        });
+        walkResourceTree(
+            node,
+            childrenByParentKey,
+            current => {
+                if (props.showCompactNodes && current.podGroup) {
+                    setPodGroupNode(current, root);
+                } else {
+                    graph.setNode(treeNodeKey(current), {...current, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+                }
+            },
+            (parent, child) => graph.setEdge(treeNodeKey(parent), treeNodeKey(child), {colors}),
+            treeNodeKey(root)
+        );
     }
     dagre.layout(graph);
 

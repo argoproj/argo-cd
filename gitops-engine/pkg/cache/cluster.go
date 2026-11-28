@@ -309,6 +309,8 @@ type store struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+	// Custom relationships use resource identity so children can arrive before their parent.
+	customParentToChildren map[kube.ResourceKey]map[kube.ResourceKey]struct{}
 }
 
 // clusterCache implements ClusterCache: the shared store, plus the engine that
@@ -536,6 +538,10 @@ func (c *store) newResource(un *unstructured.Unstructured) *Resource {
 
 func (c *store) newResourceWithManifestSettings(un *unstructured.Unstructured, populateResourceInfoHandler OnPopulateResourceInfoHandler, manifestCompressionEnabled bool, manifestStorageType ManifestStorageType, manifestCompressionType ManifestCompressionType) *Resource {
 	ownerRefs, isInferredParentOf := c.resolveResourceReferences(un)
+	parentRef, err := parentReference(un)
+	if err != nil {
+		c.log.Error(err, "Ignoring invalid custom parent", "resource", kube.GetResourceKey(un))
+	}
 
 	cacheManifest := false
 	var info any
@@ -551,6 +557,7 @@ func (c *store) newResourceWithManifestSettings(un *unstructured.Unstructured, p
 		ResourceVersion:    un.GetResourceVersion(),
 		Ref:                kube.GetObjectRef(un),
 		OwnerRefs:          ownerRefs,
+		ParentRef:          parentRef,
 		Info:               info,
 		CreationTimestamp:  creationTimestamp,
 		isInferredParentOf: isInferredParentOf,
@@ -585,6 +592,7 @@ func (c *store) setNode(n *Resource) {
 // updateIndexes updates nsIndex, parentUIDToChildren and inferred owner refs
 // for n, which replaces existing (nil if n is new). Caller must hold c.lock.
 func (c *store) updateIndexes(existing, n *Resource) {
+	c.updateCustomParentIndex(existing, n)
 	key := n.ResourceKey()
 	ns, ok := c.nsIndex[key.Namespace]
 	if !ok {
@@ -1050,7 +1058,38 @@ func (c *store) FindResources(namespace string, predicates ...func(r *Resource) 
 func (c *store) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
+	if len(c.customParentToChildren) == 0 {
+		c.iterateHierarchy(keys, action, nil)
+		return
+	}
 
+	// Traverse native ownership normally, queuing custom children of each accepted
+	// node. A shared visited set bounds cycles involving either kind of relationship.
+	visited := make(map[kube.ResourceKey]bool)
+	graphs := make(map[string]resourceGraph)
+	for len(keys) > 0 {
+		var next []kube.ResourceKey
+		c.iterateHierarchy(keys, func(r *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			key := r.ResourceKey()
+			if visited[key] {
+				return false
+			}
+			visited[key] = true
+			if !action(r, c.resources) {
+				return false
+			}
+			for childKey := range c.customParentToChildren[key] {
+				next = append(next, childKey)
+			}
+			return true
+		}, graphs)
+		keys = next
+	}
+}
+
+// iterateHierarchy traverses native ownership with the store's read lock held.
+// graphs optionally reuses namespace graphs across custom-parent levels.
+func (c *store) iterateHierarchy(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool, graphs map[string]resourceGraph) {
 	// Track whether action() has been called on each resource (notCalled/inProgress/completed).
 	// This is shared across processNamespaceHierarchy and processCrossNamespaceChildren.
 	// Note: This is distinct from 'crossNSTraversed' in processCrossNamespaceChildren, which tracks
@@ -1070,7 +1109,13 @@ func (c *store) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource
 	// Process namespaced resources with standard hierarchy
 	for namespace, namespaceKeys := range keysPerNamespace {
 		nsNodes := c.nsIndex[namespace]
-		graph := buildGraph(nsNodes)
+		graph, ok := graphs[namespace]
+		if !ok {
+			graph = buildGraph(nsNodes)
+			if graphs != nil {
+				graphs[namespace] = graph
+			}
+		}
 		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, actionCallState, action)
 	}
 
@@ -1223,7 +1268,9 @@ func (c *store) processNamespaceHierarchy(
 	}
 }
 
-func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map[types.UID]*Resource {
+type resourceGraph map[kube.ResourceKey]map[types.UID]*Resource
+
+func buildGraph(nsNodes map[kube.ResourceKey]*Resource) resourceGraph {
 	// Prepare to construct a graph
 	// UIDs are almost always unique, so keep one node per UID and put the rest
 	// (same object served by two groups, or empty UIDs) aside, rather than
@@ -1449,6 +1496,11 @@ func (c *store) onNodeUpdated(oldRes *Resource, newRes *Resource) {
 // dispatchResourceUpdated calls every OnResourceUpdated handler. Caller must
 // hold c.lock.
 func (c *store) dispatchResourceUpdated(newRes, oldRes *Resource, ns map[kube.ResourceKey]*Resource) {
+	if len(c.customParentToChildren) > 0 || (oldRes != nil && oldRes.ParentRef != nil) {
+		// Custom parents may live outside the child's namespace. Callbacks execute
+		// under the store lock and must treat this map as read-only.
+		ns = c.resources
+	}
 	for _, h := range c.getResourceUpdatedHandlers() {
 		h(newRes, oldRes, ns)
 	}
@@ -1458,6 +1510,7 @@ func (c *store) dispatchResourceUpdated(newRes, oldRes *Resource, ns map[kube.Re
 // caller removes it from c.resources. It returns the namespace's remaining
 // resources, or nil if the namespace wasn't indexed. Caller must hold c.lock.
 func (c *store) removeIndexes(key kube.ResourceKey, existing *Resource) map[kube.ResourceKey]*Resource {
+	c.updateCustomParentIndex(existing, nil)
 	ns, ok := c.nsIndex[key.Namespace]
 	if ok {
 		delete(ns, key)

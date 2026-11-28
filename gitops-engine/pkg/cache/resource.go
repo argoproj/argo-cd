@@ -20,6 +20,8 @@ type Resource struct {
 	Ref corev1.ObjectReference
 	// References to resource owners
 	OwnerRefs []metav1.OwnerReference
+	// ParentRef is an additional, annotation-defined display relationship. It does not confer ownership.
+	ParentRef *corev1.ObjectReference
 	// Optional creation timestamp of the resource
 	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource

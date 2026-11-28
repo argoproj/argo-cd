@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -419,6 +420,19 @@ func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.Resour
 		}
 		parentRefs[i] = parentRef
 	}
+	if r.ParentRef != nil {
+		ref := r.ParentRef
+		gvk := ref.GroupVersionKind()
+		parentRef := appv1.ResourceRef{Group: gvk.Group, Version: gvk.Version, Kind: ref.Kind, Namespace: ref.Namespace, Name: ref.Name}
+		if parent, ok := namespaceResources[kube.NewResourceKey(gvk.Group, ref.Kind, ref.Namespace, ref.Name)]; ok {
+			parentRef.UID = string(parent.Ref.UID)
+		}
+		if !slices.ContainsFunc(parentRefs, func(existing appv1.ResourceRef) bool {
+			return existing == parentRef || (parentRef.UID != "" && existing.UID == parentRef.UID)
+		}) {
+			parentRefs = append(parentRefs, parentRef)
+		}
+	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
 	if resourceInfo.Health != nil {
@@ -485,6 +499,12 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 			if app != "" || !ok {
 				return app, ok
 			}
+		}
+	}
+	if ref := r.ParentRef; ref != nil {
+		key := kube.NewResourceKey(ref.GroupVersionKind().Group, ref.Kind, ref.Namespace, ref.Name)
+		if parent, ok := ns[key]; ok {
+			return getAppRecursive(parent, ns, maps.Clone(visited))
 		}
 	}
 	return "", true
