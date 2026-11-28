@@ -135,6 +135,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
 		set.ResourceOverrides = overrides
+		set.KustomizeOptions = kustomizeSettings
 	}
 	if sessionmgr.LoggedIn(ctx) {
 		set.PasswordPattern = argoCDSettings.PasswordPattern

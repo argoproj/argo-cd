@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -1778,6 +1779,23 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
+func resolveLocalKustomizeBinaryPath(binaryPath string) string {
+	if binaryPath == "" {
+		return ""
+	}
+	resolved, err := exec.LookPath(binaryPath)
+	if err != nil {
+		log.Warnf("Kustomize binary %q is not available locally; using kustomize from PATH", binaryPath)
+		return ""
+	}
+	absolute, err := filepath.Abs(resolved)
+	if err != nil {
+		log.Warnf("Could not resolve Kustomize binary path %q; using kustomize from PATH: %v", resolved, err)
+		return ""
+	}
+	return absolute
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
@@ -1812,6 +1830,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		kustomizeBinary, err = settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.ApplicationSource)
 		if err != nil {
 			return nil, fmt.Errorf("error getting kustomize binary path: %w", err)
+		}
+		if isLocal {
+			kustomizeBinary = resolveLocalKustomizeBinaryPath(kustomizeBinary)
 		}
 		var kubeVersion string
 		kubeVersion, err = parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
