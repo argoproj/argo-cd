@@ -7,6 +7,7 @@ package health
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,6 +97,47 @@ func TestHPA(t *testing.T) {
 	assertAppHealth(t, "./testdata/hpa-v1-healthy-toofew.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-progressing.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/hpa-v1-progressing-with-no-annotations.yaml", HealthStatusProgressing)
+}
+
+func TestHPAMetricFailureGraceWindow(t *testing.T) {
+	transitionTime := time.Date(2026, time.November, 17, 20, 0, 0, 0, time.UTC)
+	getHealthStatusAt := func(t *testing.T, yamlPath string, offset time.Duration) *HealthStatus {
+		t.Helper()
+		original := now
+		t.Cleanup(func() { now = original })
+		now = func() time.Time { return transitionTime.Add(offset) }
+		return getHealthStatus(t, yamlPath)
+	}
+
+	t.Run("recent metric failure is progressing", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v2-metric-failure.yaml", 30*time.Second)
+		assert.Equal(t, HealthStatusProgressing, health.Status)
+		assert.Equal(t, "the HPA was unable to compute the replica count: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)", health.Message)
+	})
+	t.Run("old metric failure is degraded", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v2-metric-failure.yaml", 10*time.Minute)
+		assert.Equal(t, HealthStatusDegraded, health.Status)
+	})
+	t.Run("metric failure at exactly the window is degraded", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v2-metric-failure.yaml", 2*time.Minute)
+		assert.Equal(t, HealthStatusDegraded, health.Status)
+	})
+	t.Run("failed get scale wins over a recent metric failure", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v2-metric-failure-and-failed-get-scale.yaml", 30*time.Second)
+		assert.Equal(t, HealthStatusDegraded, health.Status)
+	})
+	t.Run("missing lastTransitionTime stays degraded", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v2-metric-failure-no-transition-time.yaml", 30*time.Second)
+		assert.Equal(t, HealthStatusDegraded, health.Status)
+	})
+	t.Run("v1 recent metric failure is progressing", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v1-metric-failure.yaml", 30*time.Second)
+		assert.Equal(t, HealthStatusProgressing, health.Status)
+	})
+	t.Run("v1 old metric failure is degraded", func(t *testing.T) {
+		health := getHealthStatusAt(t, "./testdata/hpa-v1-metric-failure.yaml", 10*time.Minute)
+		assert.Equal(t, HealthStatusDegraded, health.Status)
+	})
 }
 
 func TestPod(t *testing.T) {

@@ -3,9 +3,11 @@ package health
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -17,11 +19,20 @@ var progressingStatus = &HealthStatus{
 	Message: "Waiting to Autoscale",
 }
 
+// hpaMetricFailureGracePeriod is how long a failure to fetch metrics is reported as
+// Progressing before it is reported as Degraded. The HPA controller sets these
+// conditions transiently, for example while pods are being replaced during a rollout.
+const hpaMetricFailureGracePeriod = 2 * time.Minute
+
+// now returns the current time. It is a variable so that tests can override it.
+var now = time.Now
+
 type hpaCondition struct {
-	Type    string
-	Reason  string
-	Message string
-	Status  string
+	Type               string
+	Reason             string
+	Message            string
+	Status             string
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 }
 
 func getHPAHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -53,10 +64,11 @@ func getAutoScalingV2HPAHealth(hpa *autoscalingv2.HorizontalPodAutoscaler) (*Hea
 	conditions := make([]hpaCondition, 0, len(statusConditions))
 	for _, statusCondition := range statusConditions {
 		conditions = append(conditions, hpaCondition{
-			Type:    string(statusCondition.Type),
-			Reason:  statusCondition.Reason,
-			Message: statusCondition.Message,
-			Status:  string(statusCondition.Status),
+			Type:               string(statusCondition.Type),
+			Reason:             statusCondition.Reason,
+			Message:            statusCondition.Message,
+			Status:             string(statusCondition.Status),
+			LastTransitionTime: statusCondition.LastTransitionTime,
 		})
 	}
 
@@ -94,6 +106,19 @@ func checkConditions(conditions []hpaCondition, progressingStatus *HealthStatus)
 	}
 
 	for _, condition := range conditions {
+		if isMetricFailure(&condition) {
+			status := HealthStatusDegraded
+			if !condition.LastTransitionTime.IsZero() && now().Sub(condition.LastTransitionTime.Time) < hpaMetricFailureGracePeriod {
+				status = HealthStatusProgressing
+			}
+			return &HealthStatus{
+				Status:  status,
+				Message: condition.Message,
+			}, nil
+		}
+	}
+
+	for _, condition := range conditions {
 		if isHealthy(&condition) {
 			return &HealthStatus{
 				Status:  HealthStatusHealthy,
@@ -109,15 +134,27 @@ func isDegraded(condition *hpaCondition) bool {
 	degraded_states := []hpaCondition{
 		{Type: "AbleToScale", Reason: "FailedGetScale"},
 		{Type: "AbleToScale", Reason: "FailedUpdateScale"},
-		{Type: "ScalingActive", Reason: "FailedGetResourceMetric"},
-		{Type: "ScalingActive", Reason: "FailedGetObjectMetric"},
-		{Type: "ScalingActive", Reason: "FailedGetPodsMetric"},
-		{Type: "ScalingActive", Reason: "FailedGetExternalMetric"},
 		{Type: "ScalingActive", Reason: "FailedComputeMetricsReplicas"},
 		{Type: "ScalingActive", Reason: "InvalidSelector"},
 	}
 	for _, degraded_state := range degraded_states {
 		if condition.Type == degraded_state.Type && condition.Reason == degraded_state.Reason {
+			return true
+		}
+	}
+	return false
+}
+
+// isMetricFailure reports whether the condition is a failure to fetch metrics, which can be transient.
+func isMetricFailure(condition *hpaCondition) bool {
+	metricFailureReasons := []string{
+		"FailedGetResourceMetric",
+		"FailedGetObjectMetric",
+		"FailedGetPodsMetric",
+		"FailedGetExternalMetric",
+	}
+	for _, reason := range metricFailureReasons {
+		if condition.Type == "ScalingActive" && condition.Reason == reason {
 			return true
 		}
 	}
