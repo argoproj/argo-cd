@@ -98,6 +98,14 @@ func TestGarbageHelmHook(t *testing.T) {
 }
 
 // we should ignore Helm hooks if we have an Argo CD hook
+
+func TestArgoHookOverridesHelmHookWithoutSyncPhase(t *testing.T) {
+	t.Parallel()
+	obj := testingutils.Annotate(example("PostDelete"), "helm.sh/hook", "pre-install")
+	assert.True(t, IsHook(obj))
+	assert.Nil(t, Types(obj))
+}
+
 func TestBothHooks(t *testing.T) {
 	t.Parallel()
 	obj := testingutils.Annotate(example("Sync"), "helm.sh/hook", "pre-install")

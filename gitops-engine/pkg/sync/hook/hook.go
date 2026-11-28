@@ -43,8 +43,9 @@ func Types(obj *unstructured.Unstructured) []common.HookType {
 			types = append(types, t)
 		}
 	}
-	// we ignore Helm hooks if we have Argo hook
-	if len(types) == 0 {
+	// We ignore Helm hooks if the object has an Argo CD hook annotation,
+	// even when the Argo CD hook has no sync-phase type (for example PostDelete).
+	if _, ok := obj.GetAnnotations()[common.AnnotationKeyHook]; !ok {
 		for _, t := range helmhook.Types(obj) {
 			types = append(types, t.HookType())
 		}
