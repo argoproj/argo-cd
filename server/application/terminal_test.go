@@ -31,10 +31,9 @@ import (
 )
 
 func TestStartProcessWithShells(t *testing.T) {
-	t.Parallel()
+	t.Setenv("KUBECTL_REMOTE_COMMAND_WEBSOCKETS", "true")
 
 	t.Run("does not start a canceled session", func(t *testing.T) {
-		t.Parallel()
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
@@ -50,12 +49,15 @@ func TestStartProcessWithShells(t *testing.T) {
 		{name: "stops after session cancellation", cancelOnRequest: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
 			var bashRequests atomic.Int32
 			var shRequests atomic.Int32
+			streamStarted := make(chan struct{}, 1)
+			wsUpgrader := websocket.Upgrader{
+				Subprotocols: []string{"v5.channel.k8s.io"},
+			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				commands := r.URL.Query()["command"]
 				if len(commands) > 0 {
@@ -67,18 +69,48 @@ func TestStartProcessWithShells(t *testing.T) {
 					}
 				}
 				if testCase.cancelOnRequest {
-					cancel()
+					conn, err := wsUpgrader.Upgrade(w, r, nil)
+					if err != nil {
+						return
+					}
+					defer conn.Close()
+					for {
+						if _, _, err := conn.ReadMessage(); err != nil {
+							return
+						}
+					}
 				}
 				http.Error(w, "exec failed", http.StatusInternalServerError)
 			}))
 			defer server.Close()
+			defer server.CloseClientConnections()
 
 			cfg := &rest.Config{Host: server.URL}
 			client, err := kubernetes.NewForConfig(cfg)
 			require.NoError(t, err)
 
-			err = startProcessWithShells(ctx, client, cfg, "default", "pod", "container", []string{"bash", "sh"}, &terminalSession{ctx: ctx})
-			require.Error(t, err)
+			result := make(chan error, 1)
+			go func() {
+				result <- startProcessWithShells(ctx, client, cfg, "default", "pod", "container", []string{"bash", "sh"}, &blockingPtyHandler{ctx: ctx, started: streamStarted})
+			}()
+			if testCase.cancelOnRequest {
+				select {
+				case <-streamStarted:
+				case <-time.After(5 * time.Second):
+					t.Fatal("timed out waiting for the terminal stream to start")
+				}
+				cancel()
+			}
+			select {
+			case err = <-result:
+			case <-time.After(5 * time.Second):
+				t.Fatal("terminal request did not stop after cancellation")
+			}
+			if testCase.cancelOnRequest {
+				require.ErrorIs(t, err, context.Canceled)
+			} else {
+				require.Error(t, err)
+			}
 			assert.Positive(t, bashRequests.Load())
 			assert.Zero(t, shRequests.Load())
 		})
@@ -146,6 +178,26 @@ func TestStartProcessWithShellsFallsBackToSH(t *testing.T) {
 	assert.Positive(t, bashRequests.Load())
 	assert.Equal(t, int32(1), shRequests.Load())
 }
+
+type blockingPtyHandler struct {
+	ctx     context.Context
+	started chan<- struct{}
+}
+
+func (h *blockingPtyHandler) Read([]byte) (int, error) {
+	select {
+	case h.started <- struct{}{}:
+	default:
+	}
+	<-h.ctx.Done()
+	return 0, h.ctx.Err()
+}
+
+func (h *blockingPtyHandler) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+func (h *blockingPtyHandler) Next() *remotecommand.TerminalSize { return nil }
+func (h *blockingPtyHandler) Done()                             {}
 
 type stubPtyHandler struct{}
 
