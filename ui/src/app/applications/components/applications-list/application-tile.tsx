@@ -229,6 +229,21 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     <i className='fa fa-sync' /> Sync
                 </button>
                 &nbsp;
+                <Tooltip className='custom-tooltip' content={'Diff'}>
+                    <button
+                        type='button'
+                        className='argo-button argo-button--base'
+                        qe-id='applications-tiles-button-diff'
+                        onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            const appUrl = AppUtils.getAppUrl(app);
+                            const nodeKey = `argoproj.io/Application/${app.metadata.namespace}/${app.metadata.name}/0`;
+                            ctx.navigation.goto(`/${appUrl}`, {node: nodeKey, tab: 'diff'});
+                        }}>
+                        <i className='fa fa-code-compare' /> <span className='show-for-xxlarge'>Diff</span>
+                    </button>
+                </Tooltip>
+                &nbsp;
                 <Tooltip className='custom-tooltip' content={'Refresh'}>
                     {/* Spreading refreshLinkAttrs (= {disabled: isAppRefreshing(app)}) onto a real
                         <button> would actively block clicks while a refresh is in flight, leaving
