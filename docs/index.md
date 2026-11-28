@@ -87,7 +87,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 
 ## Development Status
 
-Argo CD is being actively developed by the community. [Releases](https://github.com/argoproj/argo-cd/releases) are listed on Github.
+Argo CD is being actively developed by the community. Versioned artifacts are listed on [GitHub Releases](https://github.com/argoproj/argo-cd/releases). Feature-level release notes are published on the [Argo Project blog](https://blog.argoproj.io) (for example [Argo CD v2.11](https://blog.argoproj.io/argo-cd-v2-11-release-candidate-b83ba3008ba5)).
 
 ## Adoption
 
