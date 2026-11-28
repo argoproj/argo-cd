@@ -17,6 +17,24 @@ The following environment variables can be used with `argocd` CLI:
 |
 | `ARGOCD_GRPC_KEEP_ALIVE_MIN`         | defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (default `10s`).                                                                    |
 
+## Browser for SSO login
+
+`argocd login --sso` and `argocd relogin` open the SSO URL with the command in `BROWSER` when it is set, and with the
+system default browser otherwise:
+
+- `BROWSER` holds **one** command, split into arguments with shell quoting rules. A list of commands separated by
+  `:` (as `xdg-open` accepts) is not supported.
+- An argument that is exactly `%s` is replaced by the URL; otherwise the URL is appended. `%s` inside a larger
+  argument, such as `--app=%s`, is not replaced.
+- On Windows, put a path that holds backslashes in single quotes, or write it with forward slashes. `cmd.exe` and
+  `.bat` / `.cmd` files are refused, because `cmd.exe` would run whatever follows a `&` in the URL.
+- If the command cannot be used, the CLI logs a warning and opens the system default browser. If no browser opens,
+  the login goes on: open the printed URL by hand, or pass `--sso-launch-browser=false`.
+
+```shell
+export BROWSER='open -na "Google Chrome" --args --profile-directory="Profile 1" %s'
+```
+
 ## Proxy environment variables
 
 For gRPC-web connections, the `argocd` CLI honors the standard `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment
