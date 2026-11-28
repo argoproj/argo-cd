@@ -147,3 +147,40 @@ func TestGetUserIdentifier(t *testing.T) {
 		})
 	}
 }
+
+
+func TestMapClaims_NoReencodeForMapClaimsValue(t *testing.T) {
+	t.Parallel()
+	in := jwt.MapClaims{"sub": "alice", "groups": []string{"devs", "ops"}}
+	out, err := MapClaims(in)
+	assert.NoError(t, err)
+	assert.Equal(t, in, out)
+
+	outPtr, err := MapClaims(&in)
+	assert.NoError(t, err)
+	assert.Equal(t, in, outPtr)
+}
+
+
+// RBAC converts the claims once for every enforcement, which is once for every Application in a List call, so the
+// conversion of the claims type that the API server puts in the request context must not allocate.
+func TestMapClaims_DoesNotAllocateForMapClaims(t *testing.T) {
+	claims := jwt.MapClaims{"sub": "alice", "groups": []any{"team-a", "team-b"}}
+	var claimsIface jwt.Claims = claims
+	var claimsPtrIface jwt.Claims = &claims
+	assert.Zero(t, testing.AllocsPerRun(100, func() {
+		_, _ = MapClaims(claimsIface)
+	}))
+	assert.Zero(t, testing.AllocsPerRun(100, func() {
+		_, _ = MapClaims(claimsPtrIface)
+	}))
+}
+
+func BenchmarkMapClaims(b *testing.B) {
+	claims := jwt.MapClaims{"sub": "alice", "groups": []any{"team-a", "team-b"}}
+	var claimsIface jwt.Claims = claims
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _ = MapClaims(claimsIface)
+	}
+}

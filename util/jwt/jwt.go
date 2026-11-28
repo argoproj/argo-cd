@@ -12,8 +12,13 @@ import (
 
 // MapClaims converts a jwt.Claims to a MapClaims
 func MapClaims(claims jwtgo.Claims) (jwtgo.MapClaims, error) {
-	if mapClaims, ok := claims.(*jwtgo.MapClaims); ok {
-		return *mapClaims, nil
+	switch c := claims.(type) {
+	case jwtgo.MapClaims:
+		return c, nil
+	case *jwtgo.MapClaims:
+		if c != nil {
+			return *c, nil
+		}
 	}
 	claimsBytes, err := json.Marshal(claims)
 	if err != nil {
