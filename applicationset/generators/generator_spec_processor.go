@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 
 	"github.com/jeremywohl/flatten"
@@ -158,6 +159,38 @@ func normalizeMapForFlatten(in map[string]any) map[string]any {
 		default:
 			out[k] = v
 		}
+	}
+	return out
+}
+
+// normalizeConflictingMaps returns copies of dst and src in which a map[string]string is
+// converted to map[string]interface{} only where the other side holds a map[string]interface{}
+// under the same key, because mergo.Merge panics on that mismatch. Every other value keeps its
+// type, so templates using missingkey=error behave the same for merged and unmerged param sets.
+func normalizeConflictingMaps(dst, src map[string]any) (map[string]any, map[string]any) {
+	dst, src = maps.Clone(dst), maps.Clone(src)
+	for k, sv := range src {
+		switch d := dst[k].(type) {
+		case map[string]string:
+			if _, ok := sv.(map[string]any); ok {
+				dst[k] = stringMapToAny(d)
+			}
+		case map[string]any:
+			switch s := sv.(type) {
+			case map[string]string:
+				src[k] = stringMapToAny(s)
+			case map[string]any:
+				dst[k], src[k] = normalizeConflictingMaps(d, s)
+			}
+		}
+	}
+	return dst, src
+}
+
+func stringMapToAny(in map[string]string) map[string]any {
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
 	}
 	return out
 }
