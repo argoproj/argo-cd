@@ -1,0 +1,40 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart
+spec:
+  version: 9.4.3
+  nodeSets:
+  - name: default
+    count: 3
+    config:
+      node.store.allow_mmap: false
+status:
+  conditions:
+  - lastTransitionTime: "2026-10-12T11:13:34Z"
+    message: Elasticsearch cluster UUID is not reconciled
+    status: "False"
+    type: ReconciliationComplete
+  - lastTransitionTime: "2026-10-12T11:13:34Z"
+    message: All nodes are running version 9.4.3
+    status: "True"
+    type: RunningDesiredVersion
+  - lastTransitionTime: "2026-10-12T11:13:34Z"
+    message: Service argoapps/nclm-elastic-es-internal-http has no endpoint
+    status: "False"
+    type: ElasticsearchIsReachable
+  - lastTransitionTime: "2026-10-12T11:13:34Z"
+    message: Successfully calculated compute and storage resources from Elasticsearch resource generation 2
+    status: "True"
+    type: ResourcesAwareManagement
+  health: unknown
+  inProgressOperations:
+    downscale:
+      lastUpdatedTime: "2026-10-12T11:13:34Z"
+    upgrade:
+      lastUpdatedTime: "2026-10-12T11:13:34Z"
+    upscale:
+      lastUpdatedTime: "2026-10-12T11:13:34Z"
+  observedGeneration: 2
+  phase: ApplyingChanges
+  version: 9.4.3
