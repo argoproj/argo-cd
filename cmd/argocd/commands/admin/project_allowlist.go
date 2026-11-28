@@ -119,6 +119,7 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 	}
 
 	resourceList := make([]metav1.GroupKind, 0)
+	seen := make(map[metav1.GroupKind]bool)
 	for _, rule := range clusterRole.Rules {
 		if len(rule.APIGroups) == 0 {
 			continue
@@ -126,7 +127,7 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 
 		canCreate := false
 		for _, verb := range rule.Verbs {
-			if strings.EqualFold(verb, "Create") {
+			if strings.EqualFold(verb, "Create") || verb == "*" {
 				canCreate = true
 				break
 			}
@@ -136,17 +137,25 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 			continue
 		}
 
-		ruleAPIGroup := rule.APIGroups[0]
-		for _, ruleResource := range rule.Resources {
-			for _, apiResourcesList := range serverResources {
-				gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
-				if err != nil {
-					gv = schema.GroupVersion{}
-				}
-				if ruleAPIGroup == gv.Group {
-					for _, apiResource := range apiResourcesList.APIResources {
-						if apiResource.Name == ruleResource {
-							resourceList = append(resourceList, metav1.GroupKind{Group: ruleAPIGroup, Kind: apiResource.Kind})
+		for _, ruleAPIGroup := range rule.APIGroups {
+			for _, ruleResource := range rule.Resources {
+				for _, apiResourcesList := range serverResources {
+					gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
+					if err != nil {
+						gv = schema.GroupVersion{}
+					}
+					if ruleAPIGroup == "*" || ruleAPIGroup == gv.Group {
+						for _, apiResource := range apiResourcesList.APIResources {
+							if !apiResource.Namespaced {
+								continue
+							}
+							if ruleResource == "*" || apiResource.Name == ruleResource {
+								gk := metav1.GroupKind{Group: gv.Group, Kind: apiResource.Kind}
+								if !seen[gk] {
+									seen[gk] = true
+									resourceList = append(resourceList, gk)
+								}
+							}
 						}
 					}
 				}
@@ -160,5 +169,9 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	globalProj.Spec.NamespaceResourceWhitelist = resourceList
+	if len(resourceList) == 0 {
+		// NamespaceResourceWhitelist uses omitempty, so an empty slice serializes as nil (unrestricted).
+		globalProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "*"}}
+	}
 	return &globalProj, nil
 }
