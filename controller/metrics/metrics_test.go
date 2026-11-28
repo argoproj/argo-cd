@@ -1091,6 +1091,44 @@ func TestSyncWindowMetricEvaluationErrorIsReportedOncePerProject(t *testing.T) {
 	require.Error(t, evaluate(t, newScrape(), newApp("my-app", "important-project")))
 }
 
+func TestResourceTreeNodesMetric(t *testing.T) {
+	cancel, appLister := newFakeLister(t.Context())
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, false)
+	require.NoError(t, err)
+
+	// The counter is package-global, so use a server label no other test uses.
+	server := "https://resource-tree-nodes-test"
+	nodes := []argoappv1.ResourceNode{
+		{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "a"},
+		{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "a-1"},
+		{Kind: "Pod", Namespace: "default", Name: "a-1-x"},
+		{Kind: "Pod", Namespace: "default", Name: "a-1-y"},
+	}
+	orphaned := []argoappv1.ResourceNode{
+		{Kind: "ConfigMap", Namespace: "default", Name: "c"},
+		{Kind: "Pod", Namespace: "default", Name: "z"},
+	}
+	metricsServ.AddResourceTreeNodes(server, nodes, orphaned)
+	// A second tree build adds to the totals.
+	metricsServ.AddResourceTreeNodes(server, nodes[:1], nil)
+
+	expectedMetrics := `
+# HELP argocd_app_resource_tree_nodes_total Number of resource nodes, by group and kind, included in application resource trees each time a tree is built.
+# TYPE argocd_app_resource_tree_nodes_total counter
+argocd_app_resource_tree_nodes_total{group="",kind="ConfigMap",server="https://resource-tree-nodes-test"} 1
+argocd_app_resource_tree_nodes_total{group="",kind="Pod",server="https://resource-tree-nodes-test"} 3
+argocd_app_resource_tree_nodes_total{group="apps",kind="Deployment",server="https://resource-tree-nodes-test"} 2
+argocd_app_resource_tree_nodes_total{group="apps",kind="ReplicaSet",server="https://resource-tree-nodes-test"} 1
+`
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assertMetricsPrinted(t, expectedMetrics, rr.Body.String())
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()

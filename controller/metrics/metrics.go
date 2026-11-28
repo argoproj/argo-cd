@@ -16,6 +16,7 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -38,6 +39,7 @@ type MetricsServer struct {
 	orphanedResourcesGauge            *prometheus.GaugeVec
 	k8sRequestCounter                 *prometheus.CounterVec
 	clusterEventsCounter              *prometheus.CounterVec
+	resourceTreeNodesCounter          *prometheus.CounterVec
 	redisRequestCounter               *prometheus.CounterVec
 	reconcileHistogram                *prometheus.HistogramVec
 	redisRequestHistogram             *prometheus.HistogramVec
@@ -136,6 +138,11 @@ var (
 	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
+	}, append(descClusterDefaultLabels, "group", "kind"))
+
+	resourceTreeNodesCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_app_resource_tree_nodes_total",
+		Help: "Number of resource nodes, by group and kind, included in application resource trees each time a tree is built.",
 	}, append(descClusterDefaultLabels, "group", "kind"))
 
 	redisRequestCounter = prometheus.NewCounterVec(
@@ -240,6 +247,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(orphanedResourcesGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
+	registry.MustRegister(resourceTreeNodesCounter)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(resourceEventsProcessingHistogram)
@@ -262,6 +270,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		orphanedResourcesGauge:            orphanedResourcesGauge,
 		reconcileHistogram:                reconcileHistogram,
 		clusterEventsCounter:              clusterEventsCounter,
+		resourceTreeNodesCounter:          resourceTreeNodesCounter,
 		redisRequestCounter:               redisRequestCounter,
 		redisRequestHistogram:             redisRequestHistogram,
 		resourceEventsProcessingHistogram: resourceEventsProcessingHistogram,
@@ -330,6 +339,20 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 	m.clusterEventsCounter.WithLabelValues(server, group, kind).Inc()
 }
 
+// AddResourceTreeNodes increments the resource tree nodes counter by the number of nodes of each group/kind in the
+// given node lists. It is called each time an application resource tree is built.
+func (m *MetricsServer) AddResourceTreeNodes(server string, nodeLists ...[]argoappv1.ResourceNode) {
+	counts := make(map[schema.GroupKind]int)
+	for _, nodes := range nodeLists {
+		for i := range nodes {
+			counts[schema.GroupKind{Group: nodes[i].Group, Kind: nodes[i].Kind}]++
+		}
+	}
+	for gk, count := range counts {
+		m.resourceTreeNodesCounter.WithLabelValues(server, gk.Group, gk.Kind).Add(float64(count))
+	}
+}
+
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
@@ -386,6 +409,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.orphanedResourcesGauge.Reset()
 		m.k8sRequestCounter.Reset()
 		m.clusterEventsCounter.Reset()
+		m.resourceTreeNodesCounter.Reset()
 		m.redisRequestCounter.Reset()
 		m.reconcileHistogram.Reset()
 		m.redisRequestHistogram.Reset()

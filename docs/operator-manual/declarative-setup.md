@@ -1658,6 +1658,49 @@ kind: ConfigMap
 The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
 specified in `resource.exclusions` setting.
 
+### Finding exclusion candidates
+
+A group/kind is a good candidate for exclusion when the application controller caches many objects or processes many
+events for it, but it never appears in any application resource tree. Excluding it reduces controller memory use,
+CPU use, and lock contention in the cluster cache.
+
+The application controller exposes three metrics that help find these group/kinds:
+
+* `argocd_cluster_cache_resource_objects{server,group,kind}`: the number of objects of each group/kind in the cluster
+  cache.
+* `argocd_cluster_events_total{server,group,kind}`: the number of watch events processed for each group/kind.
+* `argocd_app_resource_tree_nodes_total{server,group,kind}`: the number of nodes of each group/kind included in
+  application resource trees, counted each time a tree is built. Both managed and orphaned resources are counted.
+
+The following query lists cached group/kinds that were not included in any resource tree in the last day, ordered by
+object count:
+
+```promql
+sort_desc(
+  sum by (server, group, kind) (argocd_cluster_cache_resource_objects)
+  unless on (server, group, kind)
+  sum by (server, group, kind) (increase(argocd_app_resource_tree_nodes_total[1d])) > 0
+)
+```
+
+Use a time range longer than the application resync period (`timeout.reconciliation` in `argocd-cm`) so that every
+application is reconciled at least once in that range. If you run more than one application controller shard, query
+all shards together.
+
+> [!WARNING]
+> A group/kind that never appears in a resource tree might still be used by Argo CD. Do not exclude these group/kinds
+> based on this metric alone:
+>
+> * `Node` and `Pod` (core group): used to build the node and pod information shown in the application resource view,
+>   including pods that do not belong to any application.
+> * `CustomResourceDefinition` (`apiextensions.k8s.io`): used to discover new custom resource APIs as CRDs are added
+>   or removed.
+
+> [!NOTE]
+> Orphaned resources only appear in resource trees for projects that enable
+> [orphaned resources monitoring](../user-guide/orphaned-resources.md). Excluding a group/kind that only appears as an
+> orphaned resource hides those resources from orphaned resources monitoring.
+
 ## Filtering resources with a label selector
 
 While `resource.inclusions` and `resource.exclusions` work at the group/kind level, the `resource.selectors` setting
