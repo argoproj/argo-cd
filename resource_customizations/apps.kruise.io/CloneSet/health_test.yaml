@@ -19,3 +19,11 @@ tests:
       status: Suspended
       message: "Cloneset needs manual intervention"
     inputpath: testdata/partition_suspended.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Some replicas are not ready or available"
+    inputPath: testdata/no_updated_available.yaml
+  - healthStatus:
+      status: Healthy
+      message: "All Cloneset workloads are ready and updated"
+    inputPath: testdata/scaled_to_zero.yaml

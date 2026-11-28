@@ -1,10 +1,13 @@
 hs={ status = "Progressing", message = "Waiting for initialization" }
 
 if obj.status ~= nil then
+    -- these counters are omitempty, so they are missing when they are 0
+    local updatedAvailableReplicas = obj.status.updatedAvailableReplicas or 0
+    local replicas = obj.status.replicas or 0
         
     if obj.metadata.generation == obj.status.observedGeneration then
 
-        if obj.spec.updateStrategy.paused == true or not obj.status.updatedAvailableReplicas then
+        if obj.spec.updateStrategy.paused == true then
             hs.status = "Suspended"
             hs.message = "Cloneset is paused"
             return hs
@@ -15,13 +18,13 @@ if obj.status ~= nil then
                 return hs
             end
 
-        elseif obj.status.updatedAvailableReplicas == obj.status.replicas then
+        elseif updatedAvailableReplicas == replicas then
             hs.status = "Healthy"
             hs.message = "All Cloneset workloads are ready and updated"    
             return hs
         
         else
-            if obj.status.updatedAvailableReplicas ~= obj.status.replicas then
+            if updatedAvailableReplicas ~= replicas then
                 hs.status = "Degraded"
                 hs.message = "Some replicas are not ready or available"
                 return hs
