@@ -5,10 +5,8 @@ import (
 	"testing"
 	"time"
 
-	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,9 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 )
 
 // testDeps is a no-op Dependencies: these tests assert on the statuses returned by
@@ -2571,6 +2571,165 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 			}
 			assert.Equal(t, tc.expectRequeue, requeue)
 			assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
+		})
+	}
+}
+
+func TestUpdateApplicationSetApplicationStatus_WaitsForOperationCompletion(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	tests := []struct {
+		name           string
+		initialStatus  v1alpha1.ApplicationSetApplicationStatus
+		app            v1alpha1.Application
+		expectedStatus v1alpha1.ProgressiveSyncStatusCode
+	}{
+		{
+			name: "waiting app with running operation moves to progressing instead of healthy",
+			initialStatus: v1alpha1.ApplicationSetApplicationStatus{
+				Application:     "app1",
+				Status:          v1alpha1.ProgressiveSyncWaiting,
+				Step:            "1",
+				TargetRevisions: []string{"rev1"},
+			},
+			app: v1alpha1.Application{
+				Name:      "app1",
+				Namespace: "argocd",
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1"},
+					OperationState: &v1alpha1.OperationState{
+						Phase: synccommon.OperationRunning,
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ProgressiveSyncProgressing,
+		},
+		{
+			name: "waiting app with pending operation spec moves to progressing instead of healthy",
+			initialStatus: v1alpha1.ApplicationSetApplicationStatus{
+				Application:     "app1",
+				Status:          v1alpha1.ProgressiveSyncWaiting,
+				Step:            "1",
+				TargetRevisions: []string{"rev1"},
+			},
+			app: v1alpha1.Application{
+				Name:      "app1",
+				Namespace: "argocd",
+				Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1"},
+					OperationState: &v1alpha1.OperationState{
+						Phase: synccommon.OperationSucceeded,
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ProgressiveSyncProgressing,
+		},
+		{
+			name: "progressing app stays progressing while sync operation is running",
+			initialStatus: v1alpha1.ApplicationSetApplicationStatus{
+				Application:     "app1",
+				Status:          v1alpha1.ProgressiveSyncProgressing,
+				Step:            "1",
+				TargetRevisions: []string{"rev1"},
+			},
+			app: v1alpha1.Application{
+				Name:      "app1",
+				Namespace: "argocd",
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1"},
+					OperationState: &v1alpha1.OperationState{
+						Phase: synccommon.OperationRunning,
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ProgressiveSyncProgressing,
+		},
+		{
+			name: "progressing app stays progressing while operation is still set",
+			initialStatus: v1alpha1.ApplicationSetApplicationStatus{
+				Application:     "app1",
+				Status:          v1alpha1.ProgressiveSyncProgressing,
+				Step:            "1",
+				TargetRevisions: []string{"rev1"},
+			},
+			app: v1alpha1.Application{
+				Name:      "app1",
+				Namespace: "argocd",
+				Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1"},
+					OperationState: &v1alpha1.OperationState{
+						Phase: synccommon.OperationSucceeded,
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ProgressiveSyncProgressing,
+		},
+		{
+			name: "progressing app becomes healthy once operation clears and phase succeeded",
+			initialStatus: v1alpha1.ApplicationSetApplicationStatus{
+				Application:     "app1",
+				Status:          v1alpha1.ProgressiveSyncProgressing,
+				Step:            "1",
+				TargetRevisions: []string{"rev1"},
+			},
+			app: v1alpha1.Application{
+				Name:      "app1",
+				Namespace: "argocd",
+				Status: v1alpha1.ApplicationStatus{
+					Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1"},
+					OperationState: &v1alpha1.OperationState{
+						Phase: synccommon.OperationSucceeded,
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ProgressiveSyncHealthy,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			appSet := v1alpha1.ApplicationSet{
+				Name:      "appset",
+				Namespace: "argocd",
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{{}},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{tt.initialStatus},
+				},
+			}
+
+			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+			m := NewManager(c, c, nil, testDeps{})
+
+			statuses, err := m.UpdateApplicationSetApplicationStatus(
+				t.Context(),
+				log.NewEntry(log.New()),
+				&appSet,
+				[]v1alpha1.Application{tt.app},
+				[]v1alpha1.Application{tt.app},
+				map[string]int{"app1": 0},
+			)
+			require.NoError(t, err)
+			require.Len(t, statuses, 1)
+			assert.Equal(t, tt.expectedStatus, statuses[0].Status)
 		})
 	}
 }

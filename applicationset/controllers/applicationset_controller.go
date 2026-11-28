@@ -1331,9 +1331,14 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 		return true
 	}
 
-	// progressive syncs use the application status for updates. if they differ, requeue to trigger the next progression
+	// progressive syncs use the application status and operation state for updates. if they differ, requeue to trigger the next progression
 	if enableProgressiveSyncs {
 		if appOld.Status.Health.Status != appNew.Status.Health.Status || appOld.Status.Sync.Status != appNew.Status.Sync.Status {
+			return true
+		}
+
+		if (appOld.Operation == nil) != (appNew.Operation == nil) ||
+			(appOld.Status.OperationState == nil) != (appNew.Status.OperationState == nil) {
 			return true
 		}
 

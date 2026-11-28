@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
@@ -4917,6 +4918,28 @@ func TestShouldRequeueForApplicationSet(t *testing.T) {
 			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew, tt.args.enableProgressiveSyncs), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
+}
+
+func TestShouldRequeueForApplication(t *testing.T) {
+	t.Parallel()
+
+	baseApp := func() *v1alpha1.Application {
+		return &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			},
+		}
+	}
+
+	appWithOp := baseApp()
+	appWithOp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	assert.True(t, shouldRequeueForApplication(appWithOp, baseApp(), true))
+
+	appWithOpState := baseApp()
+	appWithOpState.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
+	assert.True(t, shouldRequeueForApplication(baseApp(), appWithOpState, true))
+	assert.False(t, shouldRequeueForApplication(appWithOp, baseApp(), false))
 }
 
 func TestIgnoreNotAllowedNamespaces(t *testing.T) {
