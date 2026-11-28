@@ -711,6 +711,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
+	//nolint:gohawk // the wg.Wait goroutine is abandoned on shutdown timeout; the process exits
 	shutdownFunc := func() {
 		log.Info("API Server shutdown initiated. Shutting down servers...")
 		server.available.Store(false)
