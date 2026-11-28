@@ -11,6 +11,10 @@ import (
 // T is the resource type (e.g., Application), E is the event type (e.g., ApplicationWatchEvent).
 type EventFunc[T any, E any] func(obj *T, eventType watch.EventType) *E
 
+// UpdateEventFunc creates a watch event for an update from the previous and the new version of an object.
+// It lets the event carry the previous object, so subscribers can tell what the object used to look like.
+type UpdateEventFunc[T any, E any] func(oldObj, newObj *T) *E
+
 // LogFieldsFunc returns log fields for an object (for logging dropped events)
 type LogFieldsFunc[T any] func(obj *T) log.Fields
 
@@ -43,6 +47,7 @@ type Handler[T any, E any] struct {
 	lock        sync.Mutex
 	subscribers []*subscriber[E]
 	eventFunc   EventFunc[T, E]
+	updateFunc  UpdateEventFunc[T, E]
 	logFields   LogFieldsFunc[T]
 }
 
@@ -53,6 +58,13 @@ func NewHandler[T any, E any](eventFunc EventFunc[T, E], logFields LogFieldsFunc
 		eventFunc: eventFunc,
 		logFields: logFields,
 	}
+}
+
+// WithUpdateEventFunc sets the function used to build events for updates. When it is not set, updates are
+// converted with the regular event function and the previous object is not passed to subscribers.
+func (b *Handler[T, E]) WithUpdateEventFunc(f UpdateEventFunc[T, E]) *Handler[T, E] {
+	b.updateFunc = f
+	return b
 }
 
 func (b *Handler[T, E]) notify(event *E, obj *T) {
@@ -102,9 +114,14 @@ func (b *Handler[T, E]) OnAdd(obj any, _ bool) {
 	}
 }
 
-func (b *Handler[T, E]) OnUpdate(_, newObj any) {
+func (b *Handler[T, E]) OnUpdate(oldObj, newObj any) {
 	if typedObj, ok := newObj.(*T); ok {
-		event := b.eventFunc(typedObj, watch.Modified)
+		var event *E
+		if typedOld, oldOk := oldObj.(*T); oldOk && b.updateFunc != nil {
+			event = b.updateFunc(typedOld, typedObj)
+		} else {
+			event = b.eventFunc(typedObj, watch.Modified)
+		}
 		b.notify(event, typedObj)
 	}
 }

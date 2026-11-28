@@ -106,7 +106,7 @@ type Server struct {
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
-	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
+	appBroadcaster         broadcast.Broadcaster[appWatchEvent]
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -127,7 +127,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent],
+	appBroadcaster broadcast.Broadcaster[appWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -141,12 +141,7 @@ func NewServer(
 	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
-		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
-			func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
-				return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
-			},
-			applog.GetAppLogFields,
-		)
+		appBroadcaster = newAppBroadcaster()
 	}
 	// Register Application-level broadcaster to receive create/update/delete events
 	// and handle general application event processing.
@@ -833,8 +828,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
 
 	// subscribe early with buffered channel to ensure we don't miss events
-	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
-	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *v1alpha1.ApplicationWatchEvent) bool {
+	events := make(chan *appWatchEvent, watchAPIBufferSize)
+	unsubscribe := s.appBroadcaster.Subscribe(events, func(event *appWatchEvent) bool {
 		return event.Application.Name == appName && event.Application.Namespace == appNs
 	})
 	defer unsubscribe()
@@ -1258,6 +1253,35 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
+// newAppBroadcaster creates the broadcaster that fans informer events out to Watch subscribers.
+func newAppBroadcaster() broadcast.Broadcaster[appWatchEvent] {
+	return broadcast.NewHandler[v1alpha1.Application, appWatchEvent](
+		func(app *v1alpha1.Application, eventType watch.EventType) *appWatchEvent {
+			return &appWatchEvent{ApplicationWatchEvent: v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}}
+		},
+		applog.GetAppLogFields,
+	).WithUpdateEventFunc(func(oldApp, newApp *v1alpha1.Application) *appWatchEvent {
+		return &appWatchEvent{
+			ApplicationWatchEvent: v1alpha1.ApplicationWatchEvent{Application: *newApp, Type: watch.Modified},
+			oldApplication:        oldApp,
+		}
+	})
+}
+
+// appWatchEvent is an application watch event as seen by the server's subscribers. For updates it
+// also carries the previous state of the application.
+type appWatchEvent struct {
+	v1alpha1.ApplicationWatchEvent
+	// oldApplication is the state of the application before the update. Only set for Modified events.
+	oldApplication *v1alpha1.Application
+}
+
+// isFreshEnough reports whether the application's resource version is not below the watch's minimum.
+func isFreshEnough(a v1alpha1.Application, minVersion int) bool {
+	appVersion, err := strconv.Atoi(a.ResourceVersion)
+	return err != nil || appVersion >= minVersion
+}
+
 func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
 		return false
@@ -1313,11 +1337,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
-		if !permitted {
-			return
-		}
+	send := func(a v1alpha1.Application, eventType watch.EventType) {
 		s.inferResourcesStatusHealth(&a)
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
@@ -1328,8 +1348,35 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return
 		}
 	}
+	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
+		if !permitted {
+			return
+		}
+		send(a, eventType)
+	}
 
-	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
+	// handleEvent forwards a broadcaster event. An update that makes an application stop matching the
+	// watch's filters (projects, selector) or the caller's RBAC permissions is sent as DELETED, so the
+	// client, which received the application earlier, drops it instead of keeping a stale copy.
+	// The DELETED event carries the old object, which the client already has, so nothing about the
+	// new state (e.g. a project the caller cannot see) is leaked.
+	handleEvent := func(event *appWatchEvent) {
+		if event.Type == watch.Modified && event.oldApplication != nil {
+			// Whether the client already has the old object does not depend on the watch's minimum
+			// resource version, which only suppresses events older than the client's own starting point.
+			// Freshness is judged by the incoming update instead.
+			oldMatched := s.isApplicationPermitted(selector, 0, claims, appName, appNs, projects, names, *event.oldApplication)
+			newMatches := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, event.Application)
+			if oldMatched && !newMatches && isFreshEnough(event.Application, minVersion) {
+				send(*event.oldApplication, watch.Deleted)
+				return
+			}
+		}
+		sendIfPermitted(event.Application, event.Type)
+	}
+
+	events := make(chan *appWatchEvent, watchAPIBufferSize)
 	// Mimic watch API behavior: send ADDED events if no resource version provided
 	// If watch API is executed for one application when emit event even if resource version is provided
 	// This is required since single app watch API is used for during operations like app syncing and it is
@@ -1351,7 +1398,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for {
 		select {
 		case event := <-events:
-			sendIfPermitted(event.Application, event.Type)
+			handleEvent(event)
 		case <-ws.Context().Done():
 			return nil
 		}

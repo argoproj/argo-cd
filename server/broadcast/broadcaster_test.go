@@ -68,3 +68,46 @@ func TestBroadcasterHandler_ReceiveEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestBroadcasterHandler_OnUpdatePassesOldObject(t *testing.T) {
+	t.Parallel()
+	type event struct {
+		app    appv1.Application
+		old    *appv1.Application
+		update bool
+	}
+	broadcaster := NewHandler[appv1.Application, event](
+		func(app *appv1.Application, _ watch.EventType) *event {
+			return &event{app: *app}
+		},
+		func(app *appv1.Application) log.Fields {
+			return log.Fields{"application": app.Name}
+		},
+	).WithUpdateEventFunc(func(oldApp, newApp *appv1.Application) *event {
+		return &event{app: *newApp, old: oldApp, update: true}
+	})
+
+	ch := make(chan *event, 1)
+	_ = broadcaster.Subscribe(ch)
+
+	oldApp := &appv1.Application{Spec: appv1.ApplicationSpec{Project: "a"}}
+	newApp := &appv1.Application{Spec: appv1.ApplicationSpec{Project: "b"}}
+	broadcaster.OnUpdate(oldApp, newApp)
+
+	got := <-ch
+	assert.True(t, got.update)
+	assert.Equal(t, "a", got.old.Spec.Project)
+	assert.Equal(t, "b", got.app.Spec.Project)
+
+	// Without an update function, OnUpdate keeps using the regular event function.
+	plain := NewHandler[appv1.Application, event](
+		func(app *appv1.Application, _ watch.EventType) *event { return &event{app: *app} },
+		func(app *appv1.Application) log.Fields { return log.Fields{"application": app.Name} },
+	)
+	ch2 := make(chan *event, 1)
+	_ = plain.Subscribe(ch2)
+	plain.OnUpdate(oldApp, newApp)
+	got = <-ch2
+	assert.False(t, got.update)
+	assert.Equal(t, "b", got.app.Spec.Project)
+}
