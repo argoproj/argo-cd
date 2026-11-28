@@ -373,7 +373,7 @@ export const ApplicationParameters = (props: {
                 <EditablePanel
                     save={
                         props.save &&
-                        (async (input: models.Application) => {
+                        (async (input: models.Application, query: {validate?: boolean}) => {
                             const updatedSrc = isMulti ? input.spec.sources[ind] : input.spec.source;
 
                             function isDefined(item: any) {
@@ -416,7 +416,7 @@ export const ApplicationParameters = (props: {
                                 updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
                                 updatedSrc.helm.values = '';
                             }
-                            await props.save(input, {});
+                            await props.save(input, query);
                             setRemovedOverrides(new Array<boolean>());
                         })
                     }
@@ -447,6 +447,7 @@ export const ApplicationParameters = (props: {
                     items={items as EditablePanelItem[]}
                     noReadonlyMode={props.noReadonlyMode}
                     hasMultipleSources={false}
+                    showValidationToggle={true}
                 />
             </div>
         );
