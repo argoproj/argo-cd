@@ -108,6 +108,10 @@ type apiMeta struct {
 type eventMeta struct {
 	event watch.EventType
 	un    *unstructured.Unstructured
+	// watchGen is the producing watch's relist generation and gen its value when the event was
+	// queued. A batched event whose gen is behind predates a relist and is dropped. Nil never drops.
+	watchGen *atomic.Uint64
+	gen      uint64
 }
 
 // ClusterInfo holds cluster cache stats
@@ -256,7 +260,7 @@ type store struct {
 	// and never edit a published one.
 	namespacedResources atomic.Pointer[map[schema.GroupKind]bool]
 
-	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
+	// maximum time we allow watches to run before restarting them
 	watchResyncTimeout time.Duration
 	// sync retry timeout for cluster when sync error happens
 	clusterSyncRetryTimeout time.Duration

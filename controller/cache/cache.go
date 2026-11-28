@@ -102,7 +102,7 @@ type ClusterCacheConfig struct {
 	// NOTE: the default differs from gitops-engine default of 24h
 	ResyncDuration time.Duration
 	// WatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
-	// for before relisting & restarting the watch
+	// for before they are restarted from their last resource version
 	WatchResyncDuration time.Duration
 	// SyncRetryTimeout controls the sync retry duration when cluster sync error happens
 	SyncRetryTimeout time.Duration

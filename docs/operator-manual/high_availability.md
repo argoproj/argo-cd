@@ -253,6 +253,12 @@ stringData:
   resource count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all
   resources will be buffered in memory -- no api server request will be blocked by processing. The default value is `1`.
 
+* `controller.cluster.cache.watch.resync.duration` - `argocd-cmd-params-cm` key (`--cluster-cache-watch-resync-duration`
+  flag, `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION` environment variable) controlling how long each watch of a resource
+  type runs before the API server ends it: a random time between this duration and twice it. The controller then
+  resumes the watch from its last resource version without listing the resources again. The default value is `10m`.
+  Values under `1s` use the API server's default watch timeout.
+
 * `controller.cluster.cache.batch.events.processing` - `argocd-cmd-params-cm` key
   (`--cluster-cache-batch-events-processing` flag, `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` environment variable)
   that enables the controller to collect events for Kubernetes resources and process them in a batch. This is useful
