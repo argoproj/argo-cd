@@ -83,67 +83,68 @@ func TestStartProcessWithShells(t *testing.T) {
 			assert.Zero(t, shRequests.Load())
 		})
 	}
+}
 
-	t.Run("falls back to sh when bash executable is missing in container runtime", func(t *testing.T) {
-		t.Parallel()
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
+func TestStartProcessWithShellsFallsBackToSH(t *testing.T) {
+	t.Setenv("KUBECTL_REMOTE_COMMAND_WEBSOCKETS", "true")
 
-		var bashRequests atomic.Int32
-		var shRequests atomic.Int32
-		wsUpgrader := websocket.Upgrader{
-			Subprotocols: []string{"v5.channel.k8s.io", "v4.channel.k8s.io"},
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	var bashRequests atomic.Int32
+	var shRequests atomic.Int32
+	wsUpgrader := websocket.Upgrader{
+		Subprotocols: []string{"v5.channel.k8s.io", "v4.channel.k8s.io"},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commands := r.URL.Query()["command"]
+		if len(commands) == 0 {
+			http.Error(w, "missing command", http.StatusBadRequest)
+			return
 		}
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			commands := r.URL.Query()["command"]
-			if len(commands) == 0 {
-				http.Error(w, "missing command", http.StatusBadRequest)
+		switch commands[0] {
+		case "bash":
+			bashRequests.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(&metav1.Status{
+				APIVersion: "v1",
+				Kind:       "Status",
+				Status:     metav1.StatusFailure,
+				Reason:     metav1.StatusReasonInternalError,
+				Code:       http.StatusInternalServerError,
+				Message:    `Internal error occurred: error executing command in container: failed to exec in container: OCI runtime exec failed: exec failed: unable to start container process: exec: "bash": executable file not found in $PATH: unknown`,
+			})
+		case "sh":
+			shRequests.Add(1)
+			conn, err := wsUpgrader.Upgrade(w, r, nil)
+			if err != nil {
 				return
 			}
-			switch commands[0] {
-			case "bash":
-				bashRequests.Add(1)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				_ = json.NewEncoder(w).Encode(&metav1.Status{
-					APIVersion: "v1",
-					Kind:       "Status",
-					Status:     metav1.StatusFailure,
-					Reason:     metav1.StatusReasonInternalError,
-					Code:       http.StatusInternalServerError,
-					Message:    `Internal error occurred: error executing command in container: failed to exec in container: OCI runtime exec failed: exec failed: unable to start container process: exec: "bash": executable file not found in $PATH: unknown`,
-				})
-			case "sh":
-				shRequests.Add(1)
-				conn, err := wsUpgrader.Upgrade(w, r, nil)
-				if err != nil {
-					return
-				}
-				defer conn.Close()
-				statusBytes, err := json.Marshal(&metav1.Status{
-					APIVersion: "v1",
-					Kind:       "Status",
-					Status:     metav1.StatusSuccess,
-				})
-				if err != nil {
-					return
-				}
-				_ = conn.WriteMessage(websocket.BinaryMessage, append([]byte{3}, statusBytes...))
-				_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			defer conn.Close()
+			statusBytes, err := json.Marshal(&metav1.Status{
+				APIVersion: "v1",
+				Kind:       "Status",
+				Status:     metav1.StatusSuccess,
+			})
+			if err != nil {
+				return
 			}
-		}))
-		defer server.Close()
+			_ = conn.WriteMessage(websocket.BinaryMessage, append([]byte{3}, statusBytes...))
+			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		}
+	}))
+	defer server.Close()
 
-		cfg := &rest.Config{Host: server.URL}
-		client, err := kubernetes.NewForConfig(cfg)
-		require.NoError(t, err)
+	cfg := &rest.Config{Host: server.URL}
+	client, err := kubernetes.NewForConfig(cfg)
+	require.NoError(t, err)
 
-		pty := &stubPtyHandler{}
-		err = startProcessWithShells(ctx, client, cfg, "default", "pod", "container", []string{"bash", "sh"}, pty)
-		require.NoError(t, err)
-		assert.Positive(t, bashRequests.Load())
-		assert.Equal(t, int32(1), shRequests.Load())
-	})
+	pty := &stubPtyHandler{}
+	err = startProcessWithShells(ctx, client, cfg, "default", "pod", "container", []string{"bash", "sh"}, pty)
+	require.NoError(t, err)
+	assert.Positive(t, bashRequests.Load())
+	assert.Equal(t, int32(1), shRequests.Load())
 }
 
 type stubPtyHandler struct{}
