@@ -154,7 +154,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	appsToSync := getAppsToSync(appset, appDependencyList, applications)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
-	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
+	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap, applications)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
@@ -418,6 +418,61 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 	return step
 }
 
+// resolveMaxUpdate returns the effective maxUpdate for a step and whether
+// maxUpdate admission applies to it. An unset maxUpdate allows all updates.
+// An invalid value is reported once per step (log warning + validation issue)
+// and then treated the same way UpdateApplicationSetApplicationStatusProgress
+// treats it, so both admission sites enforce the same limit.
+func (m *Manager) resolveMaxUpdate(statusLogCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, step, totalCount int) (int, bool) {
+	if !RollingSyncStrategyEnabled(applicationSet) {
+		return 0, false
+	}
+	maxUpdate := applicationSet.Spec.Strategy.RollingSync.Steps[step].MaxUpdate
+	if maxUpdate == nil {
+		return 0, false
+	}
+	maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCount, false)
+	if err != nil {
+		statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
+
+		// Collect validation issue (only add once per step)
+		if m.validationIssues != nil {
+			alreadyRecorded := false
+			for _, issue := range m.validationIssues.InvalidMaxUpdates {
+				if issue.StepIndex == step {
+					alreadyRecorded = true
+					break
+				}
+			}
+			if !alreadyRecorded {
+				m.validationIssues.InvalidMaxUpdates = append(m.validationIssues.InvalidMaxUpdates, InvalidMaxUpdate{
+					StepIndex: step,
+					MaxUpdate: maxUpdate,
+					Error:     err.Error(),
+				})
+			}
+		}
+
+		// A value that failed to parse (for example "0.5%" or a quoted
+		// "2") still admits one application at a time: resolving it to
+		// zero would leave every application in the step that needs a
+		// sync stuck forever, and the docs promise values above 0% are
+		// floored at one application. The misconfiguration stays
+		// visible through the validation issue recorded above.
+		return 1, true
+	}
+
+	// ensure that percentage values greater than 0% always result in at least 1 Application being selected.
+	// Compare the parsed percentage, not its spelling: "00%" parses to zero
+	// just like "0%" and must not gain the one-slot minimum.
+	if maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
+		if percent, err := strconv.ParseFloat(strings.TrimSuffix(maxUpdate.StrVal, "%"), 64); err == nil && percent > 0 {
+			maxUpdateVal = 1
+		}
+	}
+	return maxUpdateVal, true
+}
+
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
 func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
@@ -435,6 +490,45 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
+	// Per-step counts used to enforce maxUpdate admission on the Synced
+	// shortcut below. updateCountMap counts applications already Pending or
+	// Progressing (from the persisted statuses, plus promotions made in this
+	// call); totalCountMap counts the applications in each step. Both mirror
+	// the admission accounting in UpdateApplicationSetApplicationStatusProgress.
+	// Applications no step selects are excluded from both counts: they have
+	// no step whose limit they could consume.
+	var updateCountMap, totalCountMap []int
+	if RollingSyncStrategyEnabled(applicationSet) {
+		stepCount := len(applicationSet.Spec.Strategy.RollingSync.Steps)
+		updateCountMap = make([]int, stepCount)
+		totalCountMap = make([]int, stepCount)
+		for _, app := range applications {
+			if step, ok := appStepMap[app.Name]; ok {
+				totalCountMap[step]++
+			}
+		}
+		// Only statuses of applications that still exist consume a slot:
+		// appStepMap is built from desired applications, so a deleted
+		// application keeps its step mapping, but no sync can be in flight
+		// for it. Its persisted Pending/Progressing status must not block a
+		// live waiter; the application re-acquires a slot if it is
+		// recreated and admitted again.
+		liveApps := make(map[string]struct{}, len(applications))
+		for _, app := range applications {
+			liveApps[app.Name] = struct{}{}
+		}
+		for _, appStatus := range applicationSet.Status.ApplicationStatus {
+			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+				if _, live := liveApps[appStatus.Application]; !live {
+					continue
+				}
+				if step, ok := appStepMap[appStatus.Application]; ok {
+					updateCountMap[step]++
+				}
+			}
+		}
 	}
 
 	for _, app := range applications {
@@ -513,16 +607,65 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
+			step, inStep := appStepMap[app.Name]
+			// An application whose recorded status is Pending or
+			// Progressing already holds one of its step's maxUpdate
+			// slots: updateCountMap was built from those recorded
+			// statuses above. Leaving a counted status releases the
+			// slot; staying in a counted status keeps it, so a reset
+			// must not reserve a second one.
+			wasCounted := inStep && updateCountMap != nil &&
+				(currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending || currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing)
 			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
+					if wasCounted {
+						updateCountMap[step]--
+					}
 				} else {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
+					// A Synced but unhealthy application skips the sync queue, so
+					// promote it to Progressing only if the step still has a free
+					// maxUpdate slot. Otherwise it stays Waiting and the normal
+					// Waiting -> Pending admission re-checks it once a slot frees up.
+					// A slot the application already holds does not count
+					// against it: it keeps updating under the same slot.
+					admitted := true
+					if inStep && updateCountMap != nil {
+						if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok {
+							effectiveCount := updateCountMap[step]
+							if wasCounted {
+								effectiveCount--
+							}
+							if effectiveCount >= maxUpdateVal {
+								admitted = false
+								statusLogCtx.Infof("Application is not allowed to progress yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(app.Name, appStepMap))
+								newAppStatus.Message = "Application resource has synced but is waiting for an available update slot in this step"
+							}
+						}
+					}
+					if admitted {
+						newAppStatus.LastTransitionTime = &now
+						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
+						newAppStatus.Message = "Application resource has synced, updating status to Progressing"
+						if updateCountMap != nil && inStep && !wasCounted {
+							updateCountMap[step]++
+						}
+					} else if wasCounted {
+						// The application leaves its counted status for
+						// Waiting without being admitted, so it stops
+						// consuming a slot for the rest of this call.
+						updateCountMap[step]--
+					}
 				}
+			} else if wasCounted {
+				// An OutOfSync application reset to Waiting leaves its
+				// counted status just like a Synced one: release its slot
+				// now so a waiter later in this pass can use it. It
+				// re-acquires a slot when it later moves from Waiting to
+				// Pending.
+				updateCountMap[step]--
 			}
 		} else {
 			// The target revision is the same, so we need to evaluate the current revision progress
@@ -561,6 +704,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
+					// The application stops consuming a maxUpdate slot here, so
+					// release it for applications evaluated later in this call.
+					// Otherwise a Synced application admitted later in the same
+					// call still sees the slot as full.
+					if step, inStep := appStepMap[app.Name]; inStep && updateCountMap != nil {
+						updateCountMap[step]--
+					}
 				}
 			}
 		}
@@ -804,10 +954,24 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, applications []argov1alpha1.Application) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
+
+	// Live sync status per application. A Waiting application that is already
+	// Synced never goes to Pending: Pending triggers a sync, and the Synced
+	// shortcut in UpdateApplicationSetApplicationStatus already owns admission
+	// for those applications (it promotes them straight to Progressing once a
+	// maxUpdate slot frees up). Only applications that are not Synced need the
+	// Pending step. Applications missing from this list keep the previous
+	// behaviour, so direct callers without live data are unaffected.
+	syncedApps := make(map[string]bool, len(applications))
+	for _, app := range applications {
+		if app.Status.Sync.Status == argov1alpha1.SyncStatusCodeSynced {
+			syncedApps[app.Name] = true
+		}
+	}
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if RollingSyncStrategyEnabled(applicationSet) {
@@ -816,12 +980,16 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 		updateCountMap := make([]int, length)
 		totalCountMap := make([]int, length)
 
-		// populate updateCountMap with counts of existing Pending and Progressing Applications
+		// populate updateCountMap with counts of existing Pending and Progressing Applications.
+		// Applications no step selects are excluded from both counts: they have
+		// no step whose limit they could consume.
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
-			totalCountMap[appStepMap[appStatus.Application]]++
+			if step, ok := appStepMap[appStatus.Application]; ok {
+				totalCountMap[step]++
 
-			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
-				updateCountMap[appStepMap[appStatus.Application]]++
+				if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+					updateCountMap[step]++
+				}
 			}
 		}
 
@@ -834,50 +1002,20 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 			})
 
+			// by default allow all applications to update if maxUpdate is unset.
+			// Applications no step selects have no step limit to enforce.
+			step, inStep := appStepMap[appStatus.Application]
 			maxUpdateAllowed := true
-			maxUpdate := &intstr.IntOrString{}
-			if RollingSyncStrategyEnabled(applicationSet) {
-				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
-			}
-
-			// by default allow all applications to update if maxUpdate is unset
-			if maxUpdate != nil {
-				maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCountMap[appStepMap[appStatus.Application]], false)
-				if err != nil {
-					statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
-
-					// Collect validation issue (only add once per step)
-					if m.validationIssues != nil {
-						stepIdx := appStepMap[appStatus.Application]
-						alreadyRecorded := false
-						for _, issue := range m.validationIssues.InvalidMaxUpdates {
-							if issue.StepIndex == stepIdx {
-								alreadyRecorded = true
-								break
-							}
-						}
-						if !alreadyRecorded {
-							m.validationIssues.InvalidMaxUpdates = append(m.validationIssues.InvalidMaxUpdates, InvalidMaxUpdate{
-								StepIndex: stepIdx,
-								MaxUpdate: maxUpdate,
-								Error:     err.Error(),
-							})
-						}
+			if inStep {
+				if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok {
+					if updateCountMap[step] >= maxUpdateVal {
+						maxUpdateAllowed = false
+						statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
 					}
 				}
-
-				// ensure that percentage values greater than 0% always result in at least 1 Application being selected
-				if maxUpdate.Type == intstr.String && maxUpdate.StrVal != "0%" && maxUpdateVal < 1 {
-					maxUpdateVal = 1
-				}
-
-				if updateCountMap[appStepMap[appStatus.Application]] >= maxUpdateVal {
-					maxUpdateAllowed = false
-					statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
-				}
 			}
 
-			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed {
+			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed && !syncedApps[appStatus.Application] {
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = argov1alpha1.ProgressiveSyncPending
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"
@@ -889,7 +1027,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 					"new_status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 				}).Info("Progressive sync application changed status")
 
-				updateCountMap[appStepMap[appStatus.Application]]++
+				if inStep {
+					updateCountMap[step]++
+				}
 			}
 
 			appStatuses = append(appStatuses, appStatus)
