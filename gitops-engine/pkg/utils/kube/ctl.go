@@ -33,7 +33,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 type Kubectl interface {
 	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
 	ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error)
-	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
+	NewOpenAPISchemaResolver(config *rest.Config, cache *OpenAPISchemaCache) OpenAPISchemaResolver
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -125,24 +125,15 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 	return false
 }
 
-// LoadOpenAPISchema will load all existing resource schemas from the cluster
-// and return:
-// - openapi.Resources: used for getting the proto.Schema from a GVK
-// - managedfields.GvkParser: used for building a ParseableType to be used in
-// structured-merge-diffs
-func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create discovery client: %w", err)
-	}
-
-	return k.loadOpenAPISchema(disco)
+// NewOpenAPISchemaResolver returns a resolver that lazily fetches OpenAPI schemas from the cluster.
+func (k *KubectlCmd) NewOpenAPISchemaResolver(config *rest.Config, cache *OpenAPISchemaCache) OpenAPISchemaResolver {
+	return NewCachedOpenAPISchemaResolver(config, k.Log, cache)
 }
 
-// loadOpenAPISchema parses the OpenAPI document once and builds both the openapi.Resources and the
-// GVK parser from the same models. Neither keeps a reference to the decoded document, so it can be
-// garbage collected as soon as this returns.
-func (k *KubectlCmd) loadOpenAPISchema(oapiGetter discovery.OpenAPISchemaInterface) (openapi.Resources, *managedfields.GvkParser, error) {
+// loadOpenAPISchemaV2 parses the whole OpenAPI v2 document once and builds both the
+// openapi.Resources and the GVK parser from the same models. Neither keeps a reference to the
+// decoded document.
+func loadOpenAPISchemaV2(oapiGetter discovery.OpenAPISchemaInterface, log logr.Logger) (openapi.Resources, *managedfields.GvkParser, error) {
 	doc, err := oapiGetter.OpenAPISchema()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting openapi schema: %w", err)
@@ -152,18 +143,18 @@ func (k *KubectlCmd) loadOpenAPISchema(oapiGetter discovery.OpenAPISchemaInterfa
 		return nil, nil, fmt.Errorf("error getting openapi resources: %w", err)
 	}
 	oapiResources := newOpenAPIResources(models)
-	gvkParser, err := k.newGVKParser(models)
+	gvkParser, err := newGVKParser(models, log)
 	if err != nil {
 		return oapiResources, nil, fmt.Errorf("error getting gvk parser: %w", err)
 	}
 	return oapiResources, gvkParser, nil
 }
 
-func (k *KubectlCmd) newGVKParser(models proto.Models) (*managedfields.GvkParser, error) {
+func newGVKParser(models proto.Models, log logr.Logger) (*managedfields.GvkParser, error) {
 	var taintedGVKs []schema.GroupVersionKind
 	models, taintedGVKs = newUniqueModels(models)
 	if len(taintedGVKs) > 0 {
-		k.Log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", taintedGVKs)
+		log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", taintedGVKs)
 	}
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	if err != nil {

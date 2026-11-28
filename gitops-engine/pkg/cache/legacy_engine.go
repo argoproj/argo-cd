@@ -61,7 +61,7 @@ func (e *legacyEngine) ensureSynced() error {
 
 // sync retrieves the current state of the cluster and stores relevant information in the store fields.
 //
-// First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
+// First we get some metadata from the cluster, like the server version and the list of all API
 // resources.
 //
 // Then we get a list of the preferred versions of all API resources which are to be monitored (it's possible to exclude
@@ -75,6 +75,8 @@ func (e *legacyEngine) ensureSynced() error {
 func (e *legacyEngine) sync() (err error) {
 	c := e.c
 	c.log.Info("Start syncing cluster")
+	// Schemas may have changed while the CRD and APIService watches were down.
+	c.openAPISchemaCache.Invalidate()
 
 	start := time.Now()
 	syncLock := sync.Mutex{}
@@ -126,17 +128,6 @@ func (e *legacyEngine) sync() (err error) {
 		return fmt.Errorf("failed to get api resources: %w", err)
 	}
 	c.apiResources.Store(&apiResources)
-
-	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
-	if err != nil {
-		return fmt.Errorf("failed to load open api schema while syncing cluster cache: %w", err)
-	}
-
-	if gvkParser != nil {
-		c.gvkParser.Store(gvkParser)
-	}
-
-	c.openAPISchema.Store(&openAPISchema)
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
@@ -205,7 +196,7 @@ func (e *legacyEngine) sync() (err error) {
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
 
-			go e.watchEvents(ctx, api, resClient, ns, resourceVersion)
+			go e.watchEvents(ctx, api, resClient, ns, resourceVersion, config.Host)
 
 			return nil
 		})
@@ -265,7 +256,7 @@ func (e *legacyEngine) startMissingWatches() error {
 						return nil
 					}
 				}
-				go e.watchEvents(ctx, api, resClient, ns, resourceVersion)
+				go e.watchEvents(ctx, api, resClient, ns, resourceVersion, c.config.Host)
 				return nil
 			})
 			if err != nil {
@@ -346,9 +337,10 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 	return resourceVersion, nil
 }
 
-func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
+// watchEvents runs without c.lock, so callers pass the host: Invalidate may replace c.config.
+func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string, host string) {
 	c := e.c
-	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
+	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("recovered from panic: %+v\n%s", r, debug.Stack())
@@ -398,15 +390,15 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 			// re-synchronize API state and restart watch periodically
 			case <-watchResyncTimeoutCh:
-				return fmt.Errorf("resyncing %s on %s due to timeout", api.GroupKind, c.config.Host)
+				return fmt.Errorf("resyncing %s on %s due to timeout", api.GroupKind, host)
 
 			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
 			case <-w.Done():
-				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
+				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, host)
 
 			case event, ok := <-w.ResultChan():
 				if !ok {
-					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
+					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, host)
 				}
 
 				obj, ok := event.Object.(*unstructured.Unstructured)

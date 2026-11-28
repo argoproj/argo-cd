@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
@@ -51,7 +50,6 @@ import (
 	"k8s.io/client-go/tools/pager"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
@@ -152,11 +150,9 @@ type ClusterCache interface {
 	// The returned list is a snapshot: it is replaced, never edited in place, when CRDs are
 	// introduced or removed, so it can be iterated safely but may be stale. Callers must not modify it.
 	GetAPIResources() []kube.APIResourceInfo
-	// GetOpenAPISchema returns open API schema of supported API resources
-	GetOpenAPISchema() openapi.Resources
-	// GetGVKParser returns a parser able to build a TypedValue used in
-	// structured merge diffs.
-	GetGVKParser() *managedfields.GvkParser
+	// NewOpenAPISchemaResolver returns a resolver that fetches OpenAPI schemas of the cluster on
+	// demand. Create one per operation: it keeps every schema it fetched.
+	NewOpenAPISchemaResolver() kube.OpenAPISchemaResolver
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
@@ -195,6 +191,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 	s := &store{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:           make(map[schema.GroupKind]*apiMeta),
+		openAPISchemaCache: kube.NewOpenAPISchemaCache(),
 		listPageSize:       defaultListPageSize,
 		listPageBufferSize: defaultListPageBufferSize,
 		listSemaphore:      semaphore.NewWeighted(defaultListSemaphoreWeight),
@@ -246,11 +243,14 @@ type store struct {
 
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
-	// serverVersion, apiResources, openAPISchema and gvkParser are read by their
+	// serverVersion and apiResources are read by their
 	// getters without c.lock, so writers publish a new value and never edit a
 	// published one.
 	serverVersion atomic.Pointer[string]
 	apiResources  atomic.Pointer[[]kube.APIResourceInfo]
+	// openAPISchemaCache shares the OpenAPI v3 index and types between the resolvers of this
+	// cluster. It is invalidated when schemas may have changed.
+	openAPISchemaCache *kube.OpenAPISchemaCache
 	// namespacedResources maps each watched GroupKind to whether it is namespaced.
 	// IsNamespaced reads it without c.lock, so writers publish a complete map
 	// and never edit a published one.
@@ -292,8 +292,6 @@ type store struct {
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 	processEventsHandlers       map[uint64]OnProcessEventsHandler
-	openAPISchema               atomic.Pointer[openapi.Resources]
-	gvkParser                   atomic.Pointer[managedfields.GvkParser]
 
 	respectRBAC int
 
@@ -432,18 +430,13 @@ func (c *store) GetAPIResources() []kube.APIResourceInfo {
 	return nil
 }
 
-// GetOpenAPISchema returns open API schema of supported API resources
-func (c *store) GetOpenAPISchema() openapi.Resources {
-	if s := c.openAPISchema.Load(); s != nil {
-		return *s
-	}
-	return nil
-}
-
-// GetGVKParser returns a parser able to build a TypedValue used in
-// structured merge diffs.
-func (c *store) GetGVKParser() *managedfields.GvkParser {
-	return c.gvkParser.Load()
+// NewOpenAPISchemaResolver returns a resolver that fetches OpenAPI schemas of the cluster on
+// demand. Create one per operation: it keeps every schema it fetched.
+func (c *store) NewOpenAPISchemaResolver() kube.OpenAPISchemaResolver {
+	c.lock.RLock()
+	config := c.config
+	c.lock.RUnlock()
+	return c.kubectl.NewOpenAPISchemaResolver(config, c.openAPISchemaCache)
 }
 
 // appendAPIResource publishes a copy of apiResources with info added, unless
@@ -715,6 +708,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	}
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)
+	c.openAPISchemaCache.Invalidate()
 	c.log.Info("Invalidated cluster")
 }
 
@@ -792,10 +786,11 @@ func (c *store) listResources(ctx context.Context, resClient dynamic.ResourceInt
 	return resourceVersion, callback(listPager)
 }
 
-// handleCRDEvent updates the API resources and watches for a CRD event, then
-// reloads the OpenAPI schema. Call it without c.lock; it takes the lock around
-// each API resource update, startMissingWatches and reloadOpenAPISchema.
+// handleCRDEvent updates the API resources and watches for a CRD event. Call it
+// without c.lock; it takes the lock around each API resource update and
+// startMissingWatches.
 func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
+	c.openAPISchemaCache.Invalidate()
 	resources, err := c.crdVersionsToAPIResources(obj)
 	if err != nil {
 		c.log.Error(err, "Failed to extract CRD resources")
@@ -815,7 +810,7 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 			return nil
 		})
 	} else {
-		c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event, "groupKind", innerGroupKind)
+		c.log.Info("Updating Kubernetes APIs and watches due to CRD event", "eventType", event, "groupKind", innerGroupKind)
 		// add new CRD's groupkind to c.apigroups
 		if event == watch.Added {
 			_ = runSynced(&c.lock, func() error {
@@ -829,15 +824,13 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 			c.log.Error(err, "Failed to start missing watch")
 		}
 	}
-	if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
-		c.log.Error(err, "Failed to reload open api schema")
-	}
 }
 
 // handleAPIServiceEvent re-runs discovery when an aggregated API becomes
 // available or is removed, so kinds that weren't served at startup get
 // watched without waiting for a resync. Call it without c.lock.
 func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
+	c.openAPISchemaCache.Invalidate()
 	deleted := event == watch.Deleted
 	if !deleted && !isAPIServiceAvailable(obj) {
 		return
@@ -848,24 +841,8 @@ func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, 
 	// retry (in a goroutine to avoid blocking the event source) until the
 	// APIService's own group is served or we exhaust our attempts.
 	group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
-	c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event, "name", obj.GetName(), "group", group)
+	c.log.Info("Reconciling Kubernetes APIs and watches due to APIService event", "eventType", event, "name", obj.GetName(), "group", group)
 	go c.reconcileAPIServiceWatches(engine, group, !deleted)
-}
-
-// reloadOpenAPISchema reloads the cluster's OpenAPI schema and GVK parser. It is
-// called after the set of served APIs changes (e.g. due to a CRD or APIService
-// event) so that field management and schema-aware operations stay in sync with
-// the cluster. Caller must hold c.lock (use runSynced).
-func (c *store) reloadOpenAPISchema() error {
-	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
-	if err != nil {
-		return fmt.Errorf("failed to load open api schema: %w", err)
-	}
-	if gvkParser != nil {
-		c.gvkParser.Store(gvkParser)
-	}
-	c.openAPISchema.Store(&openAPISchema)
-	return nil
 }
 
 // reconcileAPIServiceWatches re-runs discovery and starts any missing watches in
@@ -883,9 +860,6 @@ func (c *store) reconcileAPIServiceWatches(engine syncEngine, group string, wait
 	}, func() (bool, error) {
 		if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
 			c.log.Error(err, "Failed to start missing watches after APIService event")
-		}
-		if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
-			c.log.Error(err, "Failed to reload open api schema after APIService event")
 		}
 		return !waitForGroup || group == "" || c.isGroupWatched(group), nil
 	})

@@ -28,13 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
-	"k8s.io/kubectl/pkg/util/openapi"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -2268,8 +2266,8 @@ func TestIsNamespaced_ConcurrentWithResync(t *testing.T) {
 	assert.True(t, namespaced)
 }
 
-// Regression: sync, reloadOpenAPISchema and CRD events wrote these fields while
-// their getters read them without the lock. Run with -race.
+// Regression: sync and CRD events wrote these fields while their getters read
+// them without the lock. Run with -race.
 func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 	crdInfo := kube.APIResourceInfo{
 		GroupKind:            schema.GroupKind{Group: "example.com", Kind: "Widget"},
@@ -2282,16 +2280,12 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 				_ = r.GroupKind
 			}
 		},
-		"GetOpenAPISchema": func(c *clusterCache) { _ = c.GetOpenAPISchema() },
-		"GetGVKParser":     func(c *clusterCache) { _ = c.GetGVKParser() },
-		"GetClusterInfo":   func(c *clusterCache) { _ = c.GetClusterInfo() },
+		"NewOpenAPISchemaResolver": func(c *clusterCache) { _ = c.NewOpenAPISchemaResolver() },
+		"GetClusterInfo":           func(c *clusterCache) { _ = c.GetClusterInfo() },
 	}
 	for name, get := range getters {
 		t.Run(name, func(t *testing.T) {
 			cluster := newCluster(t, testPod1())
-			cluster.kubectl.(*kubetest.MockKubectlCmd).WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
-				return nil, &managedfields.GvkParser{}, nil
-			})
 			require.NoError(t, cluster.EnsureSynced())
 
 			done := make(chan struct{})
@@ -2306,9 +2300,8 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 					}
 				}
 			})
-			cluster.Invalidate()
+			cluster.Invalidate(SetConfig(&rest.Config{Host: "https://other"}))
 			require.NoError(t, cluster.EnsureSynced())
-			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
 			// As the CRD watch does.
 			require.NoError(t, runSynced(&cluster.lock, func() error {
 				cluster.appendAPIResource(crdInfo)
@@ -2321,7 +2314,6 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 			close(done)
 			wg.Wait()
 
-			assert.NotNil(t, cluster.GetGVKParser())
 			assert.NotEmpty(t, cluster.GetAPIResources())
 		})
 	}
@@ -2357,8 +2349,8 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 }
 
 // lockProbe arms kubectl hooks on cluster that record whether c.lock is held
-// when GetAPIResources (startMissingWatches) and LoadOpenAPISchema
-// (reloadOpenAPISchema) run. Arm it after EnsureSynced, since sync calls both.
+// when GetAPIResources (startMissingWatches) runs. Arm it after EnsureSynced,
+// since sync calls it too.
 type lockProbe struct {
 	held, notHeld atomic.Int32
 }
@@ -2379,10 +2371,6 @@ func armLockProbe(cluster *clusterCache) *lockProbe {
 		record()
 		return apis, nil
 	})
-	mock.WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
-		record()
-		return nil, nil, nil
-	})
 	return p
 }
 
@@ -2393,8 +2381,8 @@ func (p *lockProbe) assertHeld(t *testing.T, calls int32) {
 }
 
 // TestHandleCRDEvent_LockContract checks that handleCRDEvent, called without
-// c.lock, holds the lock during startMissingWatches and reloadOpenAPISchema,
-// and that neither callee takes it again: the non-reentrant lock would
+// c.lock, holds the lock during startMissingWatches and that the callee
+// doesn't take it again: the non-reentrant lock would
 // deadlock and the test would time out.
 func TestHandleCRDEvent_LockContract(t *testing.T) {
 	t.Parallel()
@@ -2440,9 +2428,8 @@ spec:
 			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
 		}
 	}
-	// Added and Modified: startMissingWatches and reloadOpenAPISchema.
-	// Deleted: reloadOpenAPISchema only.
-	probe.assertHeld(t, 5)
+	// Added and Modified: startMissingWatches. Deleted: nothing.
+	probe.assertHeld(t, 2)
 
 	for _, api := range cluster.GetAPIResources() {
 		assert.NotEqual(t, "Dummy", api.GroupKind.Kind, "the deleted CRD must not remain in apiResources")
@@ -2451,7 +2438,7 @@ spec:
 
 // TestReconcileAPIServiceWatches_LockContract checks that
 // reconcileAPIServiceWatches, called without c.lock, holds the lock during
-// startMissingWatches and reloadOpenAPISchema without taking it twice.
+// startMissingWatches without taking it twice.
 func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
 	t.Parallel()
 	// Not newCluster, for the same reason as TestHandleCRDEvent_LockContract.
@@ -2477,7 +2464,43 @@ func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
 		deadlocked = true
 		t.Fatal("reconcileAPIServiceWatches did not return; store.lock is likely acquired twice")
 	}
-	probe.assertHeld(t, 2)
+	probe.assertHeld(t, 1)
+}
+
+// The cache must not load OpenAPI schemas itself: resolvers are created on
+// demand and use the current rest config.
+func TestNewOpenAPISchemaResolver(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1())
+	var configs []*rest.Config
+	cluster.kubectl.(*kubetest.MockKubectlCmd).WithOpenAPISchemaResolverFunc(func(config *rest.Config) kube.OpenAPISchemaResolver {
+		configs = append(configs, config)
+		return (&kubetest.FakeOpenAPIClient{}).NewOpenAPISchemaResolver()
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names: {kind: Dummy, plural: dummies, singular: dummy}
+  versions:
+  - name: v1`)
+	for _, event := range []watch.EventType{watch.Added, watch.Modified, watch.Deleted} {
+		cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+	}
+	cluster.reconcileAPIServiceWatches(legacyEngineOf(cluster), "example.com", false)
+	assert.Empty(t, configs, "sync and API events must not create schema resolvers")
+
+	require.NotNil(t, cluster.NewOpenAPISchemaResolver())
+	newConfig := &rest.Config{Host: "https://new"}
+	cluster.Invalidate(SetConfig(newConfig))
+	require.NotNil(t, cluster.NewOpenAPISchemaResolver())
+	require.Len(t, configs, 2)
+	assert.Same(t, newConfig, configs[1])
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {

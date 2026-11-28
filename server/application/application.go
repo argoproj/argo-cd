@@ -3117,11 +3117,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Create server-side diff dry run applier
-	_, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
-	}
-
 	applier, cleanup, err := s.kubectl.ManageServerSideDiffDryRuns(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server-side dry run applier: %w", err)
@@ -3144,7 +3139,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		WithManager(argocommon.ArgoCDSSAManager).
 		WithServerSideDiff(true).
 		WithServerSideDryRunner(dryRunner).
-		WithGVKParser(gvkParser).
+		WithOpenAPISchemaResolver(s.kubectl.NewOpenAPISchemaResolver(clusterConfig, nil)).
 		WithIgnoreMutationWebhook(!resourceutil.HasAnnotationOption(a, argocommon.AnnotationCompareOptions, "IncludeMutationWebhook=true")).
 		Build()
 	if err != nil {
