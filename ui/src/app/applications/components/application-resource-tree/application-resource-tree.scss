@@ -368,6 +368,15 @@
         line-height: 1;
         color: $argo-color-gray-7;
 
+        &--traffic {
+            font-size: 3.5em;
+
+            .icon,
+            .fa {
+                font-size: inherit;
+            }
+        }
+
         &--big {
             display: flex;
             align-items: center;

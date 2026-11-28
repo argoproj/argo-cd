@@ -1,4 +1,4 @@
-import {compareNodes, describeNode, getEffectiveParentKey, ResourceTreeNode} from './application-resource-tree';
+import {compareNodes, describeNode, getEffectiveParentKey, renderTrafficNode, ResourceTreeNode} from './application-resource-tree';
 
 function node(kind: string, name: string, parent?: ResourceTreeNode): ResourceTreeNode {
     return {
@@ -158,4 +158,13 @@ test('compareNodes', () => {
     expect(compareNodes(nodes[4], nodes[5])).toBe(-1);
     expect(compareNodes(nodes[0], nodes[4])).toBe(-1);
     expect(compareNodes(nodes[4], nodes[0])).toBe(1);
+});
+
+test('renderTrafficNode renders traffic node with cloud icon and traffic modifier class', () => {
+    const nodeEl = renderTrafficNode({x: 0, y: 100, width: 30, height: 52} as any);
+    expect(nodeEl.props.style.top).toBe(100);
+    const inner = nodeEl.props.children;
+    expect(inner.props.className).toContain('application-resource-tree__node-kind-icon--traffic');
+    const icon = inner.props.children;
+    expect(icon.props.className).toContain('fa-cloud');
 });
