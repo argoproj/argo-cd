@@ -207,6 +207,33 @@ func TestHideSecretData_SSDPathMasksReusedSecretData(t *testing.T) {
 	assert.NotContains(t, items[0].LiveState, "dG9wc2VjcmV0")
 }
 
+// TestHideSecretData_SSDPathKeepsFailedDiffPlaceholder verifies that the "{}"
+// placeholder stored when the diff failed is passed through instead of being
+// unmarshaled as a Secret, so the managed resources can still be cached.
+func TestHideSecretData_SSDPathKeepsFailedDiffPlaceholder(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("topsecret")},
+		map[string][]byte{"key": []byte("topsecret")},
+	)
+	mr.Diff = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.JSONEq(t, "{}", items[0].PredictedLiveState)
+	assert.JSONEq(t, "{}", items[0].NormalizedLiveState)
+	assert.NotContains(t, items[0].TargetState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].LiveState, "dG9wc2VjcmV0")
+}
+
 // TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
 // in use, the existing client-side recomputation path is preserved.
 func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
