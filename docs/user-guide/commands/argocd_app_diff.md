@@ -31,7 +31,7 @@ argocd app diff APPNAME [flags]
       --refresh[=true|false]                              Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in --source-positions
-      --server-side-diff[=true|false]                     Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff annotation is set on the application
+      --server-side-diff[=true|false]                     Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff=true annotation or ServerSideApply=true sync option is set on the application (unless ServerSideDiff=false is set)
       --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
       --server-side-generate[=true|false]                 Send your manifests to the server for diffing. Used with --local
