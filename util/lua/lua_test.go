@@ -1155,5 +1155,6 @@ func Test_getHealthScriptPaths(t *testing.T) {
 		"kro.run/_",
 		"microgateway.airlock.com/_",
 		"operator.victoriametrics.com/_",
+		"resources.signoz.io/_",
 	}, paths)
 }

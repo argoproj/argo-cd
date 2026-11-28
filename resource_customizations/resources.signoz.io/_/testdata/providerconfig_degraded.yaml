@@ -1,0 +1,25 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: signoz
+  namespace: monitoring
+  generation: 1
+spec:
+  auth:
+    header:
+      name: SIGNOZ-API-KEY
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: signoz-api
+  endpoint:
+    value: https://signoz.example.com
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:53:47Z'
+    message: Secret "signoz-api" not found in namespace "monitoring"
+    observedGeneration: 1
+    reason: SecretNotFound
+    status: 'False'
+    type: Ready
+  observedGeneration: 1

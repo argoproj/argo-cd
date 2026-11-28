@@ -1,0 +1,59 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: Dashboard
+metadata:
+  name: request-latency
+  namespace: monitoring
+  generation: 1
+  finalizers:
+  - resources.signoz.io/finalizer
+spec:
+  objectTemplate:
+    jsonSpec: |-
+      {
+        "name": "request-latency",
+        "schemaVersion": "v6",
+        "tags": [],
+        "spec": {
+          "display": {"name": "Request latency"},
+          "layouts": [],
+          "panels": {
+            "p99": {
+              "kind": "Panel",
+              "spec": {
+                "display": {"name": "p99 latency"},
+                "plugin": {
+                  "kind": "signoz/TimeSeriesPanel",
+                  "spec": {"chartAppearance": {"lineInterpolation": "step"}}
+                }
+              }
+            }
+          },
+          "variables": []
+        }
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: signoz
+  reclaimPolicy: Delete
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:54:32Z'
+    message: 'the server rejected the request (HTTP 400): {"status":"error","error":{"type":"invalid-input","code":"dashboard_invalid_input","message":"invalid line interpolation \"step\": must be `linear`, `spline`, `step_after`, or `step_before`","errors":[],"suggestions":[]}}'
+    observedGeneration: 1
+    reason: Rejected
+    status: 'False'
+    type: Synced
+  - lastTransitionTime: '2026-11-19T08:54:32Z'
+    message: 'the server rejected the request (HTTP 400): {"status":"error","error":{"type":"invalid-input","code":"dashboard_invalid_input","message":"invalid line interpolation \"step\": must be `linear`, `spline`, `step_after`, or `step_before`","errors":[],"suggestions":[]}}'
+    observedGeneration: 1
+    reason: Rejected
+    status: 'True'
+    type: Terminal
+  - lastTransitionTime: '2026-11-19T08:54:32Z'
+    message: 'the server rejected the request (HTTP 400): {"status":"error","error":{"type":"invalid-input","code":"dashboard_invalid_input","message":"invalid line interpolation \"step\": must be `linear`, `spline`, `step_after`, or `step_before`","errors":[],"suggestions":[]}}'
+    observedGeneration: 1
+    reason: Rejected
+    status: 'False'
+    type: Ready
+  observedGeneration: 1
+  reconciledAt: '2026-11-19T08:54:32Z'
