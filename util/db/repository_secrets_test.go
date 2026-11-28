@@ -1298,3 +1298,101 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestSecretsRepositoryBackend_TrailingSlashRepoURL(t *testing.T) {
+	mkSecret := func(url, project string, u string) *corev1.Secret {
+		return &corev1.Secret{
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, url, project),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			Data: map[string][]byte{
+				"name":     []byte("r"),
+				"url":      []byte(url),
+				"username": []byte(u),
+				"password": []byte("p"),
+				"project":  []byte(project),
+			},
+		}
+	}
+	cases := []struct {
+		name     string
+		secrets  []*corev1.Secret
+		queryURL string
+		project  string
+		wantUser string
+	}{
+		{"slash on query", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/org/repo/", "", "u"},
+		{"slash on secret", []*corev1.Secret{mkSecret("https://github.com/org/repo/", "", "u")}, "https://github.com/org/repo", "", "u"},
+		{"both slash", []*corev1.Secret{mkSecret("https://github.com/org/repo/", "", "u")}, "https://github.com/org/repo/", "", "u"},
+		{"neither slash", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/org/repo", "", "u"},
+		{"diff repo name", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/org/repo-other/", "", ""},
+		{"diff host", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://gitlab.com/org/repo/", "", ""},
+		{"diff org", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/other/repo/", "", ""},
+		{"mixed case host", []*corev1.Secret{mkSecret("https://GitHub.com/org/repo", "", "u")}, "https://github.com/org/repo/", "", "u"},
+		{".git plus slash", []*corev1.Secret{mkSecret("https://github.com/org/repo.git", "", "u")}, "https://github.com/org/repo.git/", "", "u"},
+		{"prefix boundary", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/org/repo-extra/", "", ""},
+		{"double slash no match", []*corev1.Secret{mkSecret("https://github.com/org/repo", "", "u")}, "https://github.com/org/repo//", "", ""},
+		{"project scoped", []*corev1.Secret{mkSecret("https://github.com/org/repo/", "testProject", "scopedUser")}, "https://github.com/org/repo", "testProject", "scopedUser"},
+		{"exact wins over slash (slash listed first)", []*corev1.Secret{
+			mkSecret("https://github.com/org/repo/", "", "slashUser"),
+			mkSecret("https://github.com/org/repo", "", "noSlashUser"),
+		}, "https://github.com/org/repo", "", "noSlashUser"},
+		{"project-scoped exact in A does not block slash variant in B", []*corev1.Secret{
+			mkSecret("https://github.com/org/repo", "projectA", "exactA"),
+			mkSecret("https://github.com/org/repo/", "projectB", "slashB"),
+		}, "https://github.com/org/repo/", "projectB", "slashB"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			objs := make([]runtime.Object, len(tc.secrets))
+			for i, s := range tc.secrets {
+				objs[i] = s
+			}
+			clientset := getClientset(objs...)
+			testee := &secretsRepositoryBackend{db: &db{
+				ns:            testNamespace,
+				kubeclientset: clientset,
+				settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+			}}
+			// expected username: for match cases the secret's "u"/"scopedUser"/"noSlashUser"; else "".
+			repo, err := testee.GetRepository(t.Context(), tc.queryURL, tc.project)
+			require.NoError(t, err)
+			assert.NotNil(t, repo)
+			if tc.wantUser != "" {
+				assert.Equal(t, tc.wantUser, repo.Username)
+			} else {
+				assert.Empty(t, repo.Username)
+			}
+		})
+	}
+
+	// Lifecycle: delete via slash URL removes the no-slash secret.
+	t.Run("lifecycle delete/update", func(t *testing.T) {
+		objs := []runtime.Object{mkSecret("https://github.com/org/repo", "", "oldUser")}
+		cs := getClientset(objs...)
+		tb := &secretsRepositoryBackend{db: &db{ns: testNamespace, kubeclientset: cs, settingsMgr: settings.NewSettingsManager(t.Context(), cs, testNamespace)}}
+		require.NoError(t, tb.DeleteRepository(t.Context(), "https://github.com/org/repo/", ""))
+		exists, err := tb.RepositoryExists(t.Context(), "https://github.com/org/repo", "", true)
+		require.NoError(t, err)
+		assert.False(t, exists)
+		// update via slash URL
+		objs2 := []runtime.Object{mkSecret("https://github.com/org/repo", "", "oldUser")}
+		cs2 := getClientset(objs2...)
+		tb2 := &secretsRepositoryBackend{db: &db{ns: testNamespace, kubeclientset: cs2, settingsMgr: settings.NewSettingsManager(t.Context(), cs2, testNamespace)}}
+		_, err = tb2.UpdateRepository(t.Context(), &appsv1.Repository{Repo: "https://github.com/org/repo/", Username: "newUser"})
+		require.NoError(t, err)
+		r, err := tb2.GetRepository(t.Context(), "https://github.com/org/repo", "")
+		require.NoError(t, err)
+		assert.Equal(t, "newUser", r.Username)
+		// create slash alongside no-slash makes a second secret
+		objs3 := []runtime.Object{mkSecret("https://github.com/org/repo", "", "u")}
+		cs3 := getClientset(objs3...)
+		tb3 := &secretsRepositoryBackend{db: &db{ns: testNamespace, kubeclientset: cs3, settingsMgr: settings.NewSettingsManager(t.Context(), cs3, testNamespace)}}
+		_, err = tb3.CreateRepository(t.Context(), &appsv1.Repository{Repo: "https://github.com/org/repo/"})
+		require.NoError(t, err)
+		r2, err := tb3.GetRepository(t.Context(), "https://github.com/org/repo/", "")
+		require.NoError(t, err)
+		assert.NotEmpty(t, r2.Repo)
+	})
+}
