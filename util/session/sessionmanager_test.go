@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -727,23 +728,25 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
-	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+	synctest.Test(t, func(t *testing.T) {
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+		mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
+		invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	t.Setenv(envLoginFailureWindowSeconds, "1")
+		t.Setenv(envLoginFailureWindowSeconds, "1")
 
-	for _, user := range invalidUsers {
-		err := mgr.VerifyUsernamePassword(user, "password")
+		for _, user := range invalidUsers {
+			err := mgr.VerifyUsernamePassword(user, "password")
+			require.Error(t, err)
+		}
+
+		time.Sleep(2 * time.Second)
+
+		err := mgr.VerifyUsernamePassword("invalid8", "password")
 		require.Error(t, err)
-	}
-
-	time.Sleep(2 * time.Second)
-
-	err := mgr.VerifyUsernamePassword("invalid8", "password")
-	require.Error(t, err)
-	assert.Len(t, mgr.GetLoginFailures(), 1)
+		assert.Len(t, mgr.GetLoginFailures(), 1)
+	})
 }
 
 func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {

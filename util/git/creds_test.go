@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/uuid"
@@ -638,41 +639,45 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 }
 
 func TestAzureWorkloadIdentityCreds_FetchNewTokenIfExistingIsExpired(t *testing.T) {
-	resetAzureTokenCache()
-	store := &memoryCredsStore{creds: make(map[string]cred)}
-	workloadIdentityMock := &mocks.TokenProvider{}
-	workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).
-		Return(&workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(time.Minute)}, nil).Once()
-	workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).
-		Return(&workloadidentity.Token{AccessToken: "secondToken"}, nil).Once()
-	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
-	token, err := creds.GetAzureDevOpsAccessToken()
-	require.NoError(t, err)
+	synctest.Test(t, func(t *testing.T) {
+		resetAzureTokenCache()
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		workloadIdentityMock := &mocks.TokenProvider{}
+		workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).
+			Return(&workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(time.Minute)}, nil).Once()
+		workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).
+			Return(&workloadidentity.Token{AccessToken: "secondToken"}, nil).Once()
+		creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+		token, err := creds.GetAzureDevOpsAccessToken()
+		require.NoError(t, err)
 
-	assert.Equal(t, "firstToken", token)
-	time.Sleep(5 * time.Second)
-	token, err = creds.GetAzureDevOpsAccessToken()
-	require.NoError(t, err)
-	assert.Equal(t, "secondToken", token)
+		assert.Equal(t, "firstToken", token)
+		time.Sleep(5 * time.Second)
+		token, err = creds.GetAzureDevOpsAccessToken()
+		require.NoError(t, err)
+		assert.Equal(t, "secondToken", token)
+	})
 }
 
 func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
-	resetAzureTokenCache()
-	store := &memoryCredsStore{creds: make(map[string]cred)}
-	workloadIdentityMock := &mocks.TokenProvider{}
-	firstToken := &workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(6 * time.Minute)}
-	secondToken := &workloadidentity.Token{AccessToken: "secondToken"}
-	workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).Return(firstToken, nil).Once()
-	workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).Return(secondToken, nil).Once()
-	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
-	token, err := creds.GetAzureDevOpsAccessToken()
-	require.NoError(t, err)
+	synctest.Test(t, func(t *testing.T) {
+		resetAzureTokenCache()
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		workloadIdentityMock := &mocks.TokenProvider{}
+		firstToken := &workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(6 * time.Minute)}
+		secondToken := &workloadidentity.Token{AccessToken: "secondToken"}
+		workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).Return(firstToken, nil).Once()
+		workloadIdentityMock.EXPECT().GetToken(azureDevopsEntraResourceId).Return(secondToken, nil).Once()
+		creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+		token, err := creds.GetAzureDevOpsAccessToken()
+		require.NoError(t, err)
 
-	assert.Equal(t, "firstToken", token)
-	time.Sleep(5 * time.Second)
-	token, err = creds.GetAzureDevOpsAccessToken()
-	require.NoError(t, err)
-	assert.Equal(t, "firstToken", token)
+		assert.Equal(t, "firstToken", token)
+		time.Sleep(5 * time.Second)
+		token, err = creds.GetAzureDevOpsAccessToken()
+		require.NoError(t, err)
+		assert.Equal(t, "firstToken", token)
+	})
 }
 
 func resetAzureTokenCache() {
