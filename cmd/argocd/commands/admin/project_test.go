@@ -1,6 +1,9 @@
 package admin
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,4 +83,42 @@ func TestGetModification_RemovePolicy(t *testing.T) {
 func TestGetModification_NotSupported(t *testing.T) {
 	_, err := getModification("bar", "*", "*", "allow")
 	assert.Errorf(t, err, "modification bar is not supported")
+}
+
+func TestSaveProject_DiffOrder(t *testing.T) {
+	ctx := t.Context()
+	clientset := fake.NewSimpleClientset()
+
+	orig := *newProj("my-proj", "admin")
+	orig.Spec.Roles[0].Policies = []string{"p, proj:my-proj:admin, applications, get, my-proj/*, allow"}
+
+	updated := *orig.DeepCopy()
+	updated.Spec.Roles[0].Policies = append(updated.Spec.Roles[0].Policies, "p, proj:my-proj:admin, applications, create, my-proj/*, allow")
+
+	// Set up a mock diff utility to inspect the files passed as live (arg 1) and target (arg 2)
+	tmpDir := t.TempDir()
+	liveCapture := filepath.Join(tmpDir, "live.txt")
+	targetCapture := filepath.Join(tmpDir, "target.txt")
+	diffScript := filepath.Join(tmpDir, "diff.sh")
+
+	scriptContent := fmt.Sprintf("#!/bin/sh\ncp \"$1\" %q\ncp \"$2\" %q\n", liveCapture, targetCapture)
+	err := os.WriteFile(diffScript, []byte(scriptContent), 0o755)
+	require.NoError(t, err)
+	t.Setenv("KUBECTL_EXTERNAL_DIFF", diffScript)
+
+	err = saveProject(ctx, updated, orig, clientset.ArgoprojV1alpha1().AppProjects(namespace), true)
+	require.NoError(t, err)
+
+	liveBytes, err := os.ReadFile(liveCapture)
+	require.NoError(t, err)
+	targetBytes, err := os.ReadFile(targetCapture)
+	require.NoError(t, err)
+
+	// liveFile must contain the original project state
+	assert.Contains(t, string(liveBytes), "applications, get")
+	assert.NotContains(t, string(liveBytes), "applications, create", "live diff file should not contain target-only additions")
+
+	// targetFile must contain the updated project state
+	assert.Contains(t, string(targetBytes), "applications, get")
+	assert.Contains(t, string(targetBytes), "applications, create", "target diff file must contain the newly added policy")
 }
