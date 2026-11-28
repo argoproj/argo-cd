@@ -2,11 +2,15 @@ package rbacpolicy
 
 import (
 	"fmt"
+	"sync"
 	"testing"
+	"unsafe"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -237,4 +241,78 @@ func Test_getProjectFromRequest(t *testing.T) {
 			require.Equal(t, fp.Name, project.Name)
 		})
 	}
+}
+
+// swappableProjLister returns the project it holds, like an informer's lister returns the object in its cache until
+// the project changes.
+type swappableProjLister struct {
+	mu   sync.Mutex
+	proj *argoappv1.AppProject
+}
+
+func (l *swappableProjLister) set(proj *argoappv1.AppProject) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.proj = proj
+}
+
+func (l *swappableProjLister) List(_ labels.Selector) ([]*argoappv1.AppProject, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return []*argoappv1.AppProject{l.proj}, nil
+}
+
+func (l *swappableProjLister) Get(name string) (*argoappv1.AppProject, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.proj == nil || l.proj.Name != name {
+		return nil, apierrors.NewNotFound(argoappv1.SchemeGroupVersion.WithResource("appprojects").GroupResource(), name)
+	}
+	return l.proj, nil
+}
+
+// The project policy is reused for the same project object, but a changed project must be enforced with its new
+// roles.
+func TestEnforceClaims_ProjectChange(t *testing.T) {
+	t.Parallel()
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	projLister := &swappableProjLister{}
+	projLister.set(newFakeProj())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	claims := jwt.MapClaims{"sub": "alice", "groups": []any{"my-org:my-team"}}
+	require.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+	require.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+
+	// The informer replaces the object when the project changes.
+	withoutGroup := newFakeProj()
+	withoutGroup.Spec.Roles[0].Groups = nil
+	projLister.set(withoutGroup)
+	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+
+	withOtherPolicy := newFakeProj()
+	withOtherPolicy.Spec.Roles[0].Policies = []string{"p, proj:my-proj:my-role, applications, get, my-proj/*, allow"}
+	projLister.set(withOtherPolicy)
+	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "get", "my-proj/my-app"))
+}
+
+func TestProjectPoliciesString_ReusedForSameProject(t *testing.T) {
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	proj := newFakeProj()
+
+	policy := rbacEnf.projectPoliciesString(proj)
+	assert.Equal(t, proj.ProjectPoliciesString(), policy)
+	// The same string, not one built again.
+	assert.Equal(t, unsafe.StringData(policy), unsafe.StringData(rbacEnf.projectPoliciesString(proj)))
+	assert.Zero(t, testing.AllocsPerRun(100, func() {
+		_ = rbacEnf.projectPoliciesString(proj)
+	}))
+
+	changed := newFakeProj()
+	changed.Spec.Roles[0].Policies = changed.Spec.Roles[0].Policies[:1]
+	assert.Equal(t, changed.ProjectPoliciesString(), rbacEnf.projectPoliciesString(changed))
+	assert.NotEqual(t, policy, rbacEnf.projectPoliciesString(changed))
 }
