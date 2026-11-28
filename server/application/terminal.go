@@ -252,7 +252,6 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		shells = []string{shell}
 	}
 	err = startProcessWithShells(session.ctx, kubeClientset, config, namespace, podName, container, shells, session)
-
 	if err != nil {
 		http.Error(w, "Failed to exec container", http.StatusBadRequest)
 		session.Close()

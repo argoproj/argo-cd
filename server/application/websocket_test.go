@@ -167,7 +167,7 @@ func TestTerminalSessionDoneCancelsContext(t *testing.T) {
 
 	session.Done()
 
-	assert.ErrorIs(t, ctx.Err(), context.Canceled)
+	require.ErrorIs(t, ctx.Err(), context.Canceled)
 	select {
 	case <-session.doneChan:
 	default:
