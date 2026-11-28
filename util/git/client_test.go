@@ -448,6 +448,58 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
 }
 
+func Test_gitCleanupGracePeriod(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
+		assert.Equal(t, 200*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("both timeouts are accounted for", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "5s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "60s")
+		assert.Equal(t, 130*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("fatal timeout falls back to its default", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "30s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
+		assert.Equal(t, 80*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("disabled exec timeout does not collapse the grace period", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "0s")
+		assert.Equal(t, gitCleanupNoTimeoutGracePeriod, gitCleanupGracePeriod())
+	})
+
+	t.Run("unparseable values fall back to defaults", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "nonsense")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "nonsense")
+		assert.Equal(t, 200*time.Second, gitCleanupGracePeriod())
+	})
+}
+
+func Test_nativeGitClient_Fetch_sweepsOrphanedTempPacksBeforeFetching(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	packDir := filepath.Join(client.Root(), ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+	old := time.Now().Add(-time.Hour)
+	orphan := filepath.Join(packDir, "tmp_pack_from_previous_run")
+	require.NoError(t, os.WriteFile(orphan, []byte("partial data"), 0o644))
+	require.NoError(t, os.Chtimes(orphan, old, old))
+
+	// Fetch succeeds here, so nothing but the sweep on the way in can remove this.
+	require.NoError(t, client.Fetch(ctx, "", 0))
+	assert.NoFileExists(t, orphan, "orphan from a previous run should be cleaned up before fetching")
+}
+
 func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(t.Context())
 	require.NoError(t, err)
