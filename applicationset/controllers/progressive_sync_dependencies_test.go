@@ -84,6 +84,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			finishedAt = nil
 		}
 		return &v1alpha1.OperationState{
+			Operation:  v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 			Phase:      phase,
 			StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
 			FinishedAt: finishedAt,
@@ -275,7 +276,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -314,6 +315,42 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application:     "app1",
 					Message:         "Application resource became Progressing, updating status from Pending to Progressing",
 					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not move a pending application to progressing when a user operation ran instead of the RollingSync sync",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"},
+						Sync:        &v1alpha1.SyncOperation{DryRun: true},
+					},
+					Phase:      common.OperationSucceeded,
+					StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+					FinishedAt: &metav1.Time{Time: time.Now().Add(-1 * time.Second)},
+				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},
@@ -468,6 +505,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			}),
 			apps: []v1alpha1.Application{
 				newApp("app1", health.HealthStatusProgressing, v1alpha1.SyncStatusCodeSynced, "next", &v1alpha1.OperationState{
+					Operation:  v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 					Phase:      common.OperationSucceeded,
 					StartedAt:  nowMinus5,
 					FinishedAt: &metav1.Time{Time: nowMinus5.Add(5 * time.Second)},
@@ -507,6 +545,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
+							Operation:  v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 							Phase:      common.OperationSucceeded,
 							StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
 							FinishedAt: &metav1.Time{Time: time.Now()},
