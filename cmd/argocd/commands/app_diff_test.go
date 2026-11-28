@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/utils/ptr"
 
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -1413,4 +1414,227 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.NotNil(t, labels)
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
+}
+
+func TestAppUsesServerSideDiff(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1alpha1.Application
+		expected bool
+	}{
+		{
+			name:     "nil application",
+			app:      nil,
+			expected: false,
+		},
+		{
+			name:     "default application without annotations or sync policy",
+			app:      createTestApp("test-app", "argocd"),
+			expected: false,
+		},
+		{
+			name: "ServerSideDiff=true annotation enables server-side diff",
+			app: func() *v1alpha1.Application {
+				app := createTestApp("test-app", "argocd")
+				app.Annotations = map[string]string{
+					argocommon.AnnotationCompareOptions: "ServerSideDiff=true",
+				}
+				return app
+			}(),
+			expected: true,
+		},
+		{
+			name: "ServerSideApply=true sync option enables server-side diff",
+			app: func() *v1alpha1.Application {
+				app := createTestApp("test-app", "argocd")
+				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+					SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true", "ServerSideApply=true"},
+				}
+				return app
+			}(),
+			expected: true,
+		},
+		{
+			name: "ServerSideDiff=false annotation overrides ServerSideApply=true",
+			app: func() *v1alpha1.Application {
+				app := createTestApp("test-app", "argocd")
+				app.Annotations = map[string]string{
+					argocommon.AnnotationCompareOptions: "IncludeMutationWebhook=true,ServerSideDiff=false",
+				}
+				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+					SyncOptions: v1alpha1.SyncOptions{"ServerSideApply=true"},
+				}
+				return app
+			}(),
+			expected: false,
+		},
+		{
+			name: "ServerSideDiff=false takes precedence over ServerSideDiff=true",
+			app: func() *v1alpha1.Application {
+				app := createTestApp("test-app", "argocd")
+				app.Annotations = map[string]string{
+					argocommon.AnnotationCompareOptions: "ServerSideDiff=true,ServerSideDiff=false",
+				}
+				return app
+			}(),
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, appUsesServerSideDiff(tc.app))
+		})
+	}
+}
+
+func TestResolveServerSideDiff(t *testing.T) {
+	appWithoutOptions := createTestApp("test-app", "argocd")
+
+	appWithSSDTrue := createTestApp("test-app", "argocd")
+	appWithSSDTrue.Annotations = map[string]string{
+		argocommon.AnnotationCompareOptions: "ServerSideDiff=true",
+	}
+
+	appWithSSATrue := createTestApp("test-app", "argocd")
+	appWithSSATrue.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		SyncOptions: v1alpha1.SyncOptions{"ServerSideApply=true"},
+	}
+
+	appWithSSDFalse := createTestApp("test-app", "argocd")
+	appWithSSDFalse.Annotations = map[string]string{
+		argocommon.AnnotationCompareOptions: "ServerSideDiff=false",
+	}
+
+	appWithSSATrueAndSSDFalse := createTestApp("test-app", "argocd")
+	appWithSSATrueAndSSDFalse.Annotations = map[string]string{
+		argocommon.AnnotationCompareOptions: "ServerSideDiff=false",
+	}
+	appWithSSATrueAndSSDFalse.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		SyncOptions: v1alpha1.SyncOptions{"ServerSideApply=true"},
+	}
+
+	tests := []struct {
+		name            string
+		app             *v1alpha1.Application
+		flagChanged     bool
+		flagValue       bool
+		compareDesired  bool
+		expectedSSD     bool
+		expectedWarning string
+	}{
+		{
+			name:            "flag unset and no options uses client-side diff",
+			app:             appWithoutOptions,
+			expectedSSD:     false,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag unset and ServerSideDiff=true uses server-side diff",
+			app:             appWithSSDTrue,
+			expectedSSD:     true,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag unset and ServerSideApply=true uses server-side diff",
+			app:             appWithSSATrue,
+			expectedSSD:     true,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag unset with ServerSideApply=true and ServerSideDiff=false uses client-side diff",
+			app:             appWithSSATrueAndSSDFalse,
+			expectedSSD:     false,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag explicitly false overrides ServerSideApply=true without warning",
+			app:             appWithSSATrue,
+			flagChanged:     true,
+			flagValue:       false,
+			expectedSSD:     false,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag explicitly false overrides ServerSideDiff=true without warning",
+			app:             appWithSSDTrue,
+			flagChanged:     true,
+			flagValue:       false,
+			expectedSSD:     false,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag explicitly true with ServerSideDiff=true emits no warning",
+			app:             appWithSSDTrue,
+			flagChanged:     true,
+			flagValue:       true,
+			expectedSSD:     true,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag explicitly true with ServerSideApply=true emits no warning",
+			app:             appWithSSATrue,
+			flagChanged:     true,
+			flagValue:       true,
+			expectedSSD:     true,
+			expectedWarning: "",
+		},
+		{
+			name:            "flag explicitly true without options emits warning",
+			app:             appWithoutOptions,
+			flagChanged:     true,
+			flagValue:       true,
+			expectedSSD:     true,
+			expectedWarning: "Warning: Application does not have ServerSideDiff=true annotation or ServerSideApply=true sync option.\n",
+		},
+		{
+			name:            "flag explicitly true with ServerSideDiff=false emits disabled warning",
+			app:             appWithSSDFalse,
+			flagChanged:     true,
+			flagValue:       true,
+			expectedSSD:     true,
+			expectedWarning: "Warning: Application has ServerSideDiff=false annotation.\n",
+		},
+		{
+			name:            "flag explicitly true with ServerSideApply=true and ServerSideDiff=false emits disabled warning",
+			app:             appWithSSATrueAndSSDFalse,
+			flagChanged:     true,
+			flagValue:       true,
+			expectedSSD:     true,
+			expectedWarning: "Warning: Application has ServerSideDiff=false annotation.\n",
+		},
+		{
+			name:            "compare-desired disables server-side diff when flag unset",
+			app:             appWithSSATrue,
+			compareDesired:  true,
+			expectedSSD:     false,
+			expectedWarning: "",
+		},
+		{
+			name:            "compare-desired disables server-side diff and warns when flag true",
+			app:             appWithSSATrue,
+			flagChanged:     true,
+			flagValue:       true,
+			compareDesired:  true,
+			expectedSSD:     false,
+			expectedWarning: "Warning: --server-side-diff is ignored when --compare-desired is set.\n",
+		},
+		{
+			name:            "compare-desired disables server-side diff and warns when flag false",
+			app:             appWithSSATrue,
+			flagChanged:     true,
+			flagValue:       false,
+			compareDesired:  true,
+			expectedSSD:     false,
+			expectedWarning: "Warning: --server-side-diff is ignored when --compare-desired is set.\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ssd, warning := resolveServerSideDiff(tc.app, tc.flagChanged, tc.flagValue, tc.compareDesired)
+			assert.Equal(t, tc.expectedSSD, ssd)
+			assert.Equal(t, tc.expectedWarning, warning)
+		})
+	}
 }

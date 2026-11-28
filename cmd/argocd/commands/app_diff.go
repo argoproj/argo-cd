@@ -704,22 +704,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 
-			if !compareDesired {
-				// Use annotation if flag not explicitly set
-				hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-				if !c.Flags().Changed("server-side-diff") {
-					serverSideDiff = hasServerSideDiffAnnotation
-				} else if serverSideDiff && !hasServerSideDiffAnnotation {
-					// Flag explicitly set to true, but app annotation is not set
-					fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
-				}
-			} else {
-				// When comparing desired state, always use client-side diff.
-				// We want to compare two generated manifests versions together without any influence of the current live state.
-				if c.Flags().Changed("server-side-diff") {
-					fmt.Fprint(os.Stderr, "Warning: --server-side-diff is ignored when --compare-desired is set.\n")
-				}
-				serverSideDiff = false
+			var warning string
+			serverSideDiff, warning = resolveServerSideDiff(app, c.Flags().Changed("server-side-diff"), serverSideDiff, compareDesired)
+			if warning != "" {
+				fmt.Fprint(os.Stderr, warning)
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -824,7 +812,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&compareDesired, "compare-desired", false, "Compare against the current desired state (target) instead of live state. Used together with --local or --revision(s)")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
-	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff annotation is set on the application")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. Defaults to true if the ServerSideDiff=true annotation or ServerSideApply=true sync option is set on the application (unless ServerSideDiff=false is set)")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
 }
@@ -833,6 +821,44 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
 	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
 	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+}
+
+// appUsesServerSideDiff reports whether the application uses server-side diff by default,
+// matching the controller's shouldUseServerSideDiff rule (without controller-level SSD):
+// enabled when the ServerSideDiff=true compare option or ServerSideApply=true sync option is set,
+// unless explicitly disabled via the ServerSideDiff=false compare option.
+func appUsesServerSideDiff(app *argoappv1.Application) bool {
+	if app == nil {
+		return false
+	}
+	if resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=false") {
+		return false
+	}
+	return resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true") ||
+		(app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true"))
+}
+
+// resolveServerSideDiff determines whether server-side diff should be enabled for `argocd app diff`
+// and returns any warning message to write to stderr.
+func resolveServerSideDiff(app *argoappv1.Application, flagChanged, flagValue, compareDesired bool) (bool, string) {
+	if compareDesired {
+		if flagChanged {
+			return false, "Warning: --server-side-diff is ignored when --compare-desired is set.\n"
+		}
+		return false, ""
+	}
+
+	appSSD := appUsesServerSideDiff(app)
+	if !flagChanged {
+		return appSSD, ""
+	}
+	if flagValue && !appSSD {
+		if app != nil && resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=false") {
+			return true, "Warning: Application has ServerSideDiff=false annotation.\n"
+		}
+		return true, "Warning: Application does not have ServerSideDiff=true annotation or ServerSideApply=true sync option.\n"
+	}
+	return flagValue, ""
 }
 
 // printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
