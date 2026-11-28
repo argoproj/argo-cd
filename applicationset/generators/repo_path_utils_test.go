@@ -19,7 +19,9 @@ foo:
 		useGoTemplate     bool
 		goTemplateOptions []string
 		pathParamPrefix   string
+		repo              *repoMetadata
 	}
+	repo := &repoMetadata{RepoURL: "https://github.com/example/repo.git", Revision: "main"}
 	tests := []struct {
 		name    string
 		args    args
@@ -196,10 +198,210 @@ foo:
 				},
 			},
 		},
+		{
+			name: "repository parameters are added to params",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values:      map[string]string{},
+				repo:        repo,
+			},
+			want: []map[string]any{
+				{
+					"foo.bar":                 "baz",
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "https://github.com/example/repo.git",
+					"path.revision":           "main",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+				},
+			},
+		},
+		{
+			name: "repository parameters are prefixed",
+			args: args{
+				filePath:        "path/dir/file_name.yaml",
+				fileContent:     defaultContent,
+				values:          map[string]string{},
+				pathParamPrefix: "myRepo",
+				repo:            repo,
+			},
+			want: []map[string]any{
+				{
+					"foo.bar":                        "baz",
+					"myRepo.path":                    "path/dir",
+					"myRepo.path.basename":           "dir",
+					"myRepo.path.filename":           "file_name.yaml",
+					"myRepo.path.basenameNormalized": "dir",
+					"myRepo.path.filenameNormalized": "file-name.yaml",
+					"myRepo.path.repoURL":            "https://github.com/example/repo.git",
+					"myRepo.path.revision":           "main",
+					"myRepo.path[0]":                 "path",
+					"myRepo.path[1]":                 "dir",
+				},
+			},
+		},
+		{
+			name: "repository parameters are added to params with go template",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.path.repoURL}}@{{.path.revision}}",
+				},
+				useGoTemplate: true,
+				repo:          repo,
+			},
+			want: []map[string]any{
+				{
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"path": map[string]any{
+						"path":               "path/dir",
+						"basename":           "dir",
+						"filename":           "file_name.yaml",
+						"basenameNormalized": "dir",
+						"filenameNormalized": "file-name.yaml",
+						"repoURL":            "https://github.com/example/repo.git",
+						"revision":           "main",
+						"segments": []string{
+							"path",
+							"dir",
+						},
+					},
+					"values": map[string]string{
+						"somekey": "https://github.com/example/repo.git@main",
+					},
+				},
+			},
+		},
+		{
+			name: "repository parameters are prefixed with go template",
+			args: args{
+				filePath:        "path/dir/file_name.yaml",
+				fileContent:     defaultContent,
+				values:          map[string]string{},
+				useGoTemplate:   true,
+				pathParamPrefix: "myRepo",
+				repo:            repo,
+			},
+			want: []map[string]any{
+				{
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"repoURL":            "https://github.com/example/repo.git",
+							"revision":           "main",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// values live under the separate "values.*" namespace, so values named
+			// repoURL/revision never collide with the generator's path parameters.
+			name: "values named repoURL and revision are kept alongside the repository parameters",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"repoURL":  "user-supplied-repo-url",
+					"revision": "user-supplied-revision",
+				},
+				repo: repo,
+			},
+			want: []map[string]any{
+				{
+					"foo.bar":                 "baz",
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "https://github.com/example/repo.git",
+					"path.revision":           "main",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+					"values.repoURL":          "user-supplied-repo-url",
+					"values.revision":         "user-supplied-revision",
+				},
+			},
+		},
+		{
+			// Before path.repoURL and path.revision existed, a file containing them under
+			// "path" was flattened to the same keys. Those values must not be overwritten.
+			name: "repository parameters defined in the file content are kept",
+			args: args{
+				filePath: "path/dir/file_name.yaml",
+				fileContent: []byte(`
+path:
+  repoURL: file-repo-url
+  revision: file-revision
+`),
+				values: map[string]string{},
+				repo:   repo,
+			},
+			want: []map[string]any{
+				{
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "file-repo-url",
+					"path.revision":           "file-revision",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+				},
+			},
+		},
+		{
+			name: "prefixed repository parameters defined in the file content are kept",
+			args: args{
+				filePath: "path/dir/file_name.yaml",
+				fileContent: []byte(`
+myRepo:
+  path:
+    revision: file-revision
+`),
+				values:          map[string]string{},
+				pathParamPrefix: "myRepo",
+				repo:            repo,
+			},
+			want: []map[string]any{
+				{
+					"myRepo.path":                    "path/dir",
+					"myRepo.path.basename":           "dir",
+					"myRepo.path.filename":           "file_name.yaml",
+					"myRepo.path.basenameNormalized": "dir",
+					"myRepo.path.filenameNormalized": "file-name.yaml",
+					"myRepo.path.repoURL":            "https://github.com/example/repo.git",
+					"myRepo.path.revision":           "file-revision",
+					"myRepo.path[0]":                 "path",
+					"myRepo.path[1]":                 "dir",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, tt.args.repo, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.wantErr {
 				assert.Error(t, err, "GitGenerator.parseFileParams()")
 			} else {
@@ -262,6 +464,7 @@ func TestBuildPathParameters(t *testing.T) {
 		name            string
 		appPath         string
 		pathParamPrefix string
+		repo            *repoMetadata
 		useGoTemplate   bool
 		expected        map[string]any
 	}{
@@ -321,11 +524,41 @@ func TestBuildPathParameters(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "flat parameters with repository metadata",
+			appPath: "p1/app",
+			repo:    &repoMetadata{RepoURL: "https://github.com/example/repo.git", Revision: "main"},
+			expected: map[string]any{
+				"path":                    "p1/app",
+				"path.basename":           "app",
+				"path.basenameNormalized": "app",
+				"path.repoURL":            "https://github.com/example/repo.git",
+				"path.revision":           "main",
+				"path[0]":                 "p1",
+				"path[1]":                 "app",
+			},
+		},
+		{
+			name:          "go template with repository metadata",
+			appPath:       "p1/app",
+			repo:          &repoMetadata{RepoURL: "https://github.com/example/repo.git", Revision: "main"},
+			useGoTemplate: true,
+			expected: map[string]any{
+				"path": map[string]any{
+					"path":               "p1/app",
+					"basename":           "app",
+					"basenameNormalized": "app",
+					"repoURL":            "https://github.com/example/repo.git",
+					"revision":           "main",
+					"segments":           []string{"p1", "app"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildPathParameters(tt.appPath, tt.pathParamPrefix, tt.useGoTemplate)
+			result := buildPathParameters(tt.appPath, tt.pathParamPrefix, tt.repo, tt.useGoTemplate)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -411,7 +644,7 @@ func TestGenerateParamsFromPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := generateParamsFromPaths(tt.paths, tt.pathParamPrefix, tt.values, tt.useGoTemplate, tt.goTemplateOptions)
+			result, err := generateParamsFromPaths(tt.paths, tt.pathParamPrefix, nil, tt.values, tt.useGoTemplate, tt.goTemplateOptions)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

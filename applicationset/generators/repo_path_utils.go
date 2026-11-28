@@ -42,6 +42,13 @@ type repoSourceSpec struct {
 	Files           []pathPattern
 }
 
+// repoMetadata is the repository information exposed to templates as path.repoURL and
+// path.revision. Only the Git generator exposes it; it is nil for the other sources.
+type repoMetadata struct {
+	RepoURL  string
+	Revision string
+}
+
 // repoSource is implemented by GitGenerator and OciGenerator to back the shared directory/file traversal logic.
 type repoSource interface {
 	// resolveSourceIntegrity returns the source-integrity policy for the generator's AppProject,
@@ -62,6 +69,15 @@ type repoSourceCallParams struct {
 	sourceIntegrity   *argoprojiov1alpha1.SourceIntegrity
 	useGoTemplate     bool
 	goTemplateOptions []string
+}
+
+// repoMetadata returns the repository information to expose as template parameters,
+// or nil when the source kind does not expose it.
+func (p repoSourceCallParams) repoMetadata() *repoMetadata {
+	if p.kind != repoSourceKindGit {
+		return nil
+	}
+	return &repoMetadata{RepoURL: p.spec.URL, Revision: p.spec.Revision}
 }
 
 // filterPaths filters paths based on directory inclusion/exclusion rules.
@@ -102,6 +118,7 @@ func filterPaths(dirs []pathPattern, allPaths []string) []string {
 func generateParamsFromPaths(
 	paths []string,
 	pathParamPrefix string,
+	repo *repoMetadata,
 	values map[string]string,
 	useGoTemplate bool,
 	goTemplateOptions []string,
@@ -110,7 +127,7 @@ func generateParamsFromPaths(
 ) {
 	res := make([]map[string]any, len(paths))
 	for i, appPath := range paths {
-		params := buildPathParameters(appPath, pathParamPrefix, useGoTemplate)
+		params := buildPathParameters(appPath, pathParamPrefix, repo, useGoTemplate)
 
 		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
@@ -125,7 +142,7 @@ func generateParamsFromPaths(
 
 // buildPathParameters creates parameter map from a single path.
 // Handles both Go template and flat parameter styles.
-func buildPathParameters(appPath, pathParamPrefix string, useGoTemplate bool) map[string]any {
+func buildPathParameters(appPath, pathParamPrefix string, repo *repoMetadata, useGoTemplate bool) map[string]any {
 	params := make(map[string]any, 5)
 
 	if useGoTemplate {
@@ -134,6 +151,10 @@ func buildPathParameters(appPath, pathParamPrefix string, useGoTemplate bool) ma
 		paramPath["basename"] = path.Base(appPath)
 		paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(appPath))
 		paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
+		if repo != nil {
+			paramPath["repoURL"] = repo.RepoURL
+			paramPath["revision"] = repo.Revision
+		}
 		if pathParamPrefix != "" {
 			params[pathParamPrefix] = map[string]any{"path": paramPath}
 		} else {
@@ -147,6 +168,10 @@ func buildPathParameters(appPath, pathParamPrefix string, useGoTemplate bool) ma
 		params[pathParamName] = appPath
 		params[pathParamName+".basename"] = path.Base(appPath)
 		params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(appPath))
+		if repo != nil {
+			params[pathParamName+".repoURL"] = repo.RepoURL
+			params[pathParamName+".revision"] = repo.Revision
+		}
 		for k, v := range strings.Split(params[pathParamName].(string), "/") {
 			if v != "" {
 				params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
@@ -163,6 +188,7 @@ func parseFileParams(
 	filePath string,
 	fileContent []byte,
 	pathParamPrefix string,
+	repo *repoMetadata,
 	values map[string]string,
 	useGoTemplate bool,
 	goTemplateOptions []string,
@@ -201,6 +227,10 @@ func parseFileParams(
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
+			if repo != nil {
+				paramPath["repoURL"] = repo.RepoURL
+				paramPath["revision"] = repo.Revision
+			}
 
 			if pathParamPrefix != "" {
 				params[pathParamPrefix] = map[string]any{"path": paramPath}
@@ -225,6 +255,10 @@ func parseFileParams(
 			params[pathParamName+".filename"] = path.Base(filePath)
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
 			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
+			if repo != nil {
+				setRepoParamUnlessDefinedInFile(params, pathParamName+".repoURL", repo.RepoURL, filePath)
+				setRepoParamUnlessDefinedInFile(params, pathParamName+".revision", repo.Revision, filePath)
+			}
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
 				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
@@ -241,6 +275,21 @@ func parseFileParams(
 	}
 
 	return res, nil
+}
+
+// setRepoParamUnlessDefinedInFile sets a repository parameter in flat (non-Go-template) mode
+// without overwriting a value of the same name that came from the file content. Before
+// path.repoURL and path.revision existed, a file containing `path: {repoURL: ...}` was
+// flattened to the same key, and ApplicationSets referencing it must keep their value.
+func setRepoParamUnlessDefinedInFile(params map[string]any, key, value, filePath string) {
+	if existing, ok := params[key]; ok {
+		log.WithFields(log.Fields{
+			"file":      filePath,
+			"parameter": key,
+		}).Warnf("file defines the generator parameter %q; keeping the file's value %q instead of %q", key, existing, value)
+		return
+	}
+	params[key] = value
 }
 
 // resolveProjectName resolves a project name whether templated or not
@@ -313,7 +362,7 @@ func generateRepoSourceDirectoryParams(ctx context.Context, params repoSourceCal
 
 	requestedApps := filterPaths(params.spec.Directories, allPaths)
 
-	res, err := generateParamsFromPaths(requestedApps, params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
+	res, err := generateParamsFromPaths(requestedApps, params.spec.PathParamPrefix, params.repoMetadata(), params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -361,7 +410,7 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
-		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.repoMetadata(), params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s' from repository '%s': %w", filePath, params.spec.URL, err)
 		}
