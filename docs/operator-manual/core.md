@@ -89,6 +89,24 @@ kubectl config set-context --current --namespace=argocd # change current kube co
 argocd login --core
 ```
 
+By default, the CLI uses the namespace of the current kube context as the namespace where Argo CD is installed.
+To use a different namespace without changing your kube context, pass the `--core-namespace` flag:
+
+```bash
+argocd app list --core --core-namespace argocd
+```
+
+You can also set it for every command with the `ARGOCD_OPTS` environment variable:
+
+```bash
+export ARGOCD_OPTS="--core-namespace argocd"
+```
+
+> [!NOTE]
+> The `--core-namespace` flag sets the namespace where Argo CD is installed. It is not the namespace of the
+> `Application`, which is set with `-N`/`--app-namespace`. The `argocd admin` commands that connect to the cluster,
+> except `argocd admin dashboard`, ignore it and use their own `-n`/`--namespace` flag instead.
+
 Similarly, users can also run the Web UI locally if they prefer to
 interact with Argo CD using this method. The Web UI can be started
 locally by running the following command:

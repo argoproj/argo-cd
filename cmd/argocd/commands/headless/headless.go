@@ -256,7 +256,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	controllerClientset = client.NewDryRunClient(controllerClientset)
 
-	namespace, _, err := clientConfig.Namespace()
+	namespace, err := resolveNamespace(clientConfig, clientOpts.CoreNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting namespace: %w", err)
 	}
@@ -371,4 +371,12 @@ func resolveAndApplyKubeContext(opts *apiclient.ClientOptions, c *cobra.Command)
 	}
 
 	return ""
+}
+
+func resolveNamespace(clientConfig clientcmd.ClientConfig, coreNamespace string) (string, error) {
+	if coreNamespace != "" {
+		return coreNamespace, nil
+	}
+	namespace, _, err := clientConfig.Namespace()
+	return namespace, err
 }

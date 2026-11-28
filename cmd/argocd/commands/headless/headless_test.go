@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 )
@@ -95,5 +96,26 @@ users:
 		namespace, _, err := clientConfig.Namespace()
 		require.NoError(t, err)
 		assert.Equal(t, "target-ns", namespace)
+	})
+}
+
+func TestResolveNamespace(t *testing.T) {
+	clientConfig := clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
+		Clusters:       map[string]*clientcmdapi.Cluster{"current-cluster": {Server: "https://current.example.com"}},
+		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"current-user": {Token: "current-token"}},
+		Contexts:       map[string]*clientcmdapi.Context{"current-context": {Cluster: "current-cluster", AuthInfo: "current-user", Namespace: "current-ns"}},
+		CurrentContext: "current-context",
+	}, &clientcmd.ConfigOverrides{})
+
+	t.Run("core namespace overrides the kube context namespace", func(t *testing.T) {
+		namespace, err := resolveNamespace(clientConfig, "argocd-ns")
+		require.NoError(t, err)
+		assert.Equal(t, "argocd-ns", namespace)
+	})
+
+	t.Run("kube context namespace is used when core namespace is empty", func(t *testing.T) {
+		namespace, err := resolveNamespace(clientConfig, "")
+		require.NoError(t, err)
+		assert.Equal(t, "current-ns", namespace)
 	})
 }
