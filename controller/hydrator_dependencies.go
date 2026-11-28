@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -30,6 +31,33 @@ func (ctrl *ApplicationController) GetProcessableAppProj(app *appv1.Application)
 func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList, error) {
 	// getAppList already filters out applications that are not processable by the controller.
 	return ctrl.getAppList(metav1.ListOptions{})
+}
+
+// GetAppsByHydrationDestination returns the processable applications indexed under the given
+// hydrator.HydrationDestinationKey, read from the application informer cache.
+func (ctrl *ApplicationController) GetAppsByHydrationDestination(destinationKey string) ([]*appv1.Application, error) {
+	objs, err := ctrl.appInformer.GetIndexer().ByIndex(hydrationDestinationIndex, destinationKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up applications by hydration destination: %w", err)
+	}
+	apps := make([]*appv1.Application, 0, len(objs))
+	for _, obj := range objs {
+		if app, ok := obj.(*appv1.Application); ok {
+			apps = append(apps, app)
+		}
+	}
+	return apps, nil
+}
+
+func (ctrl *ApplicationController) hydrationDestinationIndexFunc(obj any) ([]string, error) {
+	app, ok := obj.(*appv1.Application)
+	if !ok || !ctrl.isAppNamespaceAllowed(app) {
+		return nil, nil
+	}
+	if key := hydrator.HydrationDestinationKey(app); key != "" {
+		return []string{key}, nil
+	}
+	return nil, nil
 }
 
 func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error) {

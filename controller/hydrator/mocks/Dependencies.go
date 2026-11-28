@@ -186,6 +186,68 @@ func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetAppsByHydrationDestination provides a mock function for the type Dependencies
+func (_mock *Dependencies) GetAppsByHydrationDestination(destinationKey string) ([]*v1alpha1.Application, error) {
+	ret := _mock.Called(destinationKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppsByHydrationDestination")
+	}
+
+	var r0 []*v1alpha1.Application
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) ([]*v1alpha1.Application, error)); ok {
+		return returnFunc(destinationKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) []*v1alpha1.Application); ok {
+		r0 = returnFunc(destinationKey)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.Application)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(destinationKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Dependencies_GetAppsByHydrationDestination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppsByHydrationDestination'
+type Dependencies_GetAppsByHydrationDestination_Call struct {
+	*mock.Call
+}
+
+// GetAppsByHydrationDestination is a helper method to define mock.On call
+//   - destinationKey string
+func (_e *Dependencies_Expecter) GetAppsByHydrationDestination(destinationKey any) *Dependencies_GetAppsByHydrationDestination_Call {
+	return &Dependencies_GetAppsByHydrationDestination_Call{Call: _e.mock.On("GetAppsByHydrationDestination", destinationKey)}
+}
+
+func (_c *Dependencies_GetAppsByHydrationDestination_Call) Run(run func(destinationKey string)) *Dependencies_GetAppsByHydrationDestination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Dependencies_GetAppsByHydrationDestination_Call) Return(applications []*v1alpha1.Application, err error) *Dependencies_GetAppsByHydrationDestination_Call {
+	_c.Call.Return(applications, err)
+	return _c
+}
+
+func (_c *Dependencies_GetAppsByHydrationDestination_Call) RunAndReturn(run func(destinationKey string) ([]*v1alpha1.Application, error)) *Dependencies_GetAppsByHydrationDestination_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommitAuthorEmail provides a mock function for the type Dependencies
 func (_mock *Dependencies) GetCommitAuthorEmail() (string, error) {
 	ret := _mock.Called()

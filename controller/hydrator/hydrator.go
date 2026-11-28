@@ -49,6 +49,10 @@ type Dependencies interface {
 	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
+	// GetAppsByHydrationDestination returns the processable applications that hydrate to the destination with the
+	// given HydrationDestinationKey. It reads from the controller's application cache.
+	GetAppsByHydrationDestination(destinationKey string) ([]*appv1.Application, error)
+
 	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
 	// The returned string is the resolved revision for the given source.
 	EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error)
@@ -160,6 +164,14 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
+		// If manifest-generate-paths found no relevant changes but the dry revision moved past the last
+		// successful hydration, advance the git note so the existing hydrated commit is associated with
+		// the new dry SHA without a redundant full hydration.
+		if ok, why := h.canAdvanceHydratorNote(ctx, app, resolvedDryRevision); ok {
+			h.advanceHydratorNote(ctx, logCtx, app, origApp, resolvedDryRevision)
+		} else {
+			logCtx.WithField("reason", why).Debug("Not advancing hydrator git note")
+		}
 		// Consume the hydrate annotation when hydration is not needed.
 		if reason != reasonHydrationOperationAlreadyInProgress {
 			// annotations are removed at the end of the running hydration
@@ -179,6 +191,16 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
+}
+
+// HydrationDestinationKey identifies the repository and branch an application hydrates to, for indexing
+// applications that write to the same hydrated branch. It is empty for applications without a source hydrator.
+func HydrationDestinationKey(app *appv1.Application) string {
+	if app.Spec.SourceHydrator == nil {
+		return ""
+	}
+	key := getHydrationQueueKey(app)
+	return key.DestinationRepoURL + "\x00" + key.DestinationBranch
 }
 
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
@@ -625,6 +647,153 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
 	}
 	return resp, nil
+}
+
+// canAdvanceHydratorNote reports whether the commit from the last successful hydration still
+// represents resolvedDryRevision, so its git note can move forward without hydrating.
+func (h *Hydrator) canAdvanceHydratorNote(ctx context.Context, app *appv1.Application, resolvedDryRevision string) (bool, string) {
+	status := app.Status.SourceHydrator
+	switch {
+	case resolvedDryRevision == "":
+		return false, "dry revision not resolved"
+	case status.LastSuccessfulOperation == nil:
+		return false, "no successful hydration to attest"
+	case resolvedDryRevision == status.LastSuccessfulOperation.DrySHA:
+		return false, "note already at the resolved revision"
+	case status.CurrentOperation == nil || status.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrated:
+		return false, "last hydrate operation did not succeed"
+	}
+
+	// LastComparedDryRevision already points at resolvedDryRevision while a hydration is queued, so
+	// "no changes" must be judged against what was actually hydrated.
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return false, fmt.Sprintf("failed to get project: %v", err)
+	}
+	// Only a full hydration verifies the dry revision (see getManifests); never attest an unverified one.
+	if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), app.Spec.SourceHydrator.GetDrySource()) {
+		return false, "dry source requires source integrity verification"
+	}
+	baseline := app.DeepCopy()
+	baseline.Status.SourceHydrator.LastComparedDryRevision = status.LastSuccessfulOperation.DrySHA
+	hasChanges, _, err := h.dependencies.EvaluateAppRevisionsChanges(ctx, baseline, app.Spec.SourceHydrator.GetDrySource(), resolvedDryRevision, project, false)
+	if err != nil {
+		return false, fmt.Sprintf("failed to compare with the hydrated revision: %v", err)
+	}
+	if hasChanges {
+		return false, "manifests changed since the last successful hydration"
+	}
+
+	// A sibling app that needs hydration would leave the note attesting content it does not include.
+	// Compare destinations only: apps with different dry sources can still share a hydrated branch.
+	shared, err := h.isHydratedBranchShared(app)
+	if err != nil {
+		return false, fmt.Sprintf("failed to list apps for the hydrated branch: %v", err)
+	}
+	if shared {
+		return false, "hydrated branch is shared with other applications"
+	}
+	return true, ""
+}
+
+func (h *Hydrator) isHydratedBranchShared(app *appv1.Application) (bool, error) {
+	apps, err := h.dependencies.GetAppsByHydrationDestination(HydrationDestinationKey(app))
+	if err != nil {
+		return false, fmt.Errorf("failed to list apps: %w", err)
+	}
+	for _, other := range apps {
+		if other.Name != app.Name || other.Namespace != app.Namespace {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// advanceHydratorNote calls AdvanceHydratorNote on the commit-server to update the git note for the
+// given resolvedDryRevision without performing a full hydration. It updates the application status
+// consistently with the successful hydration path (CurrentOperation, LastSuccessfulOperation,
+// LastComparedDryRevision) and persists the status. No application refresh is requested because no
+// new hydrated commit was created.
+//
+// This is called from ProcessAppHydrateQueueItem when manifest-generate-paths determined that no
+// relevant source changes exist but the dry revision has moved past the last successfully hydrated one.
+func (h *Hydrator) advanceHydratorNote(ctx context.Context, logCtx *log.Entry, app *appv1.Application, origApp *appv1.Application, resolvedDryRevision string) {
+	hydrateToSource := app.Spec.GetHydrateToSource()
+	destinationRepoURL := hydrateToSource.RepoURL
+	targetBranch := hydrateToSource.TargetRevision
+	syncBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
+	project := app.Spec.Project
+
+	logCtx = logCtx.WithFields(log.Fields{
+		"resolvedDryRevision": resolvedDryRevision,
+		"destinationRepoURL":  destinationRepoURL,
+		"targetBranch":        targetBranch,
+		"syncBranch":          syncBranch,
+	})
+	logCtx.Info("Advancing hydrator git note without full hydration")
+
+	repo, err := h.dependencies.GetWriteCredentials(ctx, destinationRepoURL, project)
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to get write credentials for advancing hydrator note")
+		return
+	}
+	if repo == nil {
+		// Try without credentials.
+		repo = &appv1.Repository{Repo: destinationRepoURL}
+		logCtx.Warn("No credentials found for repo, continuing without credentials")
+	}
+
+	closer, commitService, err := h.commitClientset.NewCommitServerClient()
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to create commit server client for advancing hydrator note")
+		return
+	}
+	defer utilio.Close(closer)
+
+	resp, err := commitService.AdvanceHydratorNote(ctx, &commitclient.AdvanceHydratorNoteRequest{
+		Repo:                repo,
+		SyncBranch:          syncBranch,
+		TargetBranch:        targetBranch,
+		DrySha:              resolvedDryRevision,
+		ExpectedHydratedSha: app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA,
+	})
+	if err != nil {
+		logCtx.WithError(err).Error("Failed to advance hydrator git note")
+		return
+	}
+
+	if !resp.NoteAdvanced {
+		logCtx.Debug("Hydrator note already up-to-date, no note written")
+	} else {
+		logCtx.Info("Successfully advanced hydrator git note")
+	}
+
+	// Update status consistently with the successful hydration path. We preserve the existing
+	// CurrentOperation's StartedAt and SourceHydrator, because we did not start a new operation –
+	// we only advanced the note.
+	finishedAt := metav1.Now()
+	hydratedSHA := resp.HydratedSha
+
+	app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
+		StartedAt:      app.Status.SourceHydrator.CurrentOperation.StartedAt,
+		FinishedAt:     &finishedAt,
+		Phase:          appv1.HydrateOperationPhaseHydrated,
+		Message:        "",
+		DrySHA:         resolvedDryRevision,
+		HydratedSHA:    hydratedSHA,
+		SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
+	app.Status.SourceHydrator.LastSuccessfulOperation = &appv1.SuccessfulHydrateOperation{
+		DrySHA:         resolvedDryRevision,
+		HydratedSHA:    hydratedSHA,
+		SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+	}
+
+	// Persist the updated status. Do NOT call RequestAppRefresh because no new hydrated commit was
+	// created – the existing hydrated branch HEAD is unchanged.
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
+	logCtx.Debug("Persisted hydration status after advancing git note")
 }
 
 // newRevisionHasChanges checks if the dry source has a new revision that differs from the last compared dry revision.
