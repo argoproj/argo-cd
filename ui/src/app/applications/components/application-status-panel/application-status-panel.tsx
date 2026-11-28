@@ -284,7 +284,8 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
     const visibleSource = getAppDefaultSource(visibleApplication);
     const visibleRevision = getAppDefaultSyncRevision(visibleApplication);
     const visibleOperationStateRevision = getAppDefaultOperationSyncRevision(visibleApplication);
-    const visibleVersionId = utils.getAppCurrentVersion(visibleApplication);
+    const visibleSyncVersionId = utils.getAppVersionIdForRevision(visibleApplication, visibleRevision);
+    const visibleOperationStateVersionId = utils.getAppVersionIdForRevision(visibleApplication, visibleOperationStateRevision);
     const visibleAppOperationState = getAppOperationState(visibleApplication);
     const visibleHasMultipleSources = visibleApplication.spec.sources?.length > 0;
     const revisionType = visibleSource?.repoURL?.startsWith('oci://') ? 'oci' : visibleSource?.chart ? 'helm' : 'git';
@@ -393,7 +394,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                         appNamespace={visibleApplication.metadata.namespace}
                                         type={''}
                                         revision={visibleApplication.status.sourceHydrator.currentOperation.drySHA}
-                                        versionId={visibleVersionId}
+                                        versionId={null}
                                     />
                                 )}
                             </div>
@@ -439,7 +440,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                         appNamespace={visibleApplication.metadata.namespace}
                                         type={revisionType}
                                         revision={visibleRevision}
-                                        versionId={visibleVersionId}
+                                        versionId={visibleSyncVersionId}
                                     />
                                 </div>
                             )}
@@ -492,7 +493,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                     appNamespace={visibleApplication.metadata.namespace}
                                     type={revisionType}
                                     revision={visibleOperationStateRevision}
-                                    versionId={visibleVersionId}
+                                    versionId={visibleOperationStateVersionId}
                                 />
                             )) ||
                                 (appOperationState && <div className='application-status-panel__item-name'>{appOperationState.message}</div>)}

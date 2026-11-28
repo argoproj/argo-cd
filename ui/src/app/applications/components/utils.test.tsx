@@ -18,6 +18,7 @@ import {
     getAppDrySource,
     getAppHydrateToSource,
     getAppHydratorSyncSource,
+    getAppVersionIdForRevision,
     getAppOfAppsParentRef,
     getApplicationParentRef,
     getApplicationDetailsContainerClass,
@@ -1373,5 +1374,48 @@ describe('getClusterOptions', () => {
     it('does not reorder the input', () => {
         getClusterOptions(clusters, 'name');
         expect(clusters.map(cluster => cluster.name)).toEqual(['zeta-prod', 'alpha-dev', 'mike-staging']);
+    });
+});
+
+describe('getAppVersionIdForRevision', () => {
+    const appWithHistory = (history: object[]) => ({status: {history}} as unknown as Application);
+
+    it('returns null when the app has no history', () => {
+        expect(getAppVersionIdForRevision(appWithHistory([]), 'abc')).toBeNull();
+        expect(getAppVersionIdForRevision({status: {}} as unknown as Application, 'abc')).toBeNull();
+        expect(getAppVersionIdForRevision(undefined, 'abc')).toBeNull();
+    });
+
+    it('returns null when the revision is empty', () => {
+        expect(getAppVersionIdForRevision(appWithHistory([{id: 1, revision: ''}]), '')).toBeNull();
+    });
+
+    it('returns the latest history ID when its revision matches', () => {
+        const app = appWithHistory([
+            {id: 1, revision: 'old'},
+            {id: 2, revision: 'abc'}
+        ]);
+        expect(getAppVersionIdForRevision(app, 'abc')).toBe(2);
+    });
+
+    it('returns null when the revision is not from the latest history entry', () => {
+        const app = appWithHistory([
+            {id: 1, revision: 'abc'},
+            {id: 2, revision: 'old'}
+        ]);
+        expect(getAppVersionIdForRevision(app, 'abc')).toBeNull();
+    });
+
+    it('matches the revision of the given source index for multi-source history', () => {
+        const app = appWithHistory([{id: 3, revisions: ['a', 'b']}]);
+        expect(getAppVersionIdForRevision(app, 'a', 0)).toBe(3);
+        expect(getAppVersionIdForRevision(app, 'b', 1)).toBe(3);
+        expect(getAppVersionIdForRevision(app, 'b', 0)).toBeNull();
+        expect(getAppVersionIdForRevision(app, 'a', 2)).toBeNull();
+    });
+
+    it('only matches source index 0 for single-source history', () => {
+        const app = appWithHistory([{id: 4, revision: 'a'}]);
+        expect(getAppVersionIdForRevision(app, 'a', 1)).toBeNull();
     });
 });

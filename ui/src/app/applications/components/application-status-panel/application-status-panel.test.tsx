@@ -163,6 +163,37 @@ describe('ApplicationStatusPanel', () => {
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
     });
 
+    describe('revision metadata version', () => {
+        const withRevisions = (syncRevision: string, operationRevision: string, history: object[]) =>
+            ({
+                ...application,
+                status: {
+                    ...application.status,
+                    sync: {status: 'Synced', revision: syncRevision},
+                    operationState: {phase: 'Succeeded', message: 'successfully synced', startedAt: '2026-01-02T00:00:00Z', syncResult: {revision: operationRevision}},
+                    history
+                }
+            } as unknown as models.Application);
+
+        beforeEach(() => (services.applications.revisionMetadata as jest.Mock).mockClear());
+
+        it('passes the history version that deployed the revision', async () => {
+            render(<ApplicationStatusPanel application={withRevisions('aaa111', 'aaa111', [{id: 7, revision: 'aaa111'}])} />);
+
+            await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2));
+            expect(services.applications.revisionMetadata).toHaveBeenNthCalledWith(1, 'test-app', 'argocd', 'aaa111', 0, 7);
+            expect(services.applications.revisionMetadata).toHaveBeenNthCalledWith(2, 'test-app', 'argocd', 'aaa111', 0, 7);
+        });
+
+        it('loads revisions not in the latest history entry from the current spec', async () => {
+            render(<ApplicationStatusPanel application={withRevisions('bbb222', 'ccc333', [{id: 7, revision: 'aaa111'}])} />);
+
+            await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2));
+            expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'bbb222', 0, null);
+            expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'ccc333', 0, null);
+        });
+    });
+
     it('does not reload revision metadata while collapsed when the revision changes', async () => {
         (services.applications.revisionMetadata as jest.Mock).mockClear();
         const appV2 = {...application, status: {...application.status, sync: {status: 'Synced', revision: 'def456abc789'}}} as unknown as models.Application;
