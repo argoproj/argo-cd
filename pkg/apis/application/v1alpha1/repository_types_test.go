@@ -286,3 +286,28 @@ func TestRepository_Normalize(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOCICreds(t *testing.T) {
+	t.Run("Standard Username and Password", func(t *testing.T) {
+		repo := &Repository{
+			Username: "testuser",
+			Password: "testpassword",
+		}
+		creds := repo.GetOCICreds()
+		assert.Equal(t, "testuser", creds.Username)
+		assert.Equal(t, "testpassword", creds.Password)
+		assert.Empty(t, creds.GCPServiceAccountKey)
+	})
+
+	t.Run("GCPServiceAccountKey is passed through", func(t *testing.T) {
+		repo := &Repository{
+			Username:             "user",
+			Password:             "pass",
+			GCPServiceAccountKey: "test-service-account-key",
+		}
+		creds := repo.GetOCICreds()
+		assert.Equal(t, "user", creds.Username)
+		assert.Equal(t, "pass", creds.Password)
+		assert.Equal(t, "test-service-account-key", creds.GCPServiceAccountKey)
+	})
+}
