@@ -48,8 +48,10 @@ type repoSource interface {
 	// or nil if the backend doesn't support signing.
 	resolveSourceIntegrity(ctx context.Context, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) (*argoprojiov1alpha1.SourceIntegrity, error)
 
-	listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, error)
-	getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error)
+	// listDirectories and getFiles also return the commit SHA the revision resolved to, or an
+	// empty string if the backend does not report one.
+	listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, string, error)
+	getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, string, error)
 }
 
 // repoSourceCallParams bundles parameters for generateRepoSourceDirectoryParams and generateRepoSourceFileParams.
@@ -102,6 +104,7 @@ func filterPaths(dirs []pathPattern, allPaths []string) []string {
 func generateParamsFromPaths(
 	paths []string,
 	pathParamPrefix string,
+	commitSHA string,
 	values map[string]string,
 	useGoTemplate bool,
 	goTemplateOptions []string,
@@ -111,6 +114,7 @@ func generateParamsFromPaths(
 	res := make([]map[string]any, len(paths))
 	for i, appPath := range paths {
 		params := buildPathParameters(appPath, pathParamPrefix, useGoTemplate)
+		addCommitSHAParam(params, commitSHA, pathParamPrefix, useGoTemplate)
 
 		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
@@ -157,12 +161,45 @@ func buildPathParameters(appPath, pathParamPrefix string, useGoTemplate bool) ma
 	return params
 }
 
+// addCommitSHAParam adds the resolved commit SHA as git.commitSHA, under pathParamPrefix when it is set,
+// so that the parameters of two generators combined in a matrix generator do not collide.
+// A parameter of the same name read from a file is kept.
+func addCommitSHAParam(params map[string]any, commitSHA, pathParamPrefix string, useGoTemplate bool) {
+	if commitSHA == "" {
+		return
+	}
+
+	if !useGoTemplate {
+		key := "git.commitSHA"
+		if pathParamPrefix != "" {
+			key = pathParamPrefix + "." + key
+		}
+		if _, exists := params[key]; !exists {
+			params[key] = commitSHA
+		}
+		return
+	}
+
+	target := params
+	if pathParamPrefix != "" {
+		prefixed, ok := params[pathParamPrefix].(map[string]any)
+		if !ok {
+			return
+		}
+		target = prefixed
+	}
+	if _, exists := target["git"]; !exists {
+		target["git"] = map[string]any{"commitSHA": commitSHA}
+	}
+}
+
 // parseFileParams parses a YAML/JSON file and generates parameter maps.
 // This is common logic shared between Git and OCI generators for file-based generation.
 func parseFileParams(
 	filePath string,
 	fileContent []byte,
 	pathParamPrefix string,
+	commitSHA string,
 	values map[string]string,
 	useGoTemplate bool,
 	goTemplateOptions []string,
@@ -231,6 +268,7 @@ func parseFileParams(
 				}
 			}
 		}
+		addCommitSHAParam(params, commitSHA, pathParamPrefix, useGoTemplate)
 
 		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
@@ -298,7 +336,7 @@ func generateRepoSourceParams(ctx context.Context, src repoSource, kind repoSour
 
 // generateRepoSourceDirectoryParams lists directories from src, applies path filters, and returns parameter maps.
 func generateRepoSourceDirectoryParams(ctx context.Context, params repoSourceCallParams) ([]map[string]any, error) {
-	allPaths, err := params.src.listDirectories(ctx, params.spec.URL, params.spec.Revision, params.project, params.noRevisionCache, params.sourceIntegrity)
+	allPaths, commitSHA, err := params.src.listDirectories(ctx, params.spec.URL, params.spec.Revision, params.project, params.noRevisionCache, params.sourceIntegrity)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from %s: %w", params.kind, err)
 	}
@@ -308,12 +346,13 @@ func generateRepoSourceDirectoryParams(ctx context.Context, params repoSourceCal
 		"total":           len(allPaths),
 		"repoURL":         params.spec.URL,
 		"revision":        params.spec.Revision,
+		"commitSHA":       commitSHA,
 		"pathParamPrefix": params.spec.PathParamPrefix,
 	}).Info("applications result from the repo service")
 
 	requestedApps := filterPaths(params.spec.Directories, allPaths)
 
-	res, err := generateParamsFromPaths(requestedApps, params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
+	res, err := generateParamsFromPaths(requestedApps, params.spec.PathParamPrefix, commitSHA, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -335,8 +374,25 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 		}
 	}
 
+	// Each pattern is a separate request. Once the first request has resolved the revision, the
+	// remaining requests use that commit, so a branch moving in between cannot mix files from
+	// different commits and git.commitSHA describes every file.
+	revision := params.spec.Revision
+	var commitSHA string
+	getFiles := func(pattern string) (map[string][]byte, error) {
+		files, resolved, err := params.src.getFiles(ctx, params.spec.URL, revision, params.project, pattern, params.noRevisionCache, params.sourceIntegrity)
+		if err != nil {
+			return nil, err
+		}
+		if commitSHA == "" && resolved != "" {
+			commitSHA = resolved
+			revision = resolved
+		}
+		return files, nil
+	}
+
 	for _, includePattern := range includePatterns {
-		retrievedFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, includePattern, params.noRevisionCache, params.sourceIntegrity)
+		retrievedFiles, err := getFiles(includePattern)
 		if err != nil {
 			return nil, err
 		}
@@ -344,7 +400,7 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 	}
 
 	for _, excludePattern := range excludePatterns {
-		matchingFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, excludePattern, params.noRevisionCache, params.sourceIntegrity)
+		matchingFiles, err := getFiles(excludePattern)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +417,7 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
-		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, commitSHA, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s' from repository '%s': %w", filePath, params.spec.URL, err)
 		}

@@ -17,6 +17,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	generatorsMock "github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	servicesMocks "github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -1030,9 +1031,9 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 
 	repoServiceMock := &servicesMocks.Repos{}
-	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&services.GitFilesResult{Files: map[string][]byte{
 		"some/path.json": []byte("test: content"),
-	}, nil).Maybe()
+	}}, nil).Maybe()
 	gitGenerator := NewGitGenerator(repoServiceMock, "")
 
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
@@ -1098,9 +1099,9 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_error_includes_
 		"ste1/values.yaml",
 		mock.Anything,
 		mock.Anything,
-	).Return(map[string][]byte{
+	).Return(&services.GitFilesResult{Files: map[string][]byte{
 		"ste1/values.yaml": []byte("invalid: ["),
-	}, nil)
+	}}, nil)
 	gitGenerator := NewGitGenerator(repoServiceMock, "")
 
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
@@ -1163,9 +1164,9 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 	}
 
 	repoServiceMock := &servicesMocks.Repos{}
-	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&services.GitFilesResult{Files: map[string][]byte{
 		"some/path.json": []byte("test: content"),
-	}, nil).Maybe()
+	}}, nil).Maybe()
 	gitGenerator := NewGitGenerator(repoServiceMock, "")
 
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
@@ -1690,4 +1691,43 @@ func TestMatrixGenerateFlatListNoMatches(t *testing.T) {
 	for i, params := range got {
 		assert.Nil(t, params["clusters"], "parameter set %d", i)
 	}
+}
+
+func TestMatrixGenerator_TwoGitGeneratorsWithPathParamPrefix(t *testing.T) {
+	t.Parallel()
+	repoServiceMock := servicesMocks.NewRepos(t)
+	repoServiceMock.EXPECT().GetDirectories(mock.Anything, "https://git.example.com/a.git", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&services.GitDirectoriesResult{Paths: []string{"app"}, CommitSHA: "sha-a"}, nil)
+	repoServiceMock.EXPECT().GetDirectories(mock.Anything, "https://git.example.com/b.git", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&services.GitDirectoriesResult{Paths: []string{"config"}, CommitSHA: "sha-b"}, nil)
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"Git": NewGitGenerator(repoServiceMock, ""),
+	})
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	appProject := v1alpha1.AppProject{}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+	params, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{Git: &v1alpha1.GitGenerator{
+					RepoURL:         "https://git.example.com/a.git",
+					PathParamPrefix: "a",
+					Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+				}},
+				{Git: &v1alpha1.GitGenerator{
+					RepoURL:         "https://git.example.com/b.git",
+					PathParamPrefix: "b",
+					Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+				}},
+			},
+		},
+	}, &v1alpha1.ApplicationSet{}, client)
+	require.NoError(t, err)
+	require.Len(t, params, 1)
+	assert.Equal(t, "sha-a", params[0]["a.git.commitSHA"])
+	assert.Equal(t, "sha-b", params[0]["b.git.commitSHA"])
 }

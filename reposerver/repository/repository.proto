@@ -261,6 +261,8 @@ message GitFilesRequest {
 message GitFilesResponse {
     // Map consisting of path of the path to its contents in bytes
     map<string, bytes> map = 1;
+    // resolvedRevision is the commit SHA the requested revision resolved to.
+    string resolvedRevision = 2;
 }
 
 message GitDirectoriesRequest {
@@ -277,6 +279,8 @@ message GitDirectoriesRequest {
 message GitDirectoriesResponse {
     // A set of directory paths
     repeated string paths = 1;
+    // resolvedRevision is the commit SHA the requested revision resolved to.
+    string resolvedRevision = 2;
 }
 
 message OciFilesRequest {

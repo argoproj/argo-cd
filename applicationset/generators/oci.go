@@ -93,10 +93,12 @@ func (o *OciGenerator) resolveSourceIntegrity(_ context.Context, _ *argoprojiov1
 	return nil, nil
 }
 
-func (o *OciGenerator) listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) ([]string, error) {
-	return o.repos.GetOciDirectories(ctx, repoURL, revision, project, noRevisionCache)
+func (o *OciGenerator) listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) ([]string, string, error) {
+	paths, err := o.repos.GetOciDirectories(ctx, repoURL, revision, project, noRevisionCache)
+	return paths, "", err
 }
 
-func (o *OciGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
-	return o.repos.GetOciFiles(ctx, repoURL, revision, project, pattern, noRevisionCache)
+func (o *OciGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, string, error) {
+	files, err := o.repos.GetOciFiles(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	return files, "", err
 }

@@ -110,10 +110,18 @@ func (g *GitGenerator) resolveSourceIntegrity(ctx context.Context, appSet *argop
 	return appProject.EffectiveSourceIntegrity(), nil
 }
 
-func (g *GitGenerator) listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, error) {
-	return g.repos.GetDirectories(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
+func (g *GitGenerator) listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, string, error) {
+	res, err := g.repos.GetDirectories(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
+	if err != nil {
+		return nil, "", err
+	}
+	return res.Paths, res.CommitSHA, nil
 }
 
-func (g *GitGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
-	return g.repos.GetFiles(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+func (g *GitGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, string, error) {
+	res, err := g.repos.GetFiles(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+	if err != nil {
+		return nil, "", err
+	}
+	return res.Files, res.CommitSHA, nil
 }

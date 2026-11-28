@@ -20,12 +20,29 @@ type argoCDService struct {
 	getOciDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error)
 }
 
+// GitFilesResult holds the files matched in a Git repository and the commit they were read from.
+type GitFilesResult struct {
+	// Files maps each matched file path to its contents.
+	Files map[string][]byte
+	// CommitSHA is the commit the requested revision resolved to. It is empty when the
+	// repo-server does not report it.
+	CommitSHA string
+}
+
+// GitDirectoriesResult holds the directories found in a Git repository and the commit they were read from.
+type GitDirectoriesResult struct {
+	Paths []string
+	// CommitSHA is the commit the requested revision resolved to. It is empty when the
+	// repo-server does not report it.
+	CommitSHA string
+}
+
 type Repos interface {
 	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)
+	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*GitFilesResult, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
-	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)
+	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*GitDirectoriesResult, error)
 
 	// GetOciFiles returns content of files (not directories) within the target OCI artifact
 	GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error)
@@ -74,7 +91,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 	}
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*GitFilesResult, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -95,10 +112,10 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git files: %w", err)
 	}
-	return fileResponse.GetMap(), nil
+	return &GitFilesResult{Files: fileResponse.GetMap(), CommitSHA: fileResponse.GetResolvedRevision()}, nil
 }
 
-func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
+func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (*GitDirectoriesResult, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -118,7 +135,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
-	return dirResponse.GetPaths(), nil
+	return &GitDirectoriesResult{Paths: dirResponse.GetPaths(), CommitSHA: dirResponse.GetResolvedRevision()}, nil
 }
 
 func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error) {
