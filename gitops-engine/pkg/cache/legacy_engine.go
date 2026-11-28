@@ -166,6 +166,7 @@ func (e *legacyEngine) sync() (err error) {
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
 
+		isAPIService := kube.IsAPIServiceGroupKind(api.GroupKind)
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
@@ -175,6 +176,9 @@ func (e *legacyEngine) sync() (err error) {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
+						if isAPIService {
+							c.setAPIServiceAvailable(un.GetName(), isAPIServiceAvailable(un))
+						}
 						newRes := c.newResource(un)
 						syncLock.Lock()
 						c.setNode(newRes)
@@ -323,10 +327,14 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 		// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
 		// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
 		// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+		isAPIService := kube.IsAPIServiceGroupKind(api.GroupKind)
 		return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
 				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 			} else {
+				if isAPIService {
+					c.setAPIServiceAvailable(un.GetName(), isAPIServiceAvailable(un))
+				}
 				items = append(items, c.newResource(un))
 			}
 			return nil

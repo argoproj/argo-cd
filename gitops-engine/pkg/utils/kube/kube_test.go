@@ -488,3 +488,10 @@ func TestIsAPIService(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAPIServiceGroupKind(t *testing.T) {
+	t.Parallel()
+	assert.True(t, IsAPIServiceGroupKind(schema.GroupKind{Group: "apiregistration.k8s.io", Kind: "APIService"}))
+	assert.False(t, IsAPIServiceGroupKind(schema.GroupKind{Group: "example.com", Kind: "APIService"}))
+	assert.False(t, IsAPIServiceGroupKind(schema.GroupKind{Group: "apiregistration.k8s.io", Kind: "Service"}))
+}

@@ -189,6 +189,10 @@ func IsAPIServiceGroupVersionKind(gvk schema.GroupVersionKind) bool {
 	return gvk.Kind == APIServiceKind && gvk.Group == "apiregistration.k8s.io"
 }
 
+func IsAPIServiceGroupKind(gk schema.GroupKind) bool {
+	return gk.Kind == APIServiceKind && gk.Group == "apiregistration.k8s.io"
+}
+
 func IsAPIService(obj *unstructured.Unstructured) bool {
 	return IsAPIServiceGroupVersionKind(obj.GroupVersionKind())
 }
