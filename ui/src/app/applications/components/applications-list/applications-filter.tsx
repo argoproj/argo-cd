@@ -15,9 +15,9 @@ import {
 import {AppsListPreferences, AppSetsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {createMetadataSelector} from '../selectors';
-import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle, isFavorite} from '../utils';
+import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, getSyncSourceStatus, HealthStatusIcon, getOperationStateTitle, isFavorite} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
-import {COLORS} from '../../../shared/components/colors';
+import {ARGO_GRAY6_COLOR, COLORS} from '../../../shared/components/colors';
 import {AppsListFacets, collectMetadataValues, DestinationCluster, getAutoSyncStatus, getHydrationStatus, MetadataValues, StatusCounts} from './applications-list-stats';
 
 export {getAutoSyncStatus, getHydrationStatus};
@@ -27,6 +27,7 @@ export interface FilterResult {
     autosync: boolean;
     health: boolean;
     hydration: boolean;
+    syncSource: boolean;
     clusters: boolean;
     namespaces: boolean;
     repos: boolean;
@@ -67,6 +68,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
     const hydrationFilter = pref.hydrationFilter || [];
+    const syncSourceFilter = pref.syncSourceFilter || [];
 
     return applications.map(app => {
         const targetRevisions = getAppAllSources(app)
@@ -80,6 +82,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                 autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
                 health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
                 hydration: !hydratorEnabled || hydrationFilter.length === 0 || hydrationFilter.includes(getHydrationStatus(app)),
+                syncSource: !hydratorEnabled || syncSourceFilter.length === 0 || syncSourceFilter.includes(getSyncSourceStatus(app)),
                 namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
                 favourite: !pref.showFavorites || isFavorite(pref.favoritesAppList, app),
                 clusters:
@@ -271,6 +274,21 @@ const HydrationFilter = (props: AppFilterProps) => (
         selected={props.pref.hydrationFilter}
         setSelected={s => props.onChange({...props.pref, hydrationFilter: s})}
         options={getHydrationOptions(props.facets.totalByHydrationStatus)}
+    />
+);
+
+const syncSourceIcons: Record<string, React.ReactNode> = {
+    'Behind': <i className='fa fa-code-branch' style={{color: ARGO_GRAY6_COLOR}} />,
+    'Up to date': <i className='fa fa-check-circle' style={{color: COLORS.sync.synced}} />,
+    'None': <i className='fa fa-minus-circle' style={{color: COLORS.sync.unknown}} />
+};
+
+const SyncSourceFilter = (props: AppFilterProps) => (
+    <Filter
+        label='SYNC SOURCE STATUS'
+        selected={props.pref.syncSourceFilter}
+        setSelected={s => props.onChange({...props.pref, syncSourceFilter: s})}
+        options={getOptions(props.facets.totalBySyncSourceStatus, Object.keys(syncSourceIcons), k => syncSourceIcons[k])}
     />
 );
 
@@ -477,6 +495,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.syncFilter || []),
         ...(props.pref.healthFilter || []),
         ...(props.hydratorEnabled ? props.pref.hydrationFilter || [] : []),
+        ...(props.hydratorEnabled ? props.pref.syncSourceFilter || [] : []),
         ...(props.pref.operationFilter || []),
         ...(props.pref.labelsFilter || []),
         ...(props.pref.annotationsFilter || []),
@@ -501,6 +520,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <AppHealthFilter {...props} />
             <SyncFilter {...props} />
             {props.hydratorEnabled && <HydrationFilter {...props} />}
+            {props.hydratorEnabled && <SyncSourceFilter {...props} />}
             <OperationFilter {...props} />
             <MetadataFilter
                 label='LABELS'

@@ -20,6 +20,7 @@ test('normalizes filter arrays dropped by a narrower appList write', async () =>
 
     const prefs = await new Promise<ViewPreferences>(resolve => service.getPreferences().subscribe(resolve));
     expect(prefs.appList.hydrationFilter).toEqual([]);
+    expect(prefs.appList.syncSourceFilter).toEqual([]);
     expect(prefs.appList.autoSyncFilter).toEqual([]);
     expect(prefs.appList.projectsFilter).toEqual([]);
 });

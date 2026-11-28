@@ -10,7 +10,7 @@ import {AppContext, Context, ContextApis} from '../../shared/context';
 import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {ARGO_GRAY6_COLOR, CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import {
     appInstanceName,
     appQualifiedName,
@@ -999,6 +999,32 @@ export function hydrationStatusMessage(app: appModels.Application) {
             return <span>{}</span>;
     }
 }
+
+export type SyncSourceStatus = 'Behind' | 'Up to date' | 'None';
+
+// None means hydrateTo is not configured or one of the dry SHAs is not known yet.
+export function getSyncSourceStatus(app: appModels.Application): SyncSourceStatus {
+    const status = app.status.sourceHydrator;
+    const hydratedDrySHA = status?.lastSuccessfulOperation?.hydratedDrySHA;
+    const syncedDrySHA = status?.syncedDrySHA;
+    if (!app.spec.sourceHydrator?.hydrateTo || !hydratedDrySHA || !syncedDrySHA) {
+        return 'None';
+    }
+    return hydratedDrySHA === syncedDrySHA ? 'Up to date' : 'Behind';
+}
+
+export function syncSourceBehindMessage(app: appModels.Application) {
+    if (getSyncSourceStatus(app) !== 'Behind') {
+        return null;
+    }
+    const sourceHydrator = app.spec.sourceHydrator;
+    return `${sourceHydrator.syncSource.targetBranch} is behind ${getAppHydrateToSource(sourceHydrator).targetRevision}`;
+}
+
+export const SyncSourceBehindIcon = ({app}: {app: appModels.Application}) => {
+    const message = syncSourceBehindMessage(app);
+    return message ? <i className='fa fa-code-branch' title={message} style={{color: ARGO_GRAY6_COLOR, marginLeft: '0.3em'}} /> : null;
+};
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     let icon = 'fa-question-circle';

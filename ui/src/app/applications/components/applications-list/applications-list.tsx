@@ -103,6 +103,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                 .split(',')
                 .filter(item => !!item);
         }
+        if (params.get('syncSource') != null) {
+            viewPref.syncSourceFilter = params
+                .get('syncSource')
+                .split(',')
+                .filter(item => !!item);
+        }
         if (params.get('namespace') != null) {
             viewPref.namespacesFilter = params
                 .get('namespace')
@@ -268,6 +274,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
             autoSync: newPref.autoSyncFilter.join(','),
             health: newPref.healthFilter.join(','),
             hydration: newPref.hydrationFilter.join(','),
+            syncSource: newPref.syncSourceFilter.join(','),
             namespace: newPref.namespacesFilter.join(','),
             targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
             repo: newPref.reposFilter.map(encodeURIComponent).join(','),

@@ -108,12 +108,14 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
         pref.autoSyncFilter = [];
         pref.operationFilter = [];
         pref.hydrationFilter = [];
+        pref.syncSourceFilter = [];
     }
 
     public projectsFilter: string[];
     public syncFilter: string[];
     public autoSyncFilter: string[];
     public hydrationFilter: string[];
+    public syncSourceFilter: string[];
     public namespacesFilter: string[];
     public reposFilter: string[];
     public clustersFilter: string[];
@@ -224,6 +226,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         healthFilter: new Array<string>(),
         operationFilter: new Array<string>(),
         hydrationFilter: new Array<string>(),
+        syncSourceFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
@@ -337,6 +340,7 @@ export class ViewPreferencesService {
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
         appList.hydrationFilter = appList.hydrationFilter || [];
+        appList.syncSourceFilter = appList.syncSourceFilter || [];
         appList.healthFilter = appList.healthFilter || [];
         appList.operationFilter = appList.operationFilter || [];
         appList.favoritesAppList = appList.favoritesAppList || [];
