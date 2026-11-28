@@ -35,6 +35,8 @@ export interface SyncOperation {
     prune: boolean;
     dryRun: boolean;
     resources?: SyncOperationResource[];
+    rolledBackFromRevision?: string;
+    rolledBackFromRevisions?: string[];
 }
 
 export interface RetryBackoff {
@@ -336,6 +338,7 @@ export interface Automated {
     prune: boolean;
     selfHeal: boolean;
     enabled: boolean;
+    rollbackAware?: boolean;
 }
 
 export interface ManualDefaults {
@@ -556,6 +559,8 @@ export interface ApplicationStatus {
     operationState?: OperationState;
     summary?: ApplicationSummary;
     sourceHydrator?: SourceHydratorStatus;
+    rolledBackRevision?: string;
+    rolledBackRevisions?: string[];
 }
 
 export interface SourceHydratorStatus {
@@ -649,6 +654,7 @@ export interface AuthSettings {
     syncWithReplaceAllowed: boolean;
     resourceViewEnabled: boolean;
     ssoAutoLogin: boolean;
+    rollbackAwareAutoSyncEnabled: boolean;
     appLabelKey: string;
     trackingMethod: string;
     additionalUrls: string[];

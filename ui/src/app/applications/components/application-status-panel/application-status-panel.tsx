@@ -6,6 +6,7 @@ import {revisionUrl} from '../../../shared/components/urls';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {AuthSettingsCtx} from '../../../shared/context';
 import {
     ApplicationSyncWindowStatusIcon,
     ComparisonStatusIcon,
@@ -225,6 +226,8 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
 };
 
 export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+    const authSettings = React.useContext(AuthSettingsCtx);
+
     // Keep the full panel mounted once shown: unmounting it on collapse would re-run its
     // data loaders (and re-fire their requests) on every expand.
     const [everExpanded, setEverExpanded] = React.useState(!collapsed);
@@ -254,6 +257,11 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(visibleApplication);
+    const rolledBackRevisions = utils.isAutoSyncPausedByRollback(application, authSettings?.rollbackAwareAutoSyncEnabled)
+        ? application.status.rolledBackRevisions?.length
+            ? application.status.rolledBackRevisions
+            : [application.status.rolledBackRevision]
+        : [];
 
     const today = new Date();
 
@@ -425,6 +433,12 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 ? 'Auto sync is enabled.'
                                 : 'Auto sync is not enabled.'}
                         </div>
+                        {rolledBackRevisions.length > 0 && (
+                            <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}} title={rolledBackRevisions.join(', ')}>
+                                <i className='fa fa-pause-circle' /> Auto sync skips rolled back revision {rolledBackRevisions.map(r => r.substring(0, 7)).join(', ')} until a new
+                                revision is available.
+                            </div>
+                        )}
                         {visibleApplication.status &&
                             visibleApplication.status.sync &&
                             (visibleHasMultipleSources
