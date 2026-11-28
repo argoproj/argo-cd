@@ -104,6 +104,13 @@ $slate: #191826;
             white-space: nowrap;
         }
 
+        &__checkbox {
+            flex: none;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+        }
+
         &--selected {
             background-color: $slate;
             color: white;

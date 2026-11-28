@@ -1,5 +1,4 @@
 import * as React from 'react';
-import {Checkbox} from 'argo-ui/v2';
 import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
@@ -187,20 +186,24 @@ export const Filters = (props: FiltersProps) => {
                 })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
-                <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
-                    <Checkbox
-                        value={!!pref.orphanedResources}
-                        onChange={val => {
+                <label className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
+                    <input
+                        type='checkbox'
+                        className='filter__item__checkbox'
+                        checked={!!pref.orphanedResources}
+                        aria-label='Show Orphaned'
+                        onChange={event => {
+                            const val = event.target.checked;
                             ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                         }}
-                        style={{
-                            marginRight: '8px',
-                            marginLeft: '8px'
-                        }}
                     />
+                    <div style={{marginRight: '5px'}}>
+                        <i className='fa fa-ghost' />
+                    </div>
                     <div className='filter__item__label'>Show Orphaned</div>
-                </div>
+                    <div style={{marginLeft: 'auto'}}>{tree.orphanedNodes.length}</div>
+                </label>
             )}
         </FiltersGroup>
     );
