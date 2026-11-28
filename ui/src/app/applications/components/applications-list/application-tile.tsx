@@ -34,6 +34,11 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
 
     const view = pref.appDetails.view;
     const appLink = AppUtils.getAppListLink(ctx, app, view);
+    const hasSource = !!(app.spec?.source || app.spec?.sources?.length || app.spec?.sourceHydrator);
+    const diffAvailable = hasSource && app.status?.sync?.status !== models.SyncStatuses.Synced;
+    const diffAppUrl = AppUtils.getAppUrl(app);
+    const diffNodeKey = `argoproj.io/Application/${app.metadata.namespace}/${app.metadata.name}/0`;
+    const diffHref = `${ctx.baseHref}${diffAppUrl}?node=${encodeURIComponent(diffNodeKey)}&tab=diff`;
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -230,18 +235,27 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                 </button>
                 &nbsp;
                 <Tooltip className='custom-tooltip' content={'Diff'}>
-                    <button
-                        type='button'
-                        className='argo-button argo-button--base'
-                        qe-id='applications-tiles-button-diff'
-                        onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            const appUrl = AppUtils.getAppUrl(app);
-                            const nodeKey = `argoproj.io/Application/${app.metadata.namespace}/${app.metadata.name}/0`;
-                            ctx.navigation.goto(`/${appUrl}`, {node: nodeKey, tab: 'diff'});
-                        }}>
-                        <i className='fa fa-code-compare' /> <span className='show-for-xxlarge'>Diff</span>
-                    </button>
+                    {diffAvailable ? (
+                        <a
+                            className='argo-button argo-button--base'
+                            href={diffHref}
+                            aria-label='Diff'
+                            qe-id='applications-tiles-button-diff'
+                            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                                    return;
+                                }
+                                e.preventDefault();
+                                e.stopPropagation();
+                                ctx.navigation.goto(`/${diffAppUrl}`, {node: diffNodeKey, tab: 'diff'}, {event: e});
+                            }}>
+                            <i className='fa fa-code-compare' /> <span className='show-for-xxlarge'>Diff</span>
+                        </a>
+                    ) : (
+                        <button type='button' className='argo-button argo-button--base' disabled aria-label='Diff' qe-id='applications-tiles-button-diff'>
+                            <i className='fa fa-code-compare' /> <span className='show-for-xxlarge'>Diff</span>
+                        </button>
+                    )}
                 </Tooltip>
                 &nbsp;
                 <Tooltip className='custom-tooltip' content={'Refresh'}>
