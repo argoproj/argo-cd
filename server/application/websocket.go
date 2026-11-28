@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -249,8 +250,14 @@ func (t *terminalSession) Read(p []byte) (n int, err error) {
 	case "stdin":
 		return copy(p, msg.Data), nil
 	case "resize":
-		t.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}
-		return 0, nil
+		select {
+		case t.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}:
+			return 0, nil
+		case <-t.ctx.Done():
+			return copy(p, EndOfTransmission), t.ctx.Err()
+		case <-t.doneChan:
+			return copy(p, EndOfTransmission), io.EOF
+		}
 	default:
 		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
 	}

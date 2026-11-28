@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -322,8 +323,18 @@ func startProcessWithShells(ctx context.Context, k8sClient kubernetes.Interface,
 }
 
 func isShellInitializationError(err error) bool {
+	if err == nil {
+		return false
+	}
 	var exitErr utilexec.ExitError
-	return errors.As(err, &exitErr) && (exitErr.ExitStatus() == 126 || exitErr.ExitStatus() == 127)
+	if errors.As(err, &exitErr) && (exitErr.ExitStatus() == 126 || exitErr.ExitStatus() == 127) {
+		return true
+	}
+	// Container runtimes (for example containerd/runc) report a missing shell binary
+	// as an internal exec error rather than ExitError 126/127.
+	msg := err.Error()
+	return strings.Contains(msg, "executable file not found") ||
+		((strings.Contains(msg, "exec:") || strings.Contains(msg, "exec failed:")) && strings.Contains(msg, "no such file or directory"))
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)

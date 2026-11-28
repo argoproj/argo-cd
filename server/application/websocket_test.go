@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -81,6 +83,7 @@ func TestNewTerminalSessionCloseCancelsContext(t *testing.T) {
 	t.Parallel()
 	sessions := make(chan *terminalSession, 1)
 	errs := make(chan error, 1)
+	releaseHandler := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: "header.payload.signature"})
 		session, err := newTerminalSession(r.Context(), w, r, nil, nil, "", nil)
@@ -89,8 +92,10 @@ func TestNewTerminalSessionCloseCancelsContext(t *testing.T) {
 			return
 		}
 		sessions <- session
+		<-releaseHandler
 	}))
 	defer server.Close()
+	defer close(releaseHandler)
 
 	wsConn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
 	require.NoError(t, err)
@@ -104,8 +109,98 @@ func TestNewTerminalSessionCloseCancelsContext(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("terminal session was not created")
 	}
+	require.NoError(t, session.ctx.Err())
 	require.NoError(t, session.Close())
 	assert.ErrorIs(t, session.ctx.Err(), context.Canceled)
+}
+
+func TestTerminalSessionResizeDeliveryAndCancellation(t *testing.T) {
+	t.Parallel()
+
+	newSessionWithResize := func(t *testing.T, ctx context.Context) *terminalSession {
+		t.Helper()
+		serverConn := make(chan *websocket.Conn, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			serverConn <- conn
+		}))
+		t.Cleanup(server.Close)
+
+		wsConn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = wsConn.Close() })
+
+		srvConn := <-serverConn
+		t.Cleanup(func() { _ = srvConn.Close() })
+		require.NoError(t, srvConn.WriteJSON(TerminalMessage{Operation: "resize", Cols: 120, Rows: 40}))
+
+		ctx, cancel := context.WithCancel(ctx)
+		t.Cleanup(cancel)
+		return &terminalSession{
+			ctx:          ctx,
+			cancel:       cancel,
+			wsConn:       wsConn,
+			sizeChan:     make(chan remotecommand.TerminalSize),
+			doneChan:     make(chan struct{}),
+			terminalOpts: &TerminalOptions{DisableAuth: true},
+		}
+	}
+
+	t.Run("delivers resize when active", func(t *testing.T) {
+		t.Parallel()
+		session := newSessionWithResize(t, t.Context())
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := session.Read(make([]byte, 16))
+			errCh <- err
+		}()
+
+		size := session.Next()
+		require.NotNil(t, size)
+		assert.Equal(t, uint16(120), size.Width)
+		assert.Equal(t, uint16(40), size.Height)
+		require.NoError(t, <-errCh)
+	})
+
+	t.Run("unblocks resize send when context cancels", func(t *testing.T) {
+		t.Parallel()
+		session := newSessionWithResize(t, t.Context())
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := session.Read(make([]byte, 16))
+			errCh <- err
+		}()
+
+		session.cancelContext()
+		select {
+		case err := <-errCh:
+			require.ErrorIs(t, err, context.Canceled)
+		case <-time.After(time.Second):
+			t.Fatal("Read remained blocked on sizeChan after context cancellation")
+		}
+	})
+
+	t.Run("unblocks resize send when Done is called", func(t *testing.T) {
+		t.Parallel()
+		session := newSessionWithResize(t, t.Context())
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := session.Read(make([]byte, 16))
+			errCh <- err
+		}()
+
+		session.Done()
+		select {
+		case err := <-errCh:
+			require.Error(t, err)
+			assert.True(t, err == io.EOF || err == context.Canceled, "unexpected error: %v", err)
+		case <-time.After(time.Second):
+			t.Fatal("Read remained blocked on sizeChan after Done")
+		}
+	})
 }
 
 func TestTerminalSessionErrorsCancelContext(t *testing.T) {
