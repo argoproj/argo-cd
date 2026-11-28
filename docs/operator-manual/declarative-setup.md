@@ -1695,6 +1695,8 @@ Notes:
 
 * Selectors of all the matching rules are ANDed together.
 * An invalid selector is rejected when the config map is loaded.
+* A resource in an Application's target state that does not match the selector is excluded, as with
+  `resource.exclusions`: Argo CD does not apply it and adds an `ExcludedResourceWarning` condition to the Application.
 
 ## Mask sensitive Annotations on Secrets
 

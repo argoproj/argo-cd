@@ -571,7 +571,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 }
 
 // TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
-// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+// resource selector is excluded from the target state and reported with an ExcludedResourceWarning
 func TestCompareAppStateResourceSelector(t *testing.T) {
 	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
 
@@ -597,16 +597,47 @@ func TestCompareAppStateResourceSelector(t *testing.T) {
 		return compRes, app
 	}
 
-	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+	t.Run("resource not matching the selector is excluded", func(t *testing.T) {
 		// PodManifest has no labels, so it does not match
 		compRes, app := compare(t, PodManifest, "app=my-app")
 
 		require.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
 		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
-		// the resource stays managed, it is only unwatched
-		assert.Len(t, compRes.resources, 1)
-		assert.Len(t, compRes.managedResources, 1)
+		// an unwatched target would be OutOfSync forever and loop self-heal (#31038)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Empty(t, compRes.resources)
+		assert.Empty(t, compRes.managedResources)
+	})
+
+	t.Run("live resource still matching the selector is not pruned", func(t *testing.T) {
+		// the label was removed in Git, but the live pod still has it and so is still watched
+		livePod := NewPod()
+		livePod.SetNamespace(test.FakeDestNamespace)
+		livePod.SetLabels(map[string]string{"app": "my-app", common.LabelKeyAppInstance: "my-app"})
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(livePod): livePod,
+			},
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Pod\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Empty(t, compRes.resources)
+		assert.Empty(t, compRes.managedResources)
 	})
 
 	t.Run("resource matching the selector is not reported", func(t *testing.T) {

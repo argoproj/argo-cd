@@ -802,6 +802,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	}
 	conditions = append(conditions, dedupConditions...)
 
+	var selectorExcludedKeys []kubeutil.ResourceKey
 	for i, v := range slices.Backward(targetObjs) {
 		targetObj := v
 		gvk := targetObj.GroupVersionKind()
@@ -815,11 +816,13 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		} else if selectorStr := resFilter.GetLabelSelector(gvk.Group, gvk.Kind, destCluster.Server); selectorStr != "" {
 			// the selector is validated when the settings are loaded, so it is expected to parse
 			if selector, err := labels.Parse(selectorStr); err == nil && !selector.Matches(labels.Set(targetObj.GetLabels())) {
-				// the resource stays managed, but Argo CD does not watch it, so it never has a live
-				// state to compare the target state against
+				// Argo CD never observes the live object, so treat it like an exclusion: an unwatched
+				// target can never be Synced, and self-heal would re-apply it forever (#31038)
+				targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+				selectorExcludedKeys = append(selectorExcludedKeys, kubeutil.GetResourceKey(targetObj))
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
-					Message:            fmt.Sprintf("Resource %s/%s %s does not match the resource selector %q in the settings and will not be watched; it will appear as OutOfSync", gvk.Group, gvk.Kind, targetObj.GetName(), selectorStr),
+					Message:            fmt.Sprintf("Resource %s/%s %s does not match the resource selector %q in the settings and is excluded", gvk.Group, gvk.Kind, targetObj.GetName(), selectorStr),
 					LastTransitionTime: &now,
 				})
 			}
@@ -840,6 +843,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		msg := "Failed to load live state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
+	}
+	// The live object can still match the selector (e.g. its labels changed only in Git), so it is
+	// still watched; drop it as well, or it would show up as an orphan and get pruned.
+	for _, key := range selectorExcludedKeys {
+		delete(liveObjByKey, key)
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
