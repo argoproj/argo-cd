@@ -97,9 +97,13 @@ func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*
 		Topic:            &g.topic,
 	}
 
-	// gitlab does not include Archived repos by default
-	if g.includeArchivedRepos {
-		opt.Archived = gitlab.Ptr(true)
+	// In the GitLab API:
+	// - ?archived=false returns only active (non-archived) projects.
+	// - Omitting 'archived' returns both active and archived projects.
+	// - ?archived=true returns only archived projects.
+	// Therefore, when includeArchivedRepos is false (the default), explicitly request active projects.
+	if !g.includeArchivedRepos {
+		opt.Archived = gitlab.Ptr(false)
 	}
 
 	repos := []*Repository{}
