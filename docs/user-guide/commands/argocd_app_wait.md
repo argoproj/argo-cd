@@ -44,19 +44,20 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
-  -N, --app-namespace string     Only wait for an application  in namespace
-      --degraded[=true|false]    Wait for degraded
-      --delete[=true|false]      Wait for delete
-      --health[=true|false]      Wait for health
-  -h, --help[=true|false]        help for wait
-      --hydrated[=true|false]    Wait for hydration operations (evaluated globally for the application)
-      --operation[=true|false]   Wait for pending operations (evaluated globally for the application)
-  -o, --output string            Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
-      --resource stringArray     Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
-  -l, --selector string          Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
-      --suspended[=true|false]   Wait for suspended
-      --sync[=true|false]        Wait for sync
-      --timeout uint             Time out after this many seconds
+  -N, --app-namespace string         Only wait for an application  in namespace
+      --degraded[=true|false]        Wait for degraded
+      --delete[=true|false]          Wait for delete
+      --health[=true|false]          Wait for health
+  -h, --help[=true|false]            help for wait
+      --hydrated[=true|false]        Wait for hydration operations (evaluated globally for the application)
+      --max-pending-resources uint   Maximum number of pending resources to show in timeout error messages (0 = show all) (default 10)
+      --operation[=true|false]       Wait for pending operations (evaluated globally for the application)
+  -o, --output string                Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
+      --resource stringArray         Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
+  -l, --selector string              Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --suspended[=true|false]       Wait for suspended
+      --sync[=true|false]            Wait for sync
+      --timeout uint                 Time out after this many seconds
 ```
 
 ### Options inherited from parent commands
