@@ -17,6 +17,7 @@ interface FilterProps {
     loading?: boolean;
     radio?: boolean;
     collapsed?: boolean;
+    negatable?: boolean;
 }
 
 export interface CheckboxOption {
@@ -25,7 +26,7 @@ export interface CheckboxOption {
     icon?: React.ReactNode;
 }
 
-export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
+export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption; excluded?: boolean}) => {
     const [value, setValue] = React.useState(props.value);
     const [prevPropValue, setPrevPropValue] = React.useState(props.value);
 
@@ -45,8 +46,10 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
         }
     };
 
+    const excluded = value && props.excluded;
+
     return (
-        <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
+        <div className={`filter__item ${value ? 'filter__item--selected' : ''} ${excluded ? 'filter__item--excluded' : ''}`} onClick={() => setValue(!value)}>
             <Checkbox
                 onChange={val => {
                     setValue(val);
@@ -94,14 +97,39 @@ export const FiltersGroup = (props: {
     );
 };
 
-export const Filter = (props: FilterProps) => {
-    const init = {} as {[label: string]: boolean};
-    props.selected.forEach(s => (init[s] = true));
+// leading entry in `selected` when the filter is in Exclude mode
+export const NEGATE_SENTINEL = '!';
 
-    const [values, setValues] = React.useState(init);
+const FilterModeSwitch = (props: {label: string; negate: boolean; setNegate: (negate: boolean) => void}) => (
+    <div className='filter__mode' role='group' aria-label={`${props.label} filter mode`}>
+        <button
+            type='button'
+            className={`filter__mode__option ${!props.negate ? 'filter__mode__option--active' : ''}`}
+            aria-pressed={!props.negate}
+            onClick={() => props.setNegate(false)}>
+            <i className='fa fa-eye' /> Include
+        </button>
+        <button
+            type='button'
+            className={`filter__mode__option filter__mode__option--exclude ${props.negate ? 'filter__mode__option--active' : ''}`}
+            aria-pressed={props.negate}
+            onClick={() => props.setNegate(true)}>
+            <i className='fa fa-eye-slash' /> Exclude
+        </button>
+    </div>
+);
+
+export const Filter = (props: FilterProps) => {
+    const incomingKeys = props.selected.filter(s => s !== NEGATE_SENTINEL);
+    const toValues = (keys: string[]) => Object.fromEntries(keys.map(k => [k, true])) as {[label: string]: boolean};
+
+    const [values, setValues] = React.useState(() => toValues(incomingKeys));
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
     const options = props.options;
+    const incomingNegate = !!props.negatable && props.selected.includes(NEGATE_SENTINEL);
+    const [negate, setNegate] = React.useState(incomingNegate);
+    const [prevIncomingNegate, setPrevIncomingNegate] = React.useState(incomingNegate);
 
     const labels = props.labels || options.map(o => o.label);
 
@@ -125,6 +153,20 @@ export const Filter = (props: FilterProps) => {
         setValues(cleanedValues);
     }
 
+    // follow an outside mode change (e.g. a new URL), and its values unless it's our own switch coming back
+    if (prevIncomingNegate !== incomingNegate) {
+        setPrevIncomingNegate(incomingNegate);
+        setNegate(incomingNegate);
+        if (incomingKeys.join() !== selectedKeys.join()) {
+            setValues(toValues(incomingKeys));
+        }
+    }
+
+    // reset to Include once the selection is emptied, so a later selection isn't silently excluded
+    if (negate && !valuesNeedCleaning && selectedKeys.length === 0) {
+        setNegate(false);
+    }
+
     const tags = props.field
         ? Object.keys(cleanedValues).map(v => {
               if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
@@ -136,9 +178,9 @@ export const Filter = (props: FilterProps) => {
         // Sync the selected keys up to the parent. Skip while values still
         // contain undefined entries (a setValues is already queued this render).
         if (!valuesNeedCleaning) {
-            props.setSelected(selectedKeys);
+            props.setSelected(negate && selectedKeys.length > 0 ? [NEGATE_SENTINEL, ...selectedKeys] : selectedKeys);
         }
-    }, [values]);
+    }, [values, negate]);
 
     const [prevSelectedLength, setPrevSelectedLength] = React.useState(props.selected.length);
     if (prevSelectedLength !== props.selected.length) {
@@ -192,6 +234,7 @@ export const Filter = (props: FilterProps) => {
                                 inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
+                        {props.negatable && selectedKeys.length > 0 && <FilterModeSwitch label={props.label || 'FILTER'} negate={negate} setNegate={setNegate} />}
                         {((props.field ? tags : options) || []).map((opt, i) => (
                             <CheckboxRow
                                 key={i}
@@ -202,6 +245,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 option={opt}
+                                excluded={negate}
                             />
                         ))}
                     </React.Fragment>

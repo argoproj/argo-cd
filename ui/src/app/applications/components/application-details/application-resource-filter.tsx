@@ -90,7 +90,15 @@ export const Filters = (props: FiltersProps) => {
         onSetFilter(strings);
     };
 
-    const ResourceFilter = (p: {label: string; prefix: string; options: {label: string}[]; abbreviations?: Map<string, string>; field?: boolean; radio?: boolean}) => {
+    const ResourceFilter = (p: {
+        label: string;
+        prefix: string;
+        options: {label: string}[];
+        abbreviations?: Map<string, string>;
+        field?: boolean;
+        radio?: boolean;
+        negatable?: boolean;
+    }) => {
         return loading ? (
             <div>Loading...</div>
         ) : (
@@ -102,13 +110,18 @@ export const Filters = (props: FiltersProps) => {
                 abbreviations={p.abbreviations}
                 field={!!p.field}
                 radio={!!p.radio}
+                negatable={!!p.negatable}
             />
         );
     };
 
     // we need to include ones that might have been filter in other apps that do not apply to the current app,
     // otherwise the user will not be able to clear them from this panel
-    const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(f => f.startsWith(prefix + ':')).map(removePrefix(prefix));
+    const alreadyFilteredOn = (prefix: string) =>
+        resourceFilter
+            .filter(f => f.startsWith(prefix + ':'))
+            .map(removePrefix(prefix))
+            .filter(v => v !== '!');
 
     const kinds = tree.nodes
         .map(x => x.kind)
@@ -163,7 +176,8 @@ export const Filters = (props: FiltersProps) => {
                         count: getOptionCount(label, 'Kind')
                     })),
                     abbreviations: resources,
-                    field: true
+                    field: true,
+                    negatable: true
                 })}
             {!isApplicationSet &&
                 ResourceFilter({

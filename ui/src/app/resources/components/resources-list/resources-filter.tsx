@@ -5,7 +5,7 @@ import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses
 import {ResourcesListPreferences, services} from '../../../shared/services';
 import {getResourceClusterLabel} from '../../../shared/utils';
 import {resourceHealthStatus} from '../utils';
-import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {Filter, FiltersGroup, NEGATE_SENTINEL} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
 import {resources} from '../../../applications/components/resources';
 
@@ -50,6 +50,8 @@ export interface FilteredResource extends Resource {
 }
 
 export function getFilterResults(resources: Resource[], pref: ResourcesListPreferences): FilteredResource[] {
+    const kindNegate = pref.kindFilter.includes(NEGATE_SENTINEL);
+    const kinds = pref.kindFilter.filter(kind => kind !== NEGATE_SENTINEL);
     return resources.map(app => ({
         ...app,
         filterResult: {
@@ -69,7 +71,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
                     }
                 }),
             apiGroup: pref.apiGroupFilter.length === 0 || matchesApiGroupFilter(app.group, pref.apiGroupFilter),
-            kind: pref.kindFilter.length === 0 || pref.kindFilter.includes(app.kind)
+            kind: kinds.length === 0 || kinds.includes(app.kind) !== kindNegate
         }
     }));
 }
@@ -231,6 +233,7 @@ const KindFilter = (props: ResourcesFilterProps) => {
             selected={props.pref.kindFilter}
             setSelected={s => props.onChange({...props.pref, kindFilter: s})}
             field={true}
+            negatable={true}
             options={kindOptions}
             abbreviations={resources}
         />
