@@ -5608,3 +5608,109 @@ func TestResolveRateLimiterConfig(t *testing.T) {
 		assert.Same(t, cfg, result)
 	})
 }
+
+func TestStatusWritersHandleGetErrors(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	newReconciler := func(funcs interceptor.Funcs) *ApplicationSetReconciler {
+		c := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithStatusSubresource(&v1alpha1.ApplicationSet{}).
+			WithInterceptorFuncs(funcs).
+			Build()
+		return &ApplicationSetReconciler{
+			Client:  c,
+			Scheme:  scheme,
+			Metrics: appsetmetrics.NewFakeAppsetMetrics(),
+		}
+	}
+
+	errGet := errors.New("get failed")
+	failGet := interceptor.Funcs{
+		Get: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.ObjectKey, _ crtclient.Object, _ ...crtclient.GetOption) error {
+			return errGet
+		},
+	}
+
+	newAppSet := func() *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			Name:      "test-appset",
+			Namespace: "argocd",
+		}
+	}
+
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	writers := []struct {
+		name string
+		call func(r *ApplicationSetReconciler) error
+	}{
+		{
+			name: "setApplicationSetStatusCondition",
+			call: func(r *ApplicationSetReconciler) error {
+				return r.setApplicationSetStatusCondition(
+					t.Context(),
+					newAppSet(),
+					[]v1alpha1.ApplicationSetCondition{{
+						Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+						Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+						Reason:  "TestReason",
+						Message: "test message",
+					}},
+					false,
+				)
+			},
+		},
+		{
+			name: "migrateStatus",
+			call: func(r *ApplicationSetReconciler) error {
+				appset := newAppSet()
+				appset.Status.ApplicationStatus = []v1alpha1.ApplicationSetApplicationStatus{{
+					Application:     "app1",
+					TargetRevisions: nil,
+				}}
+				return r.migrateStatus(t.Context(), appset)
+			},
+		},
+		{
+			name: "updateResourcesStatus",
+			call: func(r *ApplicationSetReconciler) error {
+				return r.updateResourcesStatus(t.Context(), logCtx, newAppSet(), nil)
+			},
+		},
+		{
+			name: "setAppSetApplicationStatus",
+			call: func(r *ApplicationSetReconciler) error {
+				return r.setAppSetApplicationStatus(
+					t.Context(),
+					logCtx,
+					newAppSet(),
+					[]v1alpha1.ApplicationSetApplicationStatus{{
+						Application: "app1",
+						Status:      v1alpha1.ProgressiveSyncWaiting,
+					}},
+				)
+			},
+		},
+	}
+
+	for _, w := range writers {
+		t.Run(w.name+" ignores NotFound", func(t *testing.T) {
+			gets := 0
+			r := newReconciler(interceptor.Funcs{
+				Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+					gets++
+					return c.Get(ctx, key, obj, opts...)
+				},
+			})
+			require.NoError(t, w.call(r))
+			require.Equal(t, 1, gets)
+		})
+
+		t.Run(w.name+" returns non-NotFound error", func(t *testing.T) {
+			r := newReconciler(failGet)
+			require.ErrorIs(t, w.call(r), errGet)
+		})
+	}
+}
