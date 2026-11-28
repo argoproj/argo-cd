@@ -2,6 +2,10 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {isValidURL} from '../../shared/utils';
 
+// Convert the common NGINX Ingress regex suffix into a concrete request path.
+// Do not strip arbitrary parentheses: they may be part of a valid URL path.
+export const getExternalURL = (url: string): string => url.replace(/\(\/\|\$\)\(\.\*\)$/, '');
+
 export class InvalidExternalLinkError extends Error {
     constructor(message: string) {
         super(message);
@@ -15,14 +19,16 @@ export class ExternalLink {
     public ref: string;
 
     constructor(url: string) {
-        const parts = url.split('|');
-        if (parts.length === 2) {
-            this.title = parts[0];
-            this.ref = parts[1];
-        } else {
-            this.title = url;
-            this.ref = url;
-        }
+        // A raw URL may contain pipe characters in its path (for example, an
+        // Ingress path using a regular expression). Only interpret a pipe as
+        // the title/URL separator when the complete value is not itself a URL.
+        const isAbsoluteHttpUrl = /^https?:\/\//i.test(url);
+        const separatorIndex = isAbsoluteHttpUrl ? -1 : url.indexOf('|');
+        const hasTitle = separatorIndex >= 0;
+        const title = hasTitle ? url.slice(0, separatorIndex) : url;
+        const ref = hasTitle ? url.slice(separatorIndex + 1) : url;
+        this.ref = getExternalURL(ref);
+        this.title = hasTitle ? title : this.ref;
         if (!isValidURL(this.ref)) {
             throw new InvalidExternalLinkError('Invalid URL');
         }

@@ -40,6 +40,26 @@ test('URLs format', () => {
     });
 });
 
+test('trims regex paths from URLs containing pipe characters', () => {
+    const url = 'https://preview.example.com/123(/|$)(.*)';
+    const expected = 'https://preview.example.com/123';
+    expect(new ExternalLink(url)).toEqual({ref: expected, title: expected});
+});
+
+test('preserves literal pipes and parentheses in ordinary URLs', () => {
+    const url = 'https://preview.example.com/a|b/(c)';
+    const link = new ExternalLink(url);
+    expect(link.ref).toEqual(url);
+    expect(link.title).toEqual(url);
+});
+
+test('trims the supported NGINX Ingress regex suffix while preserving titled URL annotations', () => {
+    const url = 'https://preview.example.com/123(/|$)(.*)';
+    const link = new ExternalLink('Preview|' + url);
+    expect(link.ref).toEqual('https://preview.example.com/123');
+    expect(link.title).toEqual('Preview');
+});
+
 test('malicious URLs from list to be removed', () => {
     const urls: string[] = ['javascript:alert("hi")', 'https://localhost:8080/applications'];
     const links = ExternalLinks(urls);
