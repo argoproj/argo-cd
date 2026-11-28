@@ -79,6 +79,7 @@ export interface EditablePanelProps<T> {
     save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelContent[];
     onModeSwitch?: () => any;
+    onEditingChange?: (editing: boolean) => void;
     noReadonlyMode?: boolean;
     view?: string | ReactNode;
     edit?: (formApi: FormApi) => ReactNode;
@@ -97,6 +98,7 @@ function EditablePanel<T extends {} = {}>({
     save,
     items,
     onModeSwitch: onModeSwitchProp,
+    onEditingChange,
     noReadonlyMode,
     view,
     edit: editProp,
@@ -133,6 +135,7 @@ function EditablePanel<T extends {} = {}>({
                 await save(input, {});
                 setIsEditing(false);
                 setIsSaving(false);
+                onEditingChange?.(false);
                 onModeSwitch();
             } catch (e) {
                 ctx.notifications.show({
@@ -202,6 +205,7 @@ function EditablePanel<T extends {} = {}>({
                                     <button
                                         onClick={() => {
                                             setIsEditing(true);
+                                            onEditingChange?.(true);
                                             onModeSwitch();
                                         }}
                                         disabled={hasMultipleSources}

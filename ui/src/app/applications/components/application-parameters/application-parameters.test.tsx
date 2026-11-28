@@ -120,6 +120,31 @@ describe('ApplicationParameters ref-only sources', () => {
         expect(screen.getByText(/Source 2: TYPE=Plugin/)).toBeInTheDocument();
     });
 
+    test('retries loading source details without reloading the page', async () => {
+        const app = applicationWithValuesSource({
+            repoURL: 'https://git.example.com/org/value-files.git',
+            targetRevision: 'main',
+            ref: 'values'
+        } as models.ApplicationSource);
+        appDetails.mockRejectedValueOnce(new Error('failed to load application details'));
+        appDetails.mockResolvedValueOnce({
+            type: 'Helm',
+            helm: {name: 'prometheus', valueFiles: [], parameters: [], fileParameters: []}
+        } as models.RepoAppDetails);
+
+        const user = userEvent.setup();
+        render(
+            <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+                <ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[false, true]} handleCollapse={jest.fn()} appContext={{} as any} />
+            </Context.Provider>
+        );
+
+        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(appDetails).toHaveBeenCalledTimes(2);
+    });
+
     test('makes external values guidance accessible and saves typed files without Enter', async () => {
         const app = applicationWithValuesSource({
             repoURL: 'https://git.example.com/org/value-files.git',

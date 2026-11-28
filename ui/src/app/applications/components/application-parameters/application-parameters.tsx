@@ -172,6 +172,20 @@ export const ApplicationParameters = (props: {
     const [isAddingSource, setIsAddingSource] = React.useState(false);
     const [isSavingSource, setIsSavingSource] = React.useState(false);
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
+    const [editingSources, setEditingSources] = React.useState<Set<number>>(() => new Set());
+    const setSourceEditing = (index: number, editing: boolean) =>
+        setEditingSources(current => {
+            if (current.has(index) === editing) {
+                return current;
+            }
+            const next = new Set(current);
+            if (editing) {
+                next.add(index);
+            } else {
+                next.delete(index);
+            }
+            return next;
+        });
 
     if (app.spec.sources?.length > 0 && !props.details) {
         // For multi-source case only
@@ -286,20 +300,20 @@ export const ApplicationParameters = (props: {
             // For single source field, details page where we have to do the load to retrieve repo details
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
-                    {({details, error}: SourceDetails) => {
+                <SourceDetailsLoader input={app} load={application => getSingleSource(application)}>
+                    {({details, error}: SourceDetails, retry) => {
                         if (!details) {
                             return null;
                         }
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return (
                             <>
-                                <SourceDetailsWarning error={error} />
+                                <SourceDetailsWarning error={error} onRetry={retry} disabled={editingSources.has(0)} />
                                 {getEditablePanel(attr, details)}
                             </>
                         );
                     }}
-                </DataLoader>
+                </SourceDetailsLoader>
             );
         }
     }
@@ -349,12 +363,14 @@ export const ApplicationParameters = (props: {
                     {isRefOnlySource(app.spec.sources[index]) ? (
                         getEditablePanelForOneSource(undefined, index, app.spec.sources[index])
                     ) : (
-                        <DataLoader
+                        <SourceDetailsLoader
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {({details, error}: SourceDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error)}
-                        </DataLoader>
+                            {({details, error}: SourceDetails, retry) =>
+                                getEditablePanelForOneSource(details, index, app.spec.sources[index], error, retry, editingSources.has(index))
+                            }
+                        </SourceDetailsLoader>
                     )}
                 </div>
             </div>
@@ -371,6 +387,12 @@ export const ApplicationParameters = (props: {
         return (
             <div className='application-parameters'>
                 <EditablePanel
+                    onModeSwitch={() => {
+                        if (repoAppDetails?.plugin) {
+                            setAppParamsDeletedState([]);
+                        }
+                    }}
+                    onEditingChange={editing => setSourceEditing(isMulti ? ind : 0, editing)}
                     save={
                         props.save &&
                         (async (input: models.Application) => {
@@ -437,12 +459,6 @@ export const ApplicationParameters = (props: {
 
                         return errors;
                     }}
-                    onModeSwitch={
-                        repoAppDetails?.plugin &&
-                        (() => {
-                            setAppParamsDeletedState([]);
-                        })
-                    }
                     title={repoAppDetails?.type?.toLocaleUpperCase()}
                     items={items as EditablePanelItem[]}
                     noReadonlyMode={props.noReadonlyMode}
@@ -452,7 +468,14 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, detailsError?: Error): any {
+    function getEditablePanelForOneSource(
+        repoAppDetails: models.RepoAppDetails | undefined,
+        ind: number,
+        src: models.ApplicationSource,
+        detailsError?: Error,
+        onRetry?: () => void,
+        retryDisabled = false
+    ): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -522,7 +545,13 @@ export const ApplicationParameters = (props: {
         return (
             <ApplicationParametersSource
                 index={ind}
-                banner={<SourceDetailsWarning error={detailsError} />}
+                banner={<SourceDetailsWarning error={detailsError} onRetry={onRetry} disabled={retryDisabled} />}
+                onModeSwitch={() => {
+                    if (repoAppDetails?.plugin) {
+                        setAppParamsDeletedState([]);
+                    }
+                }}
+                onEditingChange={editing => setSourceEditing(ind, editing)}
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
@@ -595,12 +624,6 @@ export const ApplicationParameters = (props: {
 
                     return errors;
                 }}
-                onModeSwitch={
-                    repoAppDetails?.plugin &&
-                    (() => {
-                        setAppParamsDeletedState([]);
-                    })
-                }
                 titleBottom={repoAppDetails?.type?.toLocaleUpperCase()}
                 titleTop={'SOURCE ' + (ind + 1)}
                 floatingTitle={floatingTitle ? floatingTitle : null}
@@ -1151,13 +1174,35 @@ async function getSingleSource(app: models.Application): Promise<SourceDetails> 
     return {details: null};
 }
 
-const SourceDetailsWarning = ({error}: {error?: Error}) =>
+const SourceDetailsWarning = ({error, onRetry, disabled}: {error?: Error; onRetry?: () => void; disabled?: boolean}) =>
     error ? (
         <p role='alert'>
             <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />{' '}
-            <ErrorNotification title='Unable to load repository details. The source settings shown may be incomplete' e={error} />
+            <ErrorNotification title='Unable to load repository details. The source settings shown may be incomplete' e={error} />{' '}
+            {onRetry && (
+                <button type='button' className='argo-button argo-button--base-o' onClick={onRetry} disabled={disabled}>
+                    Retry
+                </button>
+            )}
         </p>
     ) : null;
+
+const SourceDetailsLoader = ({
+    input,
+    load,
+    children
+}: {
+    input: any;
+    load: (input: any) => Promise<SourceDetails>;
+    children: (result: SourceDetails, retry: () => void) => React.ReactNode;
+}) => {
+    const [attempt, setAttempt] = React.useState(0);
+    return (
+        <DataLoader key={attempt} noLoaderOnInputChange={true} input={input} load={load}>
+            {(result: SourceDetails) => children(result, () => setAttempt(current => current + 1))}
+        </DataLoader>
+    );
+};
 
 function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
     const explicitDetails = getExplicitSourceDetails(source);
