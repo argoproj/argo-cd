@@ -412,6 +412,16 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	assert.False(t, enf.EnforceRuntimePolicy("", badPolicy, "role:readonly", "applications", "update", "foo/bar"))
 }
 
+// TestInvalidPolicy tests that an invalid built-in or user-defined policy is rejected
+func TestInvalidPolicy(t *testing.T) {
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	badPolicy := "this, is, not, a, good, policy"
+	require.ErrorContains(t, enf.SetBuiltinPolicy(badPolicy), "error creating casbin enforcer")
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+	require.ErrorContains(t, enf.SetUserPolicy(badPolicy), "error creating casbin enforcer")
+}
+
 func TestValidatePolicy(t *testing.T) {
 	goodPolicies := []string{
 		"p, role:admin, projects, delete, *, allow",
@@ -503,6 +513,54 @@ p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allo
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
+}
+
+// TestRegexMatchModeBuiltinPolicy verifies the built-in roles keep working in regex match mode
+// and that binding a subject to a built-in role does not shadow its other permissions.
+// https://github.com/argoproj/argo-cd/issues/13127
+func TestRegexMatchModeBuiltinPolicy(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
+	cm.Data[ConfigMapPolicyCSVKey] = `
+p, role:deployer, applications, sync, .+/.+-stable-.+, allow
+g, team, role:readonly
+g, team, role:deployer
+`
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+	require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+
+	assert.True(t, enf.Enforce("role:readonly", "applications", "get", "proj/app"))
+	assert.True(t, enf.Enforce("role:readonly", "clusters", "get", "https://kubernetes.default.svc"))
+	assert.False(t, enf.Enforce("role:readonly", "applications", "sync", "proj/app"))
+	assert.True(t, enf.EnforceRuntimePolicy("project", "p, unrelated, applications, get, ^.*/.*$, allow", "role:readonly", "applications", "get", "project/app"))
+
+	assert.True(t, enf.Enforce("admin", "applications", "delete", "proj/app"))
+	assert.True(t, enf.Enforce("admin", "applications", "action/apps/Deployment/restart", "proj/app"))
+	assert.True(t, enf.Enforce("admin", "applications", "get", "proj/app"))
+	assert.False(t, enf.Enforce("admin", "exec", "create", "app-without-project"))
+
+	assert.True(t, enf.Enforce("team", "applications", "get", "proj/app"))
+	assert.True(t, enf.Enforce("team", "applications", "sync", "proj/app-stable-ko"))
+	assert.False(t, enf.Enforce("team", "applications", "sync", "proj/app-dev-ko"))
+
+	enf.SetDefaultRole("role:readonly")
+	assert.True(t, enf.Enforce("bob", "applications", "get", "proj/app"))
+	assert.False(t, enf.Enforce("bob", "applications", "delete", "proj/app"))
+}
+
+func TestGlobToRegex(t *testing.T) {
+	tests := map[string]string{
+		"applications":              "^applications$",
+		"*":                         "^.*$",
+		"*/*":                       "^.*/.*$",
+		"action/*":                  "^action/.*$",
+		"https://example.com/a.b?c": `^https://example\.com/a\.b\?c$`,
+	}
+	for glob, expected := range tests {
+		assert.Equal(t, expected, globToRegex(glob), glob)
+	}
 }
 
 func TestGlobMatchFunc(t *testing.T) {

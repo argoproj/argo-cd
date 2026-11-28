@@ -206,9 +206,9 @@ func Test_PolicyFromK8s(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", true)
 		require.False(t, ok)
 	})
-	t.Run("use regex match mode instead of glob", func(t *testing.T) {
+	t.Run("get certificates by default role in regex match mode", func(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true)
-		require.False(t, ok)
+		require.True(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
 		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
