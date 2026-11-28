@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -408,8 +409,8 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assertLogContains(t, hook, expectedLogResult)
+	assertLogContains(t, hook, "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true")
+	assertLogContains(t, hook, "Received push event repo: ssh://git@gitlab.com:2222/group/name.git, revision: master, touchedHead: true")
 	hook.Reset()
 }
 
@@ -425,9 +426,63 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assertLogContains(t, hook, expectedLogResult)
+	assertLogContains(t, hook, "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true")
+	assertLogContains(t, hook, "Received push event repo: ssh://git@gitlab.com:2222/group/name.git, revision: master, touchedHead: true")
 	hook.Reset()
+}
+
+func handleGitLabPushAndCollectPatches(t *testing.T, fixture string, apps ...runtime.Object) []string {
+	t.Helper()
+	var mu sync.Mutex
+	var patched []string
+	reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		patched = append(patched, action.(kubetesting.PatchAction).GetName())
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, apps...)
+	h.HandleEvent(loadPayload[gitlab.PushEventPayload](t, fixture))
+	h.Shutdown()
+	mu.Lock()
+	defer mu.Unlock()
+	return patched
+}
+
+func newGitLabTestApp(name, repoURL string) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		Name: name, Namespace: "argocd",
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{{RepoURL: repoURL, Path: "."}},
+		},
+	}
+}
+
+func TestGitLabPushEvent_RefreshesAppUsingSSHHost(t *testing.T) {
+	patched := handleGitLabPushAndCollectPatches(t, "gitlab-event-ssh-host.json",
+		newGitLabTestApp("scp-ssh-host", "git@gitlabssh.example.com:group/repo.git"),
+		newGitLabTestApp("scp-ssh-host-no-git-suffix", "git@gitlabssh.example.com:group/repo"),
+		newGitLabTestApp("ssh-scheme-ssh-host", "ssh://git@gitlabssh.example.com/group/repo.git"),
+		newGitLabTestApp("https-web-host", "https://gitlab.example.com/group/repo"),
+		newGitLabTestApp("https-web-host-git-suffix", "https://gitlab.example.com/group/repo.git"),
+		newGitLabTestApp("scp-ssh-host-other-path", "git@gitlabssh.example.com:group/other.git"),
+		newGitLabTestApp("scp-other-host", "git@other.example.com:group/repo.git"),
+	)
+	assert.ElementsMatch(t, []string{
+		"scp-ssh-host",
+		"scp-ssh-host-no-git-suffix",
+		"ssh-scheme-ssh-host",
+		"https-web-host",
+		"https-web-host-git-suffix",
+	}, patched)
+}
+
+func TestGitLabPushEvent_RefreshesAppOncePerEvent(t *testing.T) {
+	patched := handleGitLabPushAndCollectPatches(t, "gitlab-event.json",
+		newGitLabTestApp("https-app", "https://gitlab.com/group/name"),
+		newGitLabTestApp("ssh-app", "ssh://git@gitlab.com/group/name"),
+	)
+	assert.ElementsMatch(t, []string{"https-app", "ssh-app"}, patched)
 }
 
 func TestInvalidMethod(t *testing.T) {
@@ -686,6 +741,33 @@ func Test_GetWebURLRegex(t *testing.T) {
 		{true, "http://example.com/org/repo", "https://user@example.com/org/repo", "http should match https+username"},
 		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
 		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
+
+		// SCP-form SSH URLs, as sent by GitLab when its SSH host differs from the web host.
+		{true, "git@gitlabssh.example.com:group/repo.git", "git@gitlabssh.example.com:group/repo.git", "scp payload should match the same scp repo"},
+		{true, "git@gitlabssh.example.com:group/repo.git", "git@gitlabssh.example.com:group/repo", "scp payload with .git should match scp repo without .git"},
+		{true, "git@gitlabssh.example.com:group/repo", "git@gitlabssh.example.com:group/repo.git", "scp payload without .git should match scp repo with .git"},
+		{true, "git@gitlabssh.example.com:group/repo.git", "ssh://git@gitlabssh.example.com/group/repo.git", "scp payload should match ssh scheme repo"},
+		{true, "git@gitlabssh.example.com:group/repo.git", "ssh://git@gitlabssh.example.com:2222/group/repo", "scp payload should match ssh scheme repo with port and without .git"},
+		{true, "git@gitlabssh.example.com:group/repo.git", "https://gitlabssh.example.com/group/repo", "scp payload should match https repo on the same host"},
+		{false, "git@gitlabssh.example.com:group/repo.git", "git@gitlab.example.com:group/repo.git", "scp payload should not match a different host"},
+		{false, "git@gitlabssh.example.com:group/repo.git", "git@gitlabssh.example.com:group/other.git", "scp payload should not match a different path"},
+		{false, "git@gitlabssh.example.com:group/repo.git", "git@gitlabssh.example.com:group/repo-2.git", "scp payload should not match a longer path"},
+		{false, "git@example.com:", "git@example.com:org/repo", "scp payload without a path should not match"},
+
+		// ssh scheme payloads, with and without port.
+		{true, "ssh://git@gitlab.example.com:2222/group/repo.git", "ssh://git@gitlab.example.com:2222/group/repo.git", "ssh payload with port should match the same repo"},
+		{true, "ssh://git@gitlab.example.com:2222/group/repo.git", "ssh://git@gitlab.example.com/group/repo", "ssh payload with port and .git should match ssh repo without .git"},
+		{true, "ssh://git@gitlab.example.com:2222/group/repo.git", "git@gitlab.example.com:group/repo", "ssh payload with port should match scp repo without .git"},
+		{true, "ssh://git@gitlab.example.com:2222/group/repo.git", "https://gitlab.example.com/group/repo", "ssh payload with port should match https repo without .git"},
+		{true, "ssh://git@gitlab.example.com/group/repo.git", "git@gitlab.example.com:group/repo.git", "ssh payload without port should match scp repo"},
+		{true, "ssh://git@gitlab.example.com/group/repo.git", "https://gitlab.example.com/group/repo.git", "ssh payload without port should match https repo with .git"},
+		{false, "ssh://git@gitlab.example.com:2222/group/repo.git", "ssh://git@other.example.com:2222/group/repo.git", "ssh payload should not match a different host"},
+		{false, "ssh://git@gitlab.example.com:2222/group/repo.git", "git@gitlab.example.com:group/other.git", "ssh payload should not match a different path"},
+
+		// https payloads that end in .git.
+		{true, "https://gitlab.example.com/group/repo.git", "https://gitlab.example.com/group/repo", "https payload with .git should match https repo without .git"},
+		{true, "https://gitlab.example.com/group/repo.git", "git@gitlab.example.com:group/repo", "https payload with .git should match scp repo without .git"},
+		{false, "https://gitlab.example.com/group/repo.git", "https://gitlab.example.com/group/other", "https payload with .git should not match a different path"},
 
 		{false, "", "", "empty URLs should not panic"},
 		// https://github.com/argoproj/argo-cd/security/advisories/GHSA-h67h-99w8-xf8r
@@ -2652,4 +2734,30 @@ func TestRepoURLMatches(t *testing.T) {
 			assert.Equal(t, tt.expected, RepoURLMatches(tt.repoURL, repoRegexp))
 		})
 	}
+}
+
+func TestMatchRepoURL_CacheWarmDisabledByAnyMatchingURL(t *testing.T) {
+	webRegexp, err := GetWebURLRegex("https://gitlab.com/group/name")
+	require.NoError(t, err)
+	sshRegexp, err := GetWebURLRegex("git@gitlab.com:group/name.git")
+	require.NoError(t, err)
+	otherRegexp, err := GetWebURLRegex("https://gitlab.com/group/other")
+	require.NoError(t, err)
+
+	matchers := []webhookRepoMatcher{
+		{repoRegexp: webRegexp, cacheWarmDisabled: false},
+		{repoRegexp: sshRegexp, cacheWarmDisabled: true},
+		{repoRegexp: otherRegexp, cacheWarmDisabled: false},
+	}
+
+	matcher, ok := matchRepoURL("git@gitlab.com:group/name.git", matchers)
+	require.True(t, ok)
+	assert.True(t, matcher.cacheWarmDisabled)
+
+	matcher, ok = matchRepoURL("https://gitlab.com/group/other.git", matchers)
+	require.True(t, ok)
+	assert.False(t, matcher.cacheWarmDisabled)
+
+	_, ok = matchRepoURL("https://gitlab.com/group/missing.git", matchers)
+	assert.False(t, ok)
 }

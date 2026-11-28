@@ -62,12 +62,68 @@ func TestParsePushEvent(t *testing.T) {
 			name:    "GitLab push",
 			payload: loadPayload[gitlab.PushEventPayload](t, "gitlab-event.json"),
 			want: &PushEventInfo{
-				WebURLs:      []string{"https://gitlab.com/group/name"},
+				WebURLs:      []string{"https://gitlab.com/group/name", "ssh://git@gitlab.com:2222/group/name.git"},
 				Revision:     "master",
 				SHABefore:    "e5ba5f6c13b64670048daa88e4c053d60b0e115a",
 				SHAAfter:     "bb0748feaa336d841c251017e4e374c22d0c8a98",
 				TouchedHead:  true,
 				ChangedFiles: []string{"file.yaml"},
+			},
+		},
+		{
+			name:    "GitLab push with a separate SSH host",
+			payload: loadPayload[gitlab.PushEventPayload](t, "gitlab-event-ssh-host.json"),
+			want: &PushEventInfo{
+				WebURLs:      []string{"https://gitlab.example.com/group/repo", "git@gitlabssh.example.com:group/repo.git"},
+				Revision:     "master",
+				SHABefore:    "e5ba5f6c13b64670048daa88e4c053d60b0e115a",
+				SHAAfter:     "bb0748feaa336d841c251017e4e374c22d0c8a98",
+				TouchedHead:  true,
+				ChangedFiles: []string{"file.yaml"},
+			},
+		},
+		{
+			name: "GitLab push falls back to the deprecated SSH and HTTP URL fields",
+			payload: gitlab.PushEventPayload{
+				Ref: "refs/heads/main",
+				Project: gitlab.Project{
+					WebURL:        "https://gitlab.example.com/group/repo",
+					SSHURL:        "git@gitlabssh.example.com:group/repo.git",
+					HTTPURL:       "https://gitlab.example.com/group/repo.git",
+					DefaultBranch: "main",
+				},
+			},
+			want: &PushEventInfo{
+				WebURLs:     []string{"https://gitlab.example.com/group/repo", "git@gitlabssh.example.com:group/repo.git"},
+				Revision:    "main",
+				TouchedHead: true,
+			},
+		},
+		{
+			name: "GitLab push skips empty URLs",
+			payload: gitlab.PushEventPayload{
+				Ref:     "refs/heads/main",
+				Project: gitlab.Project{GitSSHURL: "git@gitlabssh.example.com:group/repo.git", DefaultBranch: "main"},
+			},
+			want: &PushEventInfo{
+				WebURLs:     []string{"git@gitlabssh.example.com:group/repo.git"},
+				Revision:    "main",
+				TouchedHead: true,
+			},
+		},
+		{
+			name: "GitLab tag includes the SSH URL",
+			payload: gitlab.TagEventPayload{
+				Ref: "refs/tags/v1.0.0",
+				Project: gitlab.Project{
+					WebURL:     "https://gitlab.example.com/group/repo",
+					GitSSHURL:  "git@gitlabssh.example.com:group/repo.git",
+					GitHTTPURL: "https://gitlab.example.com/group/repo.git",
+				},
+			},
+			want: &PushEventInfo{
+				WebURLs:  []string{"https://gitlab.example.com/group/repo", "git@gitlabssh.example.com:group/repo.git"},
+				Revision: "v1.0.0",
 			},
 		},
 		{

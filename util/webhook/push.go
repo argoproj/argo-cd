@@ -1,18 +1,23 @@
 package webhook
 
 import (
+	"cmp"
+
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 // PushEventInfo is the provider-independent view of a push event that both the
 // Argo CD and ApplicationSet webhook handlers act on.
 type PushEventInfo struct {
-	// WebURLs are the repository URLs from the payload, without the .git suffix.
+	// WebURLs are the repository URLs from the payload. They may be web, HTTP or
+	// SSH URLs, with or without the .git suffix.
 	WebURLs      []string
 	Revision     string
 	SHABefore    string
@@ -50,7 +55,7 @@ func ParsePushEvent(payload any) *PushEventInfo {
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		info.WebURLs = []string{payload.Project.WebURL}
+		info.WebURLs = gitlabProjectURLs(payload.Project)
 		info.Revision = ParseRevision(payload.Ref)
 		info.SHAAfter = ParseRevision(payload.After)
 		info.SHABefore = ParseRevision(payload.Before)
@@ -62,7 +67,7 @@ func ParsePushEvent(payload any) *PushEventInfo {
 		}
 	case gitlab.TagEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		info.WebURLs = []string{payload.Project.WebURL}
+		info.WebURLs = gitlabProjectURLs(payload.Project)
 		info.Revision = ParseRevision(payload.Ref)
 		info.SHAAfter = ParseRevision(payload.After)
 		info.SHABefore = ParseRevision(payload.Before)
@@ -144,4 +149,31 @@ func bitbucketServerCloneURLs(repo bitbucketserver.Repository) (httpURL string, 
 		}
 	}
 	return httpURL, urls
+}
+
+// gitlabProjectURLs returns the project's web, SSH and HTTP URLs, so that sources
+// using any of them match, even when GitLab serves SSH from a different host.
+func gitlabProjectURLs(project gitlab.Project) []string {
+	return uniqueRepoURLs(
+		project.WebURL,
+		cmp.Or(project.GitSSHURL, project.SSHURL),
+		cmp.Or(project.GitHTTPURL, project.HTTPURL),
+	)
+}
+
+func uniqueRepoURLs(urls ...string) []string {
+	var unique []string
+	seen := make(map[string]bool, len(urls))
+	for _, u := range urls {
+		if u == "" {
+			continue
+		}
+		key := git.NormalizeGitURLAllowInvalid(u)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		unique = append(unique, u)
+	}
+	return unique
 }
