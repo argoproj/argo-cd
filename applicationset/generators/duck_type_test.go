@@ -15,6 +15,8 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -190,9 +192,9 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:     duckType,
 			values:       nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata.labels.environment": "production", "metadata.labels.org": "bar", "metadata.annotations.foo.argoproj.io": "production", "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata.labels.environment": "staging", "metadata.labels.org": "foo", "metadata.annotations.foo.argoproj.io": "staging", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -202,7 +204,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:     duckTypeWithNonStringValues,
 			values:       nil,
 			expected: []map[string]any{
-				{"clusterName": "staging-01", "reason": "", "score": "0", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "reason": "", "score": "0", "metadata.labels.environment": "staging", "metadata.labels.org": "foo", "metadata.annotations.foo.argoproj.io": "staging", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -214,7 +216,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				"foo": "bar",
 			},
 			expected: []map[string]any{
-				{"clusterName": "production-01", "values.foo": "bar", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "values.foo": "bar", "metadata.labels.environment": "production", "metadata.labels.org": "bar", "metadata.annotations.foo.argoproj.io": "production", "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -242,9 +244,9 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata.labels.environment": "production", "metadata.labels.org": "bar", "metadata.annotations.foo.argoproj.io": "production", "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata.labels.environment": "staging", "metadata.labels.org": "foo", "metadata.annotations.foo.argoproj.io": "staging", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -257,7 +259,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				"foo": "bar",
 			},
 			expected: []map[string]any{
-				{"clusterName": "production-01", "values.foo": "bar", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "values.foo": "bar", "metadata.labels.environment": "production", "metadata.labels.org": "bar", "metadata.annotations.foo.argoproj.io": "production", "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -274,9 +276,9 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource: duckType,
 			values:   nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata.labels.environment": "production", "metadata.labels.org": "bar", "metadata.annotations.foo.argoproj.io": "production", "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata.labels.environment": "staging", "metadata.labels.org": "foo", "metadata.annotations.foo.argoproj.io": "staging", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -489,9 +491,9 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:     duckType,
 			values:       nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata": map[string]any{"labels": map[string]string{"environment": "production", "org": "bar"}, "annotations": map[string]string{"foo.argoproj.io": "production"}}, "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata": map[string]any{"labels": map[string]string{"environment": "staging", "org": "foo"}, "annotations": map[string]string{"foo.argoproj.io": "staging"}}, "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -503,7 +505,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				"foo": "bar",
 			},
 			expected: []map[string]any{
-				{"clusterName": "production-01", "values": map[string]string{"foo": "bar"}, "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "values": map[string]string{"foo": "bar"}, "metadata": map[string]any{"labels": map[string]string{"environment": "production", "org": "bar"}, "annotations": map[string]string{"foo.argoproj.io": "production"}}, "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -531,9 +533,9 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata": map[string]any{"labels": map[string]string{"environment": "production", "org": "bar"}, "annotations": map[string]string{"foo.argoproj.io": "production"}}, "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata": map[string]any{"labels": map[string]string{"environment": "staging", "org": "foo"}, "annotations": map[string]string{"foo.argoproj.io": "staging"}}, "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -546,7 +548,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				"foo": "bar",
 			},
 			expected: []map[string]any{
-				{"clusterName": "production-01", "values": map[string]string{"foo": "bar"}, "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "values": map[string]string{"foo": "bar"}, "metadata": map[string]any{"labels": map[string]string{"environment": "production", "org": "bar"}, "annotations": map[string]string{"foo.argoproj.io": "production"}}, "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -563,9 +565,9 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource: duckType,
 			values:   nil,
 			expected: []map[string]any{
-				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
+				{"clusterName": "production-01", "metadata": map[string]any{"labels": map[string]string{"environment": "production", "org": "bar"}, "annotations": map[string]string{"foo.argoproj.io": "production"}}, "name": "production-01", "server": "https://production-01.example.com"},
 
-				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+				{"clusterName": "staging-01", "metadata": map[string]any{"labels": map[string]string{"environment": "staging", "org": "foo"}, "annotations": map[string]string{"foo.argoproj.io": "staging"}}, "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -635,4 +637,49 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAddClusterMetadataParamsExcludesReservedAnnotations(t *testing.T) {
+	t.Parallel()
+
+	cluster := &utils.ClusterSpecifier{
+		Name:   "production-01",
+		Server: "https://production-01.example.com",
+		Labels: map[string]string{"environment": "production"},
+		Annotations: map[string]string{
+			"foo.argoproj.io":                                "production",
+			argoprojiov1alpha1.AnnotationKeyRefresh:          string(argoprojiov1alpha1.RefreshTypeNormal),
+			argoprojiov1alpha1.AnnotationKeyRefreshTimestamp: "2026-01-01T00:00:00Z",
+			argoprojiov1alpha1.AnnotationKeyHydrate:          string(argoprojiov1alpha1.RefreshTypeNormal),
+			argoprojiov1alpha1.AnnotationKeyHydrateTimestamp: "2026-01-01T00:00:00Z",
+			common.AnnotationKeyAppInstance:                  "argocd:argoproj.io/Secret:argocd/production-01",
+			common.AnnotationInstallationID:                  "my-install",
+			corev1.LastAppliedConfigAnnotation:               "{}",
+		},
+	}
+
+	t.Run("fasttemplate", func(t *testing.T) {
+		t.Parallel()
+		params := map[string]any{}
+		addClusterMetadataParams(&argoprojiov1alpha1.ApplicationSet{}, params, cluster)
+
+		assert.Equal(t, map[string]any{
+			"metadata.annotations.foo.argoproj.io": "production",
+			"metadata.labels.environment":          "production",
+		}, params)
+	})
+
+	t.Run("goTemplate", func(t *testing.T) {
+		t.Parallel()
+		params := map[string]any{}
+		appSet := &argoprojiov1alpha1.ApplicationSet{Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true}}
+		addClusterMetadataParams(appSet, params, cluster)
+
+		assert.Equal(t, map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]string{"foo.argoproj.io": "production"},
+				"labels":      map[string]string{"environment": "production"},
+			},
+		}, params)
+	})
 }

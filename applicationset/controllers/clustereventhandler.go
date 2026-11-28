@@ -75,7 +75,7 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 		}
 		foundClusterGenerator := false
 		for _, generator := range appSet.Spec.Generators {
-			if generator.Clusters != nil {
+			if generator.Clusters != nil || generator.ClusterDecisionResource != nil {
 				foundClusterGenerator = true
 				break
 			}
@@ -132,9 +132,10 @@ func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.Applic
 	return false, nil
 }
 
-// nestedGeneratorHasClusterGenerator checks if the provided generator has a cluster generator.
+// nestedGeneratorHasClusterGenerator checks if the provided generator has a cluster or
+// cluster decision resource generator, both of which depend on cluster Secrets.
 func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
-	if nested.Clusters != nil {
+	if nested.Clusters != nil || nested.ClusterDecisionResource != nil {
 		return true, nil
 	}
 
