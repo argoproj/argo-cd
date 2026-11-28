@@ -172,6 +172,13 @@ jobs:
           swap-storage: false
           tool-cache: false
 
+      - name: Read release blog post URL
+        run: |
+          set -ue
+          if [ -f RELEASE_BLOG_POST_URL ]; then
+            echo "RELEASE_BLOG_POST_URL=$(head -n1 RELEASE_BLOG_POST_URL)" >> "$GITHUB_ENV"
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         id: run-goreleaser

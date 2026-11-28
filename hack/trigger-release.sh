@@ -46,6 +46,14 @@ if echo "${REMOTE_URL}" | grep -q "argoproj/argo-cd"; then
 	echo "!!   - GitHub Release: https://github.com/argoproj/argo-cd/releases" >&2
 	echo "!!   - Visible to ALL users" >&2
 	echo "!!" >&2
+	if test -s RELEASE_BLOG_POST_URL; then
+		echo "!!   - Release notes blog post: $(head -n 1 RELEASE_BLOG_POST_URL)" >&2
+	else
+		echo "!!   - Release notes blog post: NOT SET (no RELEASE_BLOG_POST_URL file in this branch)." >&2
+		echo "!!     After the release is published, edit the GitHub release and replace" >&2
+		echo "!!     INSERT_BLOGPOST_URL_HERE with the blog post URL." >&2
+	fi
+	echo "!!" >&2
 	echo "!! If you want to release from YOUR FORK:" >&2
 	echo "!!   1. Press Ctrl+C now" >&2
 	echo "!!   2. Use your fork remote: ./hack/trigger-release.sh ${NEW_TAG} origin" >&2
