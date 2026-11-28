@@ -847,6 +847,52 @@ func TestUnsortedEndpoints(t *testing.T) {
 	}
 }
 
+func TestServerSideForceReplace(t *testing.T) {
+	// given
+	config := StrToUnstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-job
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: test:v2
+`)
+
+	live := StrToUnstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-job
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: test:v1
+`)
+	// No expectations declared on purpose. Fails if called
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	opts := diffOptionsForTest()
+	opts = append(opts,
+		WithServerSideDiff(true),
+		WithServerSideDryRunner(dryRunner),
+	)
+
+	// when
+	dr := diff(t, config, live, opts...) // implicit check there is no error inside
+
+	// then
+	assert.True(t, dr.Modified)
+}
+
 func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	t.Helper()
 	document := &openapi_v2.Document{}

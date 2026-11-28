@@ -82,6 +82,11 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 	// dependency from kube.
 	syncOptAnnotation := "argocd.argoproj.io/sync-options"
 	ssaAnnotation := "ServerSideApply=true"
+	replaceAnnotationTrue := "Replace=true"
+	forceAnnotation := "Force=true"
+
+	forceReplace := config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, replaceAnnotationTrue) &&
+		resource.HasAnnotationOption(config, syncOptAnnotation, forceAnnotation)
 
 	// Server-Side Diff should be used when syncing with Server-Side Apply. It is
 	// enabled either explicitly via the serverSideDiff option or implicitly when
@@ -99,7 +104,7 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 	// runner is available, the caller is a client-side-only consumer (e.g.
 	// `argocd app diff` without server-side generation) and we fall back to the
 	// regular three-way / two-way client-side diff.
-	willUseSSD := serverSideDiff && (o.serverSideDiff || o.serverSideDryRunner != nil)
+	willUseSSD := serverSideDiff && (o.serverSideDiff || o.serverSideDryRunner != nil) && !forceReplace
 
 	// Full normalization (including ignore differences and known-type normalization)
 	// must only be skipped when server-side diff will actually run, since it performs
