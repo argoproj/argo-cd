@@ -274,6 +274,12 @@ const (
 	LabelValueComponentRepoServer = "repo-server"
 )
 
+const (
+	HydrationFormatSimple  = "simple"
+	HydrationFormatSplit   = "split"
+	DefaultHydrationFormat = HydrationFormatSimple
+)
+
 // Environment variables for tuning and debugging Argo CD
 const (
 	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server

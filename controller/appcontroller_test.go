@@ -358,6 +358,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		testEnableEventList,
 		false,
 		statecache.ClusterCacheConfigFromEnv(),
+		common.HydrationFormatSimple,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -4088,6 +4089,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 		statecache.ClusterCacheConfigFromEnv(),
+		common.HydrationFormatSimple,
 	)
 	require.NoError(t, err)
 
@@ -4152,7 +4154,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
-		statecache.ClusterCacheConfigFromEnv(),
+		statecache.ClusterCacheConfigFromEnv(), common.HydrationFormatSimple,
 	)
 	require.NoError(t, err)
 
@@ -7017,6 +7019,7 @@ func TestNewApplicationController_InvalidClusterCacheConfig(t *testing.T) {
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 		statecache.ClusterCacheConfig{},
+		common.HydrationFormatSimple,
 	)
 
 	require.ErrorContains(t, err, "invalid cluster cache configuration")
