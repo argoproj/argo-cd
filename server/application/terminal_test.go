@@ -106,11 +106,12 @@ func TestStartProcessWithShells(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 				_ = json.NewEncoder(w).Encode(&metav1.Status{
-					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Status"},
-					Status:   metav1.StatusFailure,
-					Reason:   metav1.StatusReasonInternalError,
-					Code:     http.StatusInternalServerError,
-					Message:  `Internal error occurred: error executing command in container: failed to exec in container: OCI runtime exec failed: exec failed: unable to start container process: exec: "bash": executable file not found in $PATH: unknown`,
+					APIVersion: "v1",
+					Kind:       "Status",
+					Status:     metav1.StatusFailure,
+					Reason:     metav1.StatusReasonInternalError,
+					Code:       http.StatusInternalServerError,
+					Message:    `Internal error occurred: error executing command in container: failed to exec in container: OCI runtime exec failed: exec failed: unable to start container process: exec: "bash": executable file not found in $PATH: unknown`,
 				})
 			case "sh":
 				shRequests.Add(1)
@@ -120,8 +121,9 @@ func TestStartProcessWithShells(t *testing.T) {
 				}
 				defer conn.Close()
 				statusBytes, err := json.Marshal(&metav1.Status{
-					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Status"},
-					Status:   metav1.StatusSuccess,
+					APIVersion: "v1",
+					Kind:       "Status",
+					Status:     metav1.StatusSuccess,
 				})
 				if err != nil {
 					return

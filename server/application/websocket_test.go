@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -196,7 +197,7 @@ func TestTerminalSessionResizeDeliveryAndCancellation(t *testing.T) {
 		select {
 		case err := <-errCh:
 			require.Error(t, err)
-			assert.True(t, err == io.EOF || err == context.Canceled, "unexpected error: %v", err)
+			assert.True(t, errors.Is(err, io.EOF) || errors.Is(err, context.Canceled), "unexpected error: %v", err)
 		case <-time.After(time.Second):
 			t.Fatal("Read remained blocked on sizeChan after Done")
 		}
