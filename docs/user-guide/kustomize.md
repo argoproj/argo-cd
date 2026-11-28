@@ -235,6 +235,11 @@ Additionally, the application kustomize version can be configured using the Para
 argocd app set <appName> --kustomize-version v3.5.4
 ```
 
+> [!NOTE]
+> Commands that render manifests on your machine, such as `argocd app diff --local`, use the Kustomize binary
+> registered for the application's version when it exists at the same path locally. Otherwise, they print a warning
+> and use the `kustomize` binary found in your `PATH`.
+
 
 ## Build Environment
 

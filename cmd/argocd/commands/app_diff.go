@@ -195,7 +195,7 @@ func getLocalObjectsString(
 		AppName:                         app.InstanceName(argoSettings.ControllerNamespace),
 		Namespace:                       app.Spec.Destination.Namespace,
 		ApplicationSource:               &source,
-		KustomizeOptions:                argoSettings.KustomizeOptions,
+		KustomizeOptions:                localKustomizeOptions(argoSettings, source, os.Stderr),
 		KubeVersion:                     clusterInfo.ServerVersion,
 		ApiVersions:                     clusterInfo.APIVersions,
 		TrackingMethod:                  argoSettings.TrackingMethod,
