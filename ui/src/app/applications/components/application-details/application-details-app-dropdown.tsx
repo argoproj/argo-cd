@@ -4,7 +4,7 @@ import * as React from 'react';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {getAppUrl, getApplicationSetOwnerRef} from '../utils';
+import {getAppUrl, getSiblingApplications} from '../utils';
 
 const MAX_RESULTS = 100; // cap results after filtering to avoid performance issues
 
@@ -12,12 +12,16 @@ function resourceIconClass(objectListKind: string): string {
     return objectListKind === 'applicationset' ? 'argo-icon-applicationset' : 'argo-icon-application';
 }
 
-export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectListKind: string; application?: models.Application}) => {
+export const ApplicationsDetailsAppDropdown = (props: {
+    appName: string;
+    objectListKind: string;
+    application?: models.Application;
+    appLabelKey?: string;
+    trackingMethod?: string;
+}) => {
     const [opened, setOpened] = React.useState(false);
     const [appFilter, setAppFilter] = React.useState('');
     const ctx = React.useContext(Context);
-
-    const appSetRef = props.application ? getApplicationSetOwnerRef(props.application) : null;
 
     return (
         <DropDown
@@ -47,38 +51,37 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                             }}
                         />
                     </li>
+                    <li className='application-details-app-dropdown__divider' role='separator' />
                     <DataLoader
-                        load={async () => {
-                            const [apps, appSet] = await Promise.all([
-                                services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']}),
-                                appSetRef
-                                    ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace).catch((): models.ApplicationSet => null)
-                                    : null
-                            ]);
-                            const accessibleKeys = new Set(apps.items.map(app => `${app.metadata.namespace}/${app.metadata.name}`));
-                            const siblings = appSet?.status?.resources?.filter(r => r.kind === 'Application' && accessibleKeys.has(`${r.namespace}/${r.name}`)) ?? [];
-                            return {apps, siblings};
-                        }}>
-                        {({apps, siblings}: {apps: models.AbstractApplicationList; siblings: models.ApplicationSetResource[]}) => {
-                            const siblingKeys = new Set(siblings.map(s => `${s.namespace}/${s.name}`));
-                            const filteredSiblings =
-                                appSetRef && siblings.length > 0
-                                    ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase())).slice(0, MAX_RESULTS)
-                                    : [];
+                        load={() =>
+                            services.applications.list([], props.objectListKind, {
+                                fields: ['items.metadata.name', 'items.metadata.namespace', 'items.metadata.ownerReferences', 'items.metadata.annotations', 'items.metadata.labels']
+                            })
+                        }>
+                        {(apps: models.AbstractApplicationList) => {
+                            const group = props.application
+                                ? getSiblingApplications(props.application, apps.items as models.Application[], props.appLabelKey, props.trackingMethod)
+                                : null;
+                            const siblingKeys = new Set((group?.siblings ?? []).map(s => `${s.metadata.namespace}/${s.metadata.name}`));
+                            const filteredSiblings = (group?.siblings ?? [])
+                                .filter(s => appFilter.length === 0 || s.metadata.name.toLowerCase().includes(appFilter.toLowerCase()))
+                                .slice(0, MAX_RESULTS);
                             return (
                                 <>
                                     {filteredSiblings.length > 0 && (
                                         <>
-                                            <li className='application-details-app-dropdown__section-header'>IN SET: {appSetRef.name}</li>
+                                            <li className='application-details-app-dropdown__section-header'>
+                                                {group.parent.kind === 'ApplicationSet' ? 'IN SET' : 'SAME PARENT'}: {group.parent.name}
+                                            </li>
                                             {filteredSiblings.map(sibling => (
                                                 <li
                                                     className='application-details-app-dropdown__item'
-                                                    key={`sibling-${sibling.name}`}
-                                                    onClick={() => ctx.navigation.goto(`/applications/${sibling.namespace}/${sibling.name}`)}>
+                                                    key={`sibling-${sibling.metadata.namespace}/${sibling.metadata.name}`}
+                                                    onClick={() => ctx.navigation.goto(`/${getAppUrl(sibling)}`)}>
                                                     <i className='icon argo-icon-application resource-icon__font-icon application-details-app-dropdown__resource-icon' />
                                                     <span>
-                                                        {sibling.name}
-                                                        {sibling.name === props.appName && ' (current)'}
+                                                        {sibling.metadata.name}
+                                                        {sibling.metadata.name === props.appName && ' (current)'}
                                                     </span>
                                                 </li>
                                             ))}

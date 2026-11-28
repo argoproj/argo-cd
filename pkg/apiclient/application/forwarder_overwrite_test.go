@@ -45,6 +45,24 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 	require.Equal(t, "abc", val)
 }
 
+func TestProcessApplicationListField_OwnerReferences(t *testing.T) {
+	t.Parallel()
+	app := v1alpha1.Application{
+		OwnerReferences: []metav1.OwnerReference{{Kind: "ApplicationSet", Name: "my-appset"}},
+	}
+	list := v1alpha1.ApplicationList{Items: []v1alpha1.Application{app}}
+
+	res, err := processApplicationListField(&list, map[string]any{"items.metadata.ownerReferences": true}, false)
+	require.NoError(t, err)
+	item := processedItem(t, res, 0)
+
+	refs, ok, err := unstructured.NestedSlice(item, "metadata", "ownerReferences")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, refs, 1)
+	require.Equal(t, "my-appset", refs[0].(map[string]any)["name"])
+}
+
 func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 	t.Parallel()
 	list := v1alpha1.ApplicationList{

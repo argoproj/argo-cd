@@ -93,6 +93,11 @@
             max-width: 100%;
         }
 
+        // A flex container drops the whitespace between the icon and the name, so space them explicitly.
+        .argo-dropdown__anchor {
+            gap: 5px;
+        }
+
         .argo-dropdown__anchor > span {
             overflow: hidden;
             text-overflow: ellipsis;
