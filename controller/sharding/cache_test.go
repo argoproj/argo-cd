@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
@@ -28,6 +29,24 @@ func TestNewClusterSharding(t *testing.T) {
 	assert.Equal(t, replicas, sharding.Replicas)
 	assert.NotNil(t, sharding.Shards)
 	assert.NotNil(t, sharding.Clusters)
+}
+
+func TestIsManagedHydrationKey(t *testing.T) {
+	t.Parallel()
+
+	key := hydratortypes.HydrationQueueKey{
+		SourceRepoURL:        "https://example.com/dry",
+		SourceTargetRevision: "main",
+		DestinationRepoURL:   "https://example.com/hydrated",
+		DestinationBranch:    "env/test",
+	}
+	owner := key.Shard(3)
+	for shard := range 3 {
+		assert.Equal(t, shard == owner, setupTestSharding(shard, 3).IsManagedHydrationKey(key), "shard %d", shard)
+	}
+
+	// A single replica owns every key.
+	assert.True(t, setupTestSharding(0, 1).IsManagedHydrationKey(key))
 }
 
 func TestClusterSharding_Add(t *testing.T) {
