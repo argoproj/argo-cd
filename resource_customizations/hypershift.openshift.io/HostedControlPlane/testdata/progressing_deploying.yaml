@@ -1,0 +1,29 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: HostedControlPlane
+metadata:
+  name: example
+  namespace: clusters-example
+  generation: 1
+spec:
+  releaseImage: quay.io/openshift-release-dev/ocp-release:4.16.0-x86_64
+status:
+  ready: false
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Deploying control plane components"
+    observedGeneration: 1
+    reason: AsExpected
+    status: "False"
+    type: Available
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: ""
+    observedGeneration: 1
+    reason: AsExpected
+    status: "False"
+    type: Degraded
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Deploying control plane components"
+    observedGeneration: 1
+    reason: AsExpected
+    status: "True"
+    type: Progressing
