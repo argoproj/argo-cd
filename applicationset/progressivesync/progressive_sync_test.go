@@ -1715,6 +1715,234 @@ func TestResolveProgressiveSyncOptions(t *testing.T) {
 	})
 }
 
+func TestGetAppsWithSyncStarted(t *testing.T) {
+	t.Parallel()
+	// Times are stored with second precision.
+	pendingAt := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
+	source := v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"}
+	withOperation := func(startedAt time.Time, syncedRevision string) []v1alpha1.Application {
+		return []v1alpha1.Application{{
+			Name: "app1",
+			Spec: v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: syncedRevision}},
+					StartedAt:  metav1.NewTime(startedAt),
+					SyncResult: &v1alpha1.SyncOperationResult{Revision: syncedRevision, Source: source},
+				},
+			},
+		}}
+	}
+
+	tests := []struct {
+		name         string
+		status       v1alpha1.ProgressiveSyncStatusCode
+		applications []v1alpha1.Application
+		expected     map[string]bool
+	}{
+		{
+			name:         "does not return a pending application without an operation",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: []v1alpha1.Application{{Name: "app1"}},
+			expected:     map[string]bool{},
+		},
+		{
+			name:         "does not return a pending application whose last operation started before the transition",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: withOperation(pendingAt.Add(-time.Minute), "next"),
+			expected:     map[string]bool{},
+		},
+		{
+			name:         "returns a pending application whose operation started in the same second as the transition",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: withOperation(pendingAt.Time, "next"),
+			expected:     map[string]bool{"app1": true},
+		},
+		{
+			name:         "does not return a pending application whose operation from the same second as the transition synced another revision",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: withOperation(pendingAt.Time, "previous"),
+			expected:     map[string]bool{},
+		},
+		{
+			name:         "returns a pending application whose operation started after the transition",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: withOperation(pendingAt.Add(time.Second), "next"),
+			expected:     map[string]bool{"app1": true},
+		},
+		{
+			name:         "returns a pending application whose operation started after the transition, whatever it synced",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: withOperation(pendingAt.Add(time.Second), "previous"),
+			expected:     map[string]bool{"app1": true},
+		},
+		{
+			name:         "does not return an application that is not pending",
+			status:       v1alpha1.ProgressiveSyncProgressing,
+			applications: withOperation(pendingAt.Add(time.Second), "next"),
+			expected:     map[string]bool{},
+		},
+		{
+			name:         "does not return a status without a current application",
+			status:       v1alpha1.ProgressiveSyncPending,
+			applications: []v1alpha1.Application{},
+			expected:     map[string]bool{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			appSet := &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{{
+						Application:        "app1",
+						Status:             tt.status,
+						Step:               "1",
+						TargetRevisions:    []string{"next"},
+						LastTransitionTime: &pendingAt,
+					}},
+				},
+			}
+
+			assert.Equal(t, tt.expected, getAppsWithSyncStarted(appSet, tt.applications))
+		})
+	}
+}
+
+func TestOperationSyncsTargets(t *testing.T) {
+	t.Parallel()
+	source := v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"}
+	otherSource := v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "helm-guestbook"}
+	sources := v1alpha1.ApplicationSources{source, otherSource}
+
+	tests := []struct {
+		name            string
+		spec            v1alpha1.ApplicationSpec
+		opState         v1alpha1.OperationState
+		targetRevisions []string
+		expected        bool
+	}{
+		{
+			name:            "sync result with the target revision and current source",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{SyncResult: &v1alpha1.SyncOperationResult{Revision: "next", Source: source}},
+			targetRevisions: []string{"next"},
+			expected:        true,
+		},
+		{
+			name:            "sync result with another revision",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{SyncResult: &v1alpha1.SyncOperationResult{Revision: "previous", Source: source}},
+			targetRevisions: []string{"next"},
+			expected:        false,
+		},
+		{
+			name:            "sync result with another source",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{SyncResult: &v1alpha1.SyncOperationResult{Revision: "next", Source: otherSource}},
+			targetRevisions: []string{"next"},
+			expected:        false,
+		},
+		{
+			name: "no sync result yet, requested the target revision",
+			spec: v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState: v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "next"}},
+			},
+			targetRevisions: []string{"next"},
+			expected:        true,
+		},
+		{
+			name: "no sync result yet, requested another revision",
+			spec: v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState: v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "previous"}},
+			},
+			targetRevisions: []string{"next"},
+			expected:        false,
+		},
+		{
+			name: "no sync result yet, requested a source of its own",
+			spec: v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState: v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "next", Source: otherSource.DeepCopy()}},
+			},
+			targetRevisions: []string{"next"},
+			expected:        false,
+		},
+		{
+			name:            "no sync result and no sync operation",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{},
+			targetRevisions: []string{"next"},
+			expected:        false,
+		},
+		{
+			name: "multiple sources, sync result with the target revisions and current sources",
+			spec: v1alpha1.ApplicationSpec{Sources: sources},
+			opState: v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"next", "next-helm"}, Sources: sources},
+			},
+			targetRevisions: []string{"next", "next-helm"},
+			expected:        true,
+		},
+		{
+			name: "multiple sources, sync result with other revisions",
+			spec: v1alpha1.ApplicationSpec{Sources: sources},
+			opState: v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"next", "previous-helm"}, Sources: sources},
+			},
+			targetRevisions: []string{"next", "next-helm"},
+			expected:        false,
+		},
+		{
+			name: "multiple sources, sync result with other sources",
+			spec: v1alpha1.ApplicationSpec{Sources: sources},
+			opState: v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"next", "next-helm"}, Sources: v1alpha1.ApplicationSources{source}},
+			},
+			targetRevisions: []string{"next", "next-helm"},
+			expected:        false,
+		},
+		{
+			name: "multiple sources, no sync result yet, requested the target revisions",
+			spec: v1alpha1.ApplicationSpec{Sources: sources},
+			opState: v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revisions: []string{"next", "next-helm"}}},
+			},
+			targetRevisions: []string{"next", "next-helm"},
+			expected:        true,
+		},
+		{
+			name:            "no target revisions, sync result with the current source",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{SyncResult: &v1alpha1.SyncOperationResult{Revision: "next", Source: source}},
+			targetRevisions: []string{},
+			expected:        true,
+		},
+		{
+			name:            "no target revisions, sync result with another source",
+			spec:            v1alpha1.ApplicationSpec{Source: source.DeepCopy()},
+			opState:         v1alpha1.OperationState{SyncResult: &v1alpha1.SyncOperationResult{Revision: "next", Source: otherSource}},
+			targetRevisions: []string{},
+			expected:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			app := v1alpha1.Application{
+				Spec:   tt.spec,
+				Status: v1alpha1.ApplicationStatus{OperationState: &tt.opState},
+			}
+
+			assert.Equal(t, tt.expected, operationSyncsTargets(app, tt.targetRevisions))
+		})
+	}
+}
+
 func TestIsRollingSyncDeletionReversed(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

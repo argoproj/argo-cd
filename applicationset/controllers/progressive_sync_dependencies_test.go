@@ -29,6 +29,8 @@ import (
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	t.Parallel()
 	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	// Stored times have second precision, so a sync started right after the transition can have the same time.
+	sameSecond := metav1.Time{Time: time.Now().Add(-1 * time.Minute).Truncate(time.Second)}
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -472,6 +474,164 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					StartedAt:  nowMinus5,
 					FinishedAt: &metav1.Time{Time: nowMinus5.Add(5 * time.Second)},
 				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves a pending application to progressing when sync started in the same second as the transition",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &sameSecond,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "next"}},
+					Phase:     common.OperationRunning,
+					StartedAt: sameSecond,
+				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource became Progressing, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "moves a pending application to progressing when it was reconciled after a sync that finished in the same second as the transition",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &sameSecond,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &sameSecond,
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &v1alpha1.OperationState{
+							Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "next"}},
+							Phase:      common.OperationSucceeded,
+							StartedAt:  sameSecond,
+							FinishedAt: &sameSecond,
+							SyncResult: &v1alpha1.SyncOperationResult{Revision: "next"},
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "next",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not move a pending application to progressing when a sync from the same second as the transition synced another revision",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &sameSecond,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", &v1alpha1.OperationState{
+					Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "previous"}},
+					Phase:      common.OperationSucceeded,
+					StartedAt:  sameSecond,
+					FinishedAt: &sameSecond,
+					SyncResult: &v1alpha1.SyncOperationResult{Revision: "previous"},
+				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncPending,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not move a pending application to progressing when it was only reconciled in the same second as the transition and its sync is running",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &sameSecond,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &sameSecond, // This may be the reconcile before the transition.
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &v1alpha1.OperationState{
+							Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "next"}},
+							Phase:     common.OperationRunning,
+							StartedAt: sameSecond,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "next",
+						},
+					},
+				},
 			},
 			appStepMap: map[string]int{
 				"app1": 0,

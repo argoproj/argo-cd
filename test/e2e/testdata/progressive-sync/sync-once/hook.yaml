@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sync-once-hook
+  annotations:
+    argocd.argoproj.io/hook: Sync
+spec:
+  template:
+    spec:
+      containers:
+        # Long enough that the sync can't start and finish within one ApplicationSet reconcile
+        - command: ["sleep", "5"]
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          imagePullPolicy: IfNotPresent
+          name: main
+      restartPolicy: Never
