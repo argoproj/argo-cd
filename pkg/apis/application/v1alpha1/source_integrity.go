@@ -8,12 +8,16 @@ import (
 )
 
 const (
-	SourceIntegrityMethodNameGitGPG = "GIT/GPG"
+	SourceIntegrityMethodNameGitGPG         = "GIT/GPG"
+	SourceIntegrityMethodNameHelmProvenance = "HELM/PROVENANCE"
 )
 
+// +kubebuilder:validation:XValidation:rule="has(self.git) || has(self.helm)",message="sourceIntegrity must specify at least one of git or helm"
 type SourceIntegrity struct {
 	// Git - policies for git source verification
-	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"` // A mandatory field until there are alternatives
+	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
+	// Helm - policies for Helm chart provenance verification
+	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
 }
 
 type SourceIntegrityGit struct {
@@ -59,6 +63,28 @@ type SourceIntegrityGitPolicyGPG struct {
 	Keys []string `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
+// SourceIntegrityHelm holds policies for Helm chart provenance verification.
+type SourceIntegrityHelm struct {
+	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
+}
+
+// SourceIntegrityHelmPolicy applies Provenance to Helm repositories matching Repos.
+type SourceIntegrityHelmPolicy struct {
+	Repos      []SourceIntegrityHelmPolicyRepo      `json:"repos" protobuf:"bytes,1,name=repos"`
+	Provenance *SourceIntegrityHelmPolicyProvenance `json:"provenance" protobuf:"bytes,2,name=provenance"`
+}
+
+// SourceIntegrityHelmPolicyRepo is a glob matched against the Helm repoURL; a leading ! excludes.
+type SourceIntegrityHelmPolicyRepo struct {
+	URL string `json:"url" protobuf:"bytes,1,name=url"`
+}
+
+// SourceIntegrityHelmPolicyProvenance requires the chart's .prov file to be signed by one of Keys
+// and to carry the chart's digest. An empty Keys list rejects every chart.
+type SourceIntegrityHelmPolicyProvenance struct {
+	Keys []string `json:"keys" protobuf:"bytes,1,rep,name=keys"`
+}
+
 // CacheKey computes a unique string key to be used for caching.
 // The key's value will change if any of the fields in SourceIntegrity change.
 func (s *SourceIntegrity) CacheKey() string {
@@ -73,6 +99,9 @@ func (s *SourceIntegrity) ConfiguredMethods() []string {
 	}
 	if s.Git != nil {
 		methods = append(methods, getGitSourceIntegrityMethods(s.Git.Policies)...)
+	}
+	if s.Helm != nil && slices.ContainsFunc(s.Helm.Policies, func(p *SourceIntegrityHelmPolicy) bool { return p != nil && p.Provenance != nil }) {
+		methods = append(methods, SourceIntegrityMethodNameHelmProvenance)
 	}
 	return methods
 }

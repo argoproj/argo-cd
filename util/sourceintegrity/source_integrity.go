@@ -20,15 +20,21 @@ var _gpgDisabledLoggedAlready bool
 
 // HasCriteria determines if any of the sources have some criteria declared
 func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSource) bool {
-	if si == nil || si.Git == nil {
+	if si == nil {
 		return false
 	}
 
 	for _, source := range sources {
-		if !source.IsZero() && !source.IsOCI() && !source.IsHelm() {
-			if lookupGit(si, source.RepoURL) != nil {
+		switch {
+		case source.IsZero():
+			continue
+		case source.IsHelm() || source.IsOCI():
+			// Helm provenance is the only check for OCI sources so far.
+			if hasHelmCriteria(si, source.RepoURL) {
 				return true
 			}
+		case si.Git != nil && lookupGit(si, source.RepoURL) != nil:
+			return true
 		}
 	}
 
