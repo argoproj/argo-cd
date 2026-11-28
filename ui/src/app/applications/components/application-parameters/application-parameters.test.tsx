@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {Context} from '../../../shared/context';
+import {AuthSettingsCtx, Context} from '../../../shared/context';
 import {ApplicationParameters} from './application-parameters';
 
 jest.mock('../../../shared/services', () => ({
@@ -261,6 +261,25 @@ test('multi-source default (no collapse state) renders the expanded panel, not t
     expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
     expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
+});
+
+test.each([
+    [true, 'apps/test-app'],
+    [false, 'test-app']
+])('requests repo details with the app name qualified per apps-in-any-namespace (enabled: %s)', async (appsInAnyNamespaceEnabled, expectedName) => {
+    const appDetails = services.repos.appDetails as jest.Mock;
+    appDetails.mockReset();
+    appDetails.mockResolvedValue({type: 'Plugin', plugin: {}});
+    const app = multiSourceApp();
+    app.metadata.namespace = 'apps';
+    renderWithContext(
+        <AuthSettingsCtx.Provider value={{appsInAnyNamespaceEnabled} as models.AuthSettings}>
+            <ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[false]} handleCollapse={() => undefined} />
+        </AuthSettingsCtx.Provider>
+    );
+
+    expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(appDetails).toHaveBeenCalledWith(expect.objectContaining({repoURL: 'https://github.com/example/repo'}), expectedName, 'default', 0, 0);
 });
 
 describe.each([false, true])('ApplicationParameters repository details failure (multi-source: %s)', multiSource => {

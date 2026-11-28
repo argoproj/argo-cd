@@ -24,6 +24,7 @@ import {
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, Plugin} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {appQualifiedName} from '../../../shared/components/app-utils';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
@@ -37,7 +38,7 @@ import {ApplicationParametersSource} from './application-parameters-source';
 import {isRefOnlySource} from '../shared/app-source-edit';
 
 import './application-parameters.scss';
-import {AppContext} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx} from '../../../shared/context';
 import {SourcePanel} from './source-panel';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
@@ -164,6 +165,8 @@ export const ApplicationParameters = (props: {
     multiSourceIndex?: number;
 }) => {
     const app = cloneDeep(props.application);
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appName = appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled);
     const source = getAppDefaultSource(app); // For source field
     const appSources = app?.spec.sources;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
@@ -286,7 +289,7 @@ export const ApplicationParameters = (props: {
             // For single source field, details page where we have to do the load to retrieve repo details
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
+                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application, appName)}>
                     {({details, error}: SourceDetails) => {
                         if (!details) {
                             return null;
@@ -352,7 +355,7 @@ export const ApplicationParameters = (props: {
                         <DataLoader
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
-                            load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                            load={src => getSourceFromAppSources(src, appName, app.spec.project, index, 0)}>
                             {({details, error}: SourceDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error)}
                         </DataLoader>
                     )}
@@ -1143,10 +1146,10 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 }
 
 // Delete when source field is removed
-async function getSingleSource(app: models.Application): Promise<SourceDetails> {
+async function getSingleSource(app: models.Application, appName: string): Promise<SourceDetails> {
     if (app.spec.source || app.spec.sourceHydrator) {
         const source = getAppDrySource(app);
-        return getSourceFromAppSources(source, app.metadata.name, app.spec.project, 0, 0);
+        return getSourceFromAppSources(source, appName, app.spec.project, 0, 0);
     }
     return {details: null};
 }

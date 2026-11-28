@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -778,6 +779,180 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 	})
+	t.Run("Test_ExistingAppInOtherNamespaceWithReadOnlyPrivileges", func(t *testing.T) {
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		enforcer.SetDefaultRole("role:readonly")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+		db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
+		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
+			return req.AppName == "apps_guestbook"
+		})).Return(&expectedResp, nil)
+		app := guestbookApp.DeepCopy()
+		app.Namespace = "apps"
+		appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+		resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+			Source:     app.Spec.GetSourcePtrByIndex(0),
+			AppName:    "apps/guestbook",
+			AppProject: "default",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+	})
+	t.Run("Test_ExistingAppInOtherNamespaceUnqualifiedNameRequiresCreate", func(t *testing.T) {
+		// Without the namespace, the app cannot be found and it is treated as an app being created.
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		enforcer.SetDefaultRole("role:readonly")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		app := guestbookApp.DeepCopy()
+		app.Namespace = "apps"
+		appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+		resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+			Source:     app.Spec.GetSourcePtrByIndex(0),
+			AppName:    "guestbook",
+			AppProject: "default",
+		})
+		assert.Nil(t, resp)
+		require.ErrorContains(t, err, "permission denied: applications, create, default/guestbook")
+	})
+	t.Run("Test_ExistingAppWithEmptyProjectUsesDefaultProject", func(t *testing.T) {
+		// An app without spec.project belongs to the "default" project, so the RBAC object and project check must use it.
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		require.NoError(t, enforcer.SetUserPolicy("p, role:guestbook, repositories, get, *, allow\np, role:guestbook, applications, get, default/guestbook, allow"))
+		enforcer.SetDefaultRole("role:guestbook")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+		db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
+		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&expectedResp, nil)
+		app := guestbookApp.DeepCopy()
+		app.Spec.Project = ""
+		appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+		resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+			Source:     app.Spec.GetSourcePtrByIndex(0),
+			AppName:    "guestbook",
+			AppProject: "default",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+	})
+	t.Run("Test_ExistingAppInOtherProjectIsNotRevealed", func(t *testing.T) {
+		url := "https://test"
+		app := guestbookApp.DeepCopy()
+		app.Spec.Project = "secret-project"
+		getAppDetails := func(t *testing.T, policy string, appName string) error {
+			t.Helper()
+			repoServerClientset := mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+			enforcer := newEnforcer(kubeclientset)
+			require.NoError(t, enforcer.SetUserPolicy(policy))
+			enforcer.SetDefaultRole("role:test")
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+			appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+			resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+				Source:     app.Spec.GetSourcePtrByIndex(0),
+				AppName:    appName,
+				AppProject: "default",
+			})
+			assert.Nil(t, resp)
+			require.Error(t, err)
+			return err
+		}
+
+		t.Run("without get privileges", func(t *testing.T) {
+			policy := "p, role:test, repositories, get, *, allow"
+			existingErr := getAppDetails(t, policy, "guestbook")
+			missingErr := getAppDetails(t, policy, "missing")
+			assert.Contains(t, existingErr.Error(), "permission denied: applications, get, default/guestbook")
+			assert.NotContains(t, existingErr.Error(), "secret-project")
+			// The response for an existing app must be the same as for an app that does not exist.
+			assert.Equal(t, strings.ReplaceAll(missingErr.Error(), "missing", "guestbook"), existingErr.Error())
+		})
+		t.Run("with get privileges in the requested project only", func(t *testing.T) {
+			err := getAppDetails(t, "p, role:test, repositories, get, *, allow\np, role:test, applications, get, default/guestbook, allow", "guestbook")
+			assert.Equal(t, common.PermissionDeniedAPIError, err)
+			assert.NotContains(t, err.Error(), "secret-project")
+		})
+	})
+	t.Run("Test_QualifiedAppNameUsesNormalizedRBACObject", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			namespace    string
+			policy       string
+			instanceName string
+		}{
+			{
+				name:         "app in control plane namespace",
+				namespace:    testNamespace,
+				policy:       "p, role:guestbook, applications, get, default/guestbook, allow",
+				instanceName: "guestbook",
+			},
+			{
+				name:         "app in other namespace",
+				namespace:    "apps",
+				policy:       "p, role:guestbook, applications, get, default/apps/guestbook, allow",
+				instanceName: "apps_guestbook",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				repoServerClient := &mocks.RepoServerServiceClient{}
+				repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+				enforcer := newEnforcer(kubeclientset)
+				require.NoError(t, enforcer.SetUserPolicy("p, role:guestbook, repositories, get, *, allow\n"+tt.policy))
+				enforcer.SetDefaultRole("role:guestbook")
+
+				url := "https://test"
+				db := &dbmocks.ArgoDB{}
+				db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+				db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+				db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
+				db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
+				expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+				repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
+					return req.AppName == tt.instanceName
+				})).Return(&expectedResp, nil)
+				app := guestbookApp.DeepCopy()
+				app.Namespace = tt.namespace
+				appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+				s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+				resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+					Source:     app.Spec.GetSourcePtrByIndex(0),
+					AppName:    tt.namespace + "/guestbook",
+					AppProject: "default",
+				})
+				require.NoError(t, err)
+				assert.Equal(t, expectedResp, *resp)
+			})
+		}
+	})
 	t.Run("Test_ExistingMultiSourceApp001", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
@@ -981,6 +1156,45 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
+	})
+}
+
+func Test_isSourceInHistory(t *testing.T) {
+	newApp := func() *appsv1.Application {
+		return &appsv1.Application{
+			Spec: appsv1.ApplicationSpec{
+				Sources: []appsv1.ApplicationSource{
+					{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "main"},
+				},
+			},
+			Status: appsv1.ApplicationStatus{
+				History: appsv1.RevisionHistories{
+					{
+						ID:        1,
+						Revisions: []string{"abc123"},
+						Sources: []appsv1.ApplicationSource{
+							{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "HEAD"},
+						},
+					},
+				},
+			},
+		}
+	}
+	historicalSource := appsv1.ApplicationSource{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "abc123"}
+
+	t.Run("matches a historical source without modifying the app", func(t *testing.T) {
+		app := newApp()
+		assert.True(t, isSourceInHistory(app, historicalSource, 0, 1))
+		assert.Equal(t, "HEAD", app.Status.History[0].Sources[0].TargetRevision)
+	})
+	t.Run("returns false for an out of range source index", func(t *testing.T) {
+		assert.False(t, isSourceInHistory(newApp(), historicalSource, 1, 1))
+		assert.False(t, isSourceInHistory(newApp(), historicalSource, -1, 1))
+	})
+	t.Run("returns false when revisions are missing", func(t *testing.T) {
+		app := newApp()
+		app.Status.History[0].Revisions = nil
+		assert.False(t, isSourceInHistory(app, historicalSource, 0, 1))
 	})
 }
 
