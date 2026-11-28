@@ -3,6 +3,26 @@ kind: Bucket
 metadata:
   name: test-s3-bucket
   namespace: default
+  # Spec write is older than the grace window. ResourceSynced still predates that
+  # write (metadata-only apply, or a reconcile that has not happened yet). A future
+  # argocd entry that does not own spec must not keep the resource Progressing.
+  managedFields:
+  - manager: argocd-controller
+    operation: Update
+    apiVersion: s3.services.k8s.aws/v1alpha1
+    time: "2099-01-01T00:00:00Z"
+    fieldsType: FieldsV1
+    fieldsV1:
+      'f:metadata':
+        'f:labels': {}
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: s3.services.k8s.aws/v1alpha1
+    time: "2020-01-02T00:00:00Z"
+    fieldsType: FieldsV1
+    fieldsV1:
+      'f:spec':
+        'f:name': {}
 spec:
   name: test-s3-bucket
 status:
@@ -11,12 +31,12 @@ status:
     ownerAccountID: "111111111111"
     region: us-west-2
   conditions:
-  - lastTransitionTime: "2026-04-15T18:20:17Z"
+  - lastTransitionTime: "2020-01-01T00:00:00Z"
     message: Resource synced successfully
     reason: ""
     status: "True"
     type: ACK.ResourceSynced
-  - lastTransitionTime: "2026-04-15T18:20:17Z"
+  - lastTransitionTime: "2020-01-01T00:00:00Z"
     message: Resource synced successfully
     reason: ""
     status: "True"
