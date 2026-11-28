@@ -31,6 +31,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	argocdtls "github.com/argoproj/argo-cd/v3/util/tls"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
@@ -510,7 +511,10 @@ func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (s
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: creds.InsecureSkipVerify,
+		MinVersion:         argocdtls.GetOutboundTLSMinVersion(),
+	}
 
 	if creds.CAPath != "" {
 		caData, err := os.ReadFile(creds.CAPath)

@@ -989,6 +989,22 @@ func Test_NewClient_SharesLockBetweenClients(t *testing.T) {
 	require.Equal(t, first.repoLock, second.repoLock)
 }
 
+func TestNewTLSConfigMinVersion(t *testing.T) {
+	t.Run("Default MinVersion is TLS 1.2", func(t *testing.T) {
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "")
+		tlsConfig, err := newTLSConfig(HelmCreds{})
+		require.NoError(t, err)
+		assert.Equal(t, uint16(tls.VersionTLS12), tlsConfig.MinVersion)
+	})
+
+	t.Run("MinVersion TLS 1.3 when configured", func(t *testing.T) {
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.3")
+		tlsConfig, err := newTLSConfig(HelmCreds{})
+		require.NoError(t, err)
+		assert.Equal(t, uint16(tls.VersionTLS13), tlsConfig.MinVersion)
+	})
+}
+
 func testHelmChartArchive(t *testing.T, chartName, chartVersion, values string) []byte {
 	t.Helper()
 
