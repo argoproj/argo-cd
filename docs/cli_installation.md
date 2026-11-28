@@ -124,14 +124,21 @@ You can view the latest version of Argo CD at the link above or run the followin
 $version = (Invoke-RestMethod https://api.github.com/repos/argoproj/argo-cd/releases/latest).tag_name
 ```
 
-Replace `$version` in the command below with the version of Argo CD you would like to download:
+Replace `$version` in the command below with the version of Argo CD you would like to download.
+The command selects the `amd64` or `arm64` binary to match the architecture of your machine:
 
 ```powershell
-$url = "https://github.com/argoproj/argo-cd/releases/download/" + $version + "/argocd-windows-amd64.exe"
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+$url = "https://github.com/argoproj/argo-cd/releases/download/" + $version + "/argocd-windows-" + $arch + ".exe"
 $output = "argocd.exe"
 
 Invoke-WebRequest -Uri $url -OutFile $output
 ```
+
+> [!NOTE]
+> The Windows `arm64` binary is published starting with Argo CD v3.7.0. For earlier versions, download
+> `argocd-windows-amd64.exe` instead, which runs on Windows on ARM through emulation.
+
 Also please note you will probably need to move the file into your PATH.
 Use following command to add Argo CD into environment variables PATH
 
