@@ -1,12 +1,16 @@
 package cache
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache/mocks"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
 type MockedCache struct {
@@ -627,7 +632,9 @@ func TestSetHelmIndex(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		err := fixtures.cache.SetHelmIndex("test-repo", []byte("test-data"))
 		require.NoError(t, err)
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
+		// The versioned record plus the metadata-only projection that lets
+		// verified local bodies skip the full-record transfer (one Set each).
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2})
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()
@@ -977,4 +984,142 @@ func TestGetOciFiles(t *testing.T) {
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
+}
+
+func TestHelmIndexRecord(t *testing.T) {
+	t.Parallel()
+	t.Run("RecordRoundTrip", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		err := fixtures.cache.SetHelmIndexRecord("test-repo", []byte("index-body"), `"etag-1"`, "Mon, 02 Jan 2006 15:04:05 GMT")
+		require.NoError(t, err)
+		record, err := fixtures.cache.GetHelmIndexRetainedRecord("test-repo")
+		require.NoError(t, err)
+		assert.Equal(t, []byte("index-body"), record.Body)
+		assert.Equal(t, `"etag-1"`, record.ETag)
+		assert.Equal(t, "Mon, 02 Jan 2006 15:04:05 GMT", record.LastModified)
+		assert.NotEmpty(t, record.StoredAt)
+		assert.NotEmpty(t, record.BodyDigest)
+	})
+	t.Run("RecordDigestRejectsCorruptedBody", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		err := fixtures.cache.SetHelmIndexRecord("test-repo", []byte("index-body"), "", "")
+		require.NoError(t, err)
+		// Corrupt the stored body in place, keeping a well-formed digest.
+		digest := sha256.Sum256([]byte("not-the-stored-body"))
+		corrupted := &HelmIndexRecord{Body: []byte("tampered-body"), BodyDigest: hex.EncodeToString(digest[:]), StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		require.NoError(t, fixtures.cache.cache.SetItem(helmIndexRecordKey("test-repo"), corrupted, &cacheutil.CacheActionOpts{Expiration: time.Minute}))
+		_, err = fixtures.cache.GetHelmIndexRetainedRecord("test-repo")
+		require.ErrorContains(t, err, "does not match its published digest")
+	})
+	t.Run("RecordIsScopedByCredentialScope", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		// The record key embeds the argon2id fingerprint of the repo identity,
+		// so a different repo (or credential scope) never collides with it.
+		require.NoError(t, fixtures.cache.SetHelmIndexRecord("test-repo", []byte("index-body"), "", ""))
+		_, err := fixtures.cache.GetHelmIndexRetainedRecord("other-repo")
+		require.ErrorIs(t, err, ErrCacheMiss)
+	})
+	t.Run("SetHelmIndexPublishesRecord", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		require.NoError(t, fixtures.cache.SetHelmIndex("test-repo", []byte("index-body")))
+		// Versioned record is served with a trusted validation time.
+		var indexData []byte
+		require.NoError(t, fixtures.cache.GetHelmIndex("test-repo", &indexData))
+		assert.Equal(t, []byte("index-body"), indexData)
+		// No legacy body mirror is written under the pre-record key.
+		var legacy []byte
+		require.ErrorIs(t, fixtures.cache.cache.GetItem("helm-index|test-repo", &legacy), ErrCacheMiss)
+	})
+	t.Run("ZeroExpirationAlwaysMisses", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		fixtures.cache.SetHelmIndexCacheExpiration(0)
+		require.NoError(t, fixtures.cache.SetHelmIndex("test-repo", []byte("index-body")))
+		var indexData []byte
+		require.ErrorIs(t, fixtures.cache.GetHelmIndex("test-repo", &indexData), ErrCacheMiss)
+	})
+	t.Run("StaleRecordMisses", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		stale := &HelmIndexRecord{Body: []byte("index-body"), StoredAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano)}
+		require.NoError(t, fixtures.cache.SetHelmIndexRetainedRecord("test-repo", stale))
+		var indexData []byte
+		require.ErrorIs(t, fixtures.cache.GetHelmIndex("test-repo", &indexData), ErrCacheMiss)
+		// The retained reader still returns stale records for revalidation.
+		record, err := fixtures.cache.GetHelmIndexRetainedRecord("test-repo")
+		require.NoError(t, err)
+		assert.Equal(t, []byte("index-body"), record.Body)
+	})
+	t.Run("NilRecordRejected", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		require.Error(t, fixtures.cache.SetHelmIndexRetainedRecord("test-repo", nil))
+		require.Error(t, fixtures.cache.SetHelmIndexRetainedRecord("test-repo", &HelmIndexRecord{}))
+	})
+	t.Run("NegativeExpirationFallsBackToDefault", func(t *testing.T) {
+		t.Parallel()
+		cache := NewCache(cacheutil.NewCache(newFixtures().mockCache.RedisClient), time.Minute, time.Minute, 10*time.Second)
+		cache.SetHelmIndexCacheExpiration(-1)
+		assert.Equal(t, helm.DefaultIndexCacheExpiration, cache.GetHelmIndexCacheExpiration())
+	})
+}
+
+func newMiniRedis(t *testing.T) *redis.Client {
+	t.Helper()
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	t.Cleanup(mr.Close)
+	return redis.NewClient(&redis.Options{Addr: mr.Addr()})
+}
+
+// Regression: freshness and request identity must come from the SAME record.
+// Reading them separately lets an overlapping writer renew freshness for
+// identical body bytes between the two reads, authorizing a body whose own
+// validation time had already expired.
+func TestFreshRecordSingleRead(t *testing.T) {
+	testCache := NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(newMiniRedis(t), time.Minute, cacheutil.RedisCompressionNone)), time.Minute, time.Minute, time.Minute)
+	testCache.SetHelmIndexCacheExpiration(time.Minute)
+	const repo = "https://charts.example.com"
+
+	bodyA := []byte("apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: 1.0.0\n")
+	recordA := &HelmIndexRecord{Body: bodyA, ETag: `"1.0.0"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano), URLIdentity: "helm-index-request-v1|agent-a|url-a"}
+	require.NoError(t, testCache.SetHelmIndexRetainedRecord(repo, recordA))
+
+	// Read 1 (raw): fresh, returns body A.
+	var data []byte
+	require.NoError(t, testCache.GetHelmIndex(repo, &data))
+	require.Equal(t, bodyA, data)
+
+	// Overlapping writer (agent B) renews freshness for the SAME bytes
+	// between read 1 and read 2.
+	recordB := &HelmIndexRecord{Body: bodyA, ETag: `"1.0.0"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano), URLIdentity: "helm-index-request-v1|agent-b|url-b"}
+	require.NoError(t, testCache.SetHelmIndexRetainedRecord(repo, recordB))
+
+	// The single-read fresh getter returns a record whose freshness and
+	// identity are from the same generation: the newest record, agent B's.
+	fresh, err := testCache.GetHelmIndexFreshRecordContext(t.Context(), repo)
+	require.NoError(t, err)
+	require.Equal(t, "helm-index-request-v1|agent-b|url-b", fresh.URLIdentity)
+
+	// Expired record: the fresh getter refuses even though the record exists
+	// (the retained reader still returns it for conditional revalidation).
+	expired := *recordB
+	expired.StoredAt = time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano)
+	require.NoError(t, testCache.SetHelmIndexRetainedRecord(repo, &expired))
+	_, err = testCache.GetHelmIndexFreshRecordContext(t.Context(), repo)
+	require.ErrorIs(t, err, ErrCacheMiss)
+	retained, err := testCache.GetHelmIndexRetainedRecord(repo)
+	require.NoError(t, err)
+	require.Equal(t, "helm-index-request-v1|agent-b|url-b", retained.URLIdentity)
 }

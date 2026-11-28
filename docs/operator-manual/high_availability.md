@@ -103,6 +103,161 @@ the appropriate tool.
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - Is an environment variable that enables collecting RPC performance metrics.
   Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
+#### Helm dependency index cache
+
+Enable HTTP(S) repository index reuse across dependency builds with
+`--helm-index-cache-enabled` or `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED=true`.
+Dependency reuse is disabled by default. With the standard installation, set
+`reposerver.helm.index.cache.enabled` in `argocd-cmd-params-cm` and restart repo-server:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.helm.index.cache.enabled: "true"
+```
+
+The directory defaults to `helm-index-cache` under the system temporary directory, normally
+`/tmp/helm-index-cache`, using the existing writable `/tmp` volume. On Unix, a custom `TMPDIR`
+changes that default. No directory override is needed to enable reuse. To select another
+writable Argo-managed directory, use `--helm-index-cache-dir`,
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR`, or `reposerver.helm.index.cache.dir` in the ConfigMap.
+An unset or empty directory selects the default; setting a directory alone does not enable reuse.
+
+HTTP Helm index freshness uses `--helm-index-cache-expiration` (default `60s`),
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION`, or
+`reposerver.helm.index.cache.expiration` in `argocd-cmd-params-cm`. It is independent of
+`--revision-cache-expiration`, `ARGOCD_RECONCILIATION_TIMEOUT`, OCI tag-cache freshness and
+`--repo-cache-expiration`. Setting Helm index expiration to zero revalidates on every use.
+
+Choose the freshness window for your repository:
+
+| Expiration | Suggested use |
+| --- | --- |
+| `60s` (default) | General starting point balancing freshness and revalidation work. |
+| `30s` | Repositories with reliable ETags that remain stable while content is unchanged, when faster pickup of new chart versions is needed. Unchanged indexes can return `304`. |
+| `3m` or longer | Busy virtual repositories whose ETag changes frequently. Each changed index requires a full `200` response, so a longer window avoids repeated large transfers and processing. |
+
+Expiry is demand-driven: the next eligible dependency build revalidates an expired index.
+This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
+or pinned versions, or wait before applying changed Git/Application values. Always-fresh
+Go-client operations continue contacting the origin regardless of this freshness window.
+
+Each replica maintains its own validated index records in the cache directory, checksum-bound
+to the body, validators and freshness metadata. A record whose stored digest no longer matches
+its body is rejected instead of trusted. Expired indexes and validators remain available for
+another `max(24h, freshness)` so a later build can still conditionally revalidate with `304`
+instead of downloading the full body; successful origin responses advance validation time.
+Cache reads are bounded by a short read budget so a slow backend cannot pin a build, and
+demand-driven maintenance sweeps expired records from the directory at most once per minute.
+
+Each Helm invocation still has private config, cache, data, credentials and certificate files.
+The effective installed plugin directory remains available through `HELM_PLUGINS`, preserving
+getters used by chart archive URLs even when their repository index uses HTTP.
+An explicitly empty or relative plugin path, including a relative default when `HOME` is
+missing, selects a private absolute empty directory. Helm therefore cannot discover getters
+in the chart checkout. Configure an absolute plugin directory to use installed getters.
+Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
+after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
+between processes sharing a local directory.
+
+> [!NOTE]
+> Use a pod-local filesystem with working advisory locks and atomic rename, such as an
+> `emptyDir` volume. Each replica normally has its own directory. Shared network filesystems
+> are not supported by this optimization. Losing the directory only makes the next build cold.
+> Account for retained index bodies when sizing the volume.
+
+> [!WARNING]
+> Indexes can contain private chart metadata. Use a dedicated directory writable only by
+> repo-server; newly created cache directories have mode `0700` and records/locks `0600`.
+> Repository passwords and client keys stay in the temporary Helm home. Cache-directory initialization and locking failures
+> return an actionable error; set `reposerver.helm.index.cache.enabled: "false"` to use the original path. A publication
+> failure after successful HTTP validation does not discard the valid response.
+
+A warm dependency build makes no index request. An expired index is conditionally revalidated
+when validators are available. Normal and webhook refreshes (`NoRevisionCache`) resolve the
+latest Git revision while preserving index freshness: fresh records make no index request and
+expired records are conditionally revalidated. Hard refresh (`NoCache`) fetches unconditionally
+**when a dependency build actually executes**.
+Existing dependency markers, downloaded charts and `Chart.lock` still govern whether a build
+runs and which versions it uses. Enabling the cache does not force a rebuild or unlock versions.
+If a warm index cannot resolve a requested dependency version, the build conditionally revalidates
+only the affected HTTP repository, ignoring freshness for that lookup, then retries once with its
+complete index. Resolvable warm dependencies still make zero index requests. Archive download and
+authentication failures do not trigger this retry; hard refresh remains an unconditional fetch.
+Unsupported getter schemes retain Helm's original registration and refresh path for the whole build.
+The same fallback applies when an effective HTTP dependency has no configured repository to prewarm,
+after applying legacy `requirements.yaml` overrides.
+Builds with colliding configured/generated repository cache names, or OCI dependencies using an
+inherited `HELM_REGISTRY_CONFIG`, also retain Helm's original path before any snapshot is installed.
+The optimized path rejects aliases using different credentials for URLs Helm considers equal,
+including cleaned paths. Helm's archive lookup cannot preserve those distinct views. Configure distinct
+repository URLs for those views. Aliases sharing the same credential view remain supported.
+
+With `--helm-index-cache-filter-enabled` (or `reposerver.helm.index.cache.filter.enabled`),
+repo-server additionally serves dependency builds from dependency-only snapshots of the cached
+indexes, containing just the entries the charts reference. Snapshots are derived per build and
+never replace the stored original: if a dependency is absent from the cached index or the
+snapshot cannot be produced, the build falls back to the full validated index and revalidation
+picks the chart up on a later build. Full indexes are shared across all consumers; only the
+temporary Helm home receives a snapshot. Invalid or truncated responses are never published.
+Successful body validation is remembered in a bounded process-local cache of 256 SHA-256
+digests, so unchanged bodies avoid repeated YAML parsing.
+
+Go-client chart listing and connectivity tests contact the origin on every call, independently
+of dependency-cache enablement. Revision resolution preserves its existing policy: an exact
+version skips index lookup; a version range may use a fresh Redis index when
+`noRevisionCache=false`, and forces origin revalidation when `noRevisionCache=true`. A `304` response avoids transferring the index
+body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
+request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
+
+#### Dependency-build timing guarantees
+
+The freshness window shapes *when a dependency build is allowed to reuse a cached index*, not
+when Argo CD reacts to repository changes. The guarantees below are verified in code and by
+executed integration tests:
+
+* **Warm builds make no index request.** A dependency build whose index is still within the
+  freshness window serves the validated cached copy without contacting the chart origin
+  (measured: second build in the same chart directory → zero origin requests).
+* **Manifests may outlive index freshness.** The manifest cache key does not include index
+  freshness, so manifests generated earlier can be reused after the index expired, as long as
+  the Git revision and the other cache inputs are unchanged.
+* **A commit within the freshness window can render on the previous index.** Freshness is only
+  checked when an operation is eligible to revalidate (a dependency build that executes). A
+  chart commit inside the window does not interrupt an in-flight render, and the rendered
+  result may remain in the manifest cache beyond the index TTL.
+* **New dependency versions are picked up only when a build runs on a current-enough index.**
+  A version range resolves from the index the build observes; if that index is fresh, the new
+  version is not seen until the index is revalidated after expiry (or a hard refresh is
+  requested).
+* **Hard refresh re-renders and revalidates.** It bypasses the manifest cache, so manifests
+  are generated again even when the Git revision and values are unchanged, and the
+  dependency build fetches the index unconditionally. It is the supported way to pick up a
+  newly published in-range dependency version without a Git change.
+* **`Chart.lock` pins versions through Git.** The lockfile in the checkout governs which
+  dependency version is used, independently of index freshness (measured: lockfile written at
+  `1.0.0` still resolves `1.0.0` after `2.0.0` is published and the index expires).
+* **Manifest-cache invalidation is unchanged.** Manifests are invalidated by Git revision,
+  source integrity, and application values exactly as before; the index cache adds no
+  additional invalidation trigger.
+
+Do not expect the cache to deliver "a chart version becomes visible within one freshness
+window": visibility requires a build to execute after the index has become current. Size the
+freshness window against how quickly your workloads need new chart versions after their Git
+dependencies move.
+
+Go-client index requests send `Cache-Control: no-cache` so compliant intermediary caches validate
+with the origin before replying. Update detection still depends on accurate origin validators:
+an incorrect `304`, a reused ETag, or an unchanged modification timestamp can hide a change.
+OCI repositories use registry tags, manifests and blobs instead of `index.yaml`; this index cache
+does not cache OCI content or change OCI tag-cache freshness. Mixed HTTP/OCI builds retain
+registry authentication and pulls while reusing only the HTTP index.
+Helm OCI tag lists use the revision-cache expiration, independently of HTTP index expiration.
+
 ### argocd-application-controller
 
 **settings:**

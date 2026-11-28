@@ -1,7 +1,10 @@
 package cache
 
 import (
+	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,9 +22,11 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
 var (
@@ -34,6 +39,7 @@ type Cache struct {
 	repoCacheExpiration      time.Duration
 	revisionCacheExpiration  time.Duration
 	revisionCacheLockTimeout time.Duration
+	helmIndexCacheExpiration time.Duration
 }
 
 // GetRepoCacheExpiration returns the repository cache expiration duration.
@@ -63,7 +69,23 @@ type CachedManifestResponse struct {
 }
 
 func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
+	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout, helm.DefaultIndexCacheExpiration}
+}
+
+// GetHelmIndexCacheExpiration returns the freshness window applied to cached
+// helm repository index records.
+func (c *Cache) GetHelmIndexCacheExpiration() time.Duration {
+	return c.helmIndexCacheExpiration
+}
+
+// SetHelmIndexCacheExpiration sets the freshness window for cached helm
+// repository index records. A value of 0 revalidates with the origin on
+// every use; negative values fall back to the default.
+func (c *Cache) SetHelmIndexCacheExpiration(expiration time.Duration) {
+	if expiration < 0 {
+		expiration = helm.DefaultIndexCacheExpiration
+	}
+	c.helmIndexCacheExpiration = expiration
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
@@ -180,13 +202,46 @@ func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error 
 		})
 }
 
-func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
+// The v3 record keys isolate credentialed fetches from anonymous ones: the
+// credential-scope fingerprint is part of the key prefix, so a cache entry
+// published with private credentials can never be served to a reader whose
+// resolved credential snapshot differs.
+func helmIndexKeyPrefix(ctx context.Context, repo string) (string, error) {
+	scope, err := cryptoutil.CredentialScopeContext(ctx, "helm-index-record-v3", repo)
+	if err != nil {
+		return "", err
+	}
+	return "helm-index-v3|{" + scope + "}|", nil
 }
 
-func ociTagsKey(repo string) string {
-	return "oci-tags|" + repo
+// The record key names one atomic unit: index body plus the HTTP validators
+// the origin returned with it, so a 304 can never pair a new validator with
+// a previous body.
+func helmIndexRecordKey(repo string) string {
+	prefix, _ := helmIndexKeyPrefix(context.Background(), repo)
+	return prefix + "record"
 }
+
+// helmIndexMetaKey names a small metadata-only copy of the record (no body).
+// It lets readers with a verified local body confirm the shared generation
+// and refresh validators without transferring the full index on every build.
+// Absence of this key always falls back to the full-record read, so it is
+// safe with legacy writers and partial publications.
+func helmIndexMetaKey(repo string) string {
+	prefix, _ := helmIndexKeyPrefix(context.Background(), repo)
+	return prefix + "meta"
+}
+
+// helmIndexMeta is the metadata-only projection of HelmIndexRecord stored at
+// helmIndexMetaKey. Body is never populated here; BodyDigest identifies the
+// body stored under the record key. The JSON tags mirror the shared record's
+// so the same payload shape round-trips through the cache client.
+type helmIndexMeta = helm.HelmIndexMeta
+
+// HelmIndexMeta is the exported metadata-only projection of a helm index
+// record (no body), defined in util/helm beside the record type.
+
+type HelmIndexRecord = helm.HelmIndexRecord
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
@@ -194,15 +249,194 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 		// Logged as warning upstream
 		return errors.New("helm index data is nil, skipping cache")
 	}
-	return c.cache.SetItem(
-		helmIndexRefsKey(repo),
-		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+	return c.SetHelmIndexRecord(repo, indexData, "", "")
 }
 
-// GetHelmIndex retrieves helm repository index.yaml content from cache
+// GetHelmIndex retrieves helm repository index.yaml content from cache.
+// The refs key is a raw legacy entry without a trusted validation time, so
+// only fresh versioned records are served here; unversioned entries always
+// miss and force an unconditional origin GET.
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
-	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+	if c.helmIndexCacheExpiration <= 0 {
+		return ErrCacheMiss
+	}
+	record, err := c.GetHelmIndexRetainedRecord(repo)
+	if err == nil && len(record.Body) > 0 {
+		if !record.Fresh(c.helmIndexCacheExpiration) {
+			return ErrCacheMiss
+		}
+		*indexData = record.Body
+		return nil
+	}
+	if record != nil || (err != nil && !errors.Is(err, ErrCacheMiss)) {
+		return err
+	}
+	return ErrCacheMiss // A raw legacy entry has no trusted validation time.
+}
+
+// SetHelmIndexRecord stores the index body and its HTTP validators as one
+// versioned record keyed by the credential scope of the resolved fetch
+// identity.
+func (c *Cache) SetHelmIndexRecord(repo string, body []byte, etag, modified string) error {
+	if body == nil {
+		return errors.New("helm index data is nil, skipping cache")
+	}
+	record := &HelmIndexRecord{Body: body, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	digest := sha256.Sum256(body)
+	record.BodyDigest = hex.EncodeToString(digest[:])
+	return c.SetHelmIndexRetainedRecord(repo, record)
+}
+
+// SetHelmIndexRetainedRecord writes a complete record (maintenance path).
+func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord) error {
+	if record == nil || len(record.Body) == 0 {
+		return errors.New("helm index data is nil, skipping cache")
+	}
+	if record.BodyDigest == "" {
+		digest := sha256.Sum256(record.Body)
+		record.BodyDigest = hex.EncodeToString(digest[:])
+	}
+	// There is no legacy body mirror: pre-record replicas read an unscoped
+	// "helm-index|<repo>" key, which must not carry credential-scoped bodies,
+	// so they fetch from the origin on a miss exactly as before.
+	// The record must OUTLIVE the freshness window: once a record is stale it
+	// is revalidated by a conditional GET, which needs the stored body and
+	// validators. TTL equal to freshness would delete exactly when
+	// revalidation starts, turning every post-expiry check into a full 200.
+	if err := c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}); err != nil {
+		return err
+	}
+	// Publish the small metadata projection last. Readers that already hold a
+	// verified body use it to skip the full-record transfer; a missing or
+	// stale meta entry only costs the fallback read. Best-effort with one
+	// retry: a failed meta write never invalidates the record just published,
+	// but a persistent failure would leave readers on their current body for
+	// up to one freshness window, so the write is attempted twice.
+	meta := helmIndexMeta{BodyDigest: record.BodyDigest, ETag: record.ETag, LastModified: record.LastModified, URLIdentity: record.URLIdentity, Generation: record.Generation, StoredAt: record.StoredAt}
+	metaOpts := &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}
+	if err := c.cache.SetItem(helmIndexMetaKey(repo), meta, metaOpts); err != nil {
+		// One immediate retry shrinks the stale-meta divergence window when
+		// the first write hit a transient backend failure.
+		if retryErr := c.cache.SetItem(helmIndexMetaKey(repo), meta, metaOpts); retryErr != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// helmIndexRecordRetention is how long a versioned record stays in Redis
+// after publication: the freshness window plus one window of revalidation
+// grace, floored at one hour so very short windows still get a usable
+// revalidation period.
+func helmIndexRecordRetention(freshness time.Duration) time.Duration {
+	if freshness <= 0 {
+		freshness = helm.DefaultIndexCacheExpiration
+	}
+	return max(2*freshness, time.Hour)
+}
+
+func (c *Cache) GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error) {
+	return c.GetHelmIndexRetainedRecordContext(context.Background(), repo)
+}
+
+// GetHelmIndexMeta fetches the small metadata-only projection published by
+// SetHelmIndexRetainedRecord. A miss returns ErrCacheMiss and callers must
+// fall back to the full-record read. Satisfies helm.IndexMetaCache.
+func (c *Cache) GetHelmIndexMeta(repo string) (*helm.HelmIndexMeta, error) {
+	var meta helmIndexMeta
+	if err := c.cache.GetItem(helmIndexMetaKey(repo), &meta); err != nil {
+		return nil, err
+	}
+	if meta.BodyDigest == "" {
+		return nil, cacheutil.ErrCacheMiss
+	}
+	return &meta, nil
+}
+
+// GetHelmIndexMetaContext is the deadline-aware variant: the read is
+// abandoned once the caller's budget expires, keeping the request free to
+// reach the origin. Satisfies helm.IndexMetaCacheContext.
+func (c *Cache) GetHelmIndexMetaContext(ctx context.Context, repo string) (*helm.HelmIndexMeta, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	type result struct {
+		meta *helm.HelmIndexMeta
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		meta, err := c.GetHelmIndexMeta(repo)
+		done <- result{meta, err}
+	}()
+	select {
+	case res := <-done:
+		return res.meta, res.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// GetHelmIndexRetainedRecordContext honors the caller's context while the
+// Redis read is in flight, so a slow backend cannot hold a per-key index
+// lock past cancellation. The underlying read is abandoned, not cancelled —
+// the shared CacheClient interface has no context-aware Get.
+func (c *Cache) GetHelmIndexRetainedRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	type result struct {
+		record *HelmIndexRecord
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		record, err := c.readHelmIndex(repo)
+		done <- result{record, err}
+	}()
+	select {
+	case res := <-done:
+		return res.record, res.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// GetHelmIndexFreshRecordContext returns the index record in one shared read,
+// but only while the record is within the freshness window. Freshness and
+// request identity must come from the same record: deriving them from two
+// reads lets an overlapping writer's renewed freshness authorize a body whose
+// own validation time had already expired.
+func (c *Cache) GetHelmIndexFreshRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	record, err := c.GetHelmIndexRetainedRecordContext(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	if c.helmIndexCacheExpiration <= 0 || len(record.Body) == 0 || !record.Fresh(c.helmIndexCacheExpiration) {
+		return nil, ErrCacheMiss
+	}
+	return record, nil
+}
+
+func (c *Cache) readHelmIndex(repo string) (*HelmIndexRecord, error) {
+	var record HelmIndexRecord
+	if err := c.cache.GetItem(helmIndexRecordKey(repo), &record); err != nil {
+		return nil, err
+	}
+	if len(record.Body) == 0 {
+		return nil, ErrCacheMiss
+	}
+	if record.BodyDigest != "" {
+		digest := sha256.Sum256(record.Body)
+		if hex.EncodeToString(digest[:]) != record.BodyDigest {
+			return nil, errors.New("helm index body does not match its published digest")
+		}
+	}
+	return &record, nil
+}
+
+func ociTagsKey(repo string) string {
+	return "oci-tags|" + repo
 }
 
 // SetOCITags stores oci image tags to cache
