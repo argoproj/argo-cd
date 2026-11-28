@@ -1136,8 +1136,10 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
       nodeSelector:
@@ -1432,6 +1434,7 @@ spec:
           name: dexconfig
         - mountPath: /tls
           name: argocd-dex-server-tls
+          readOnly: true
       initContainers:
       - command:
         - /bin/cp
@@ -1575,8 +1578,10 @@ spec:
           name: tls-certs
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         workingDir: /app
       nodeSelector:
         kubernetes.io/os: linux
@@ -2076,8 +2081,10 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /tmp
           name: tmp
         - mountPath: /helm-working-dir
@@ -2658,10 +2665,13 @@ spec:
           name: tls-certs
         - mountPath: /app/config/server/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /app/config/dex/tls
           name: argocd-dex-server-tls
+          readOnly: true
         - mountPath: /home/argocd
           name: plugins-home
         - mountPath: /tmp
@@ -3229,8 +3239,10 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /home/argocd
           name: argocd-home
         - mountPath: /home/argocd/params
