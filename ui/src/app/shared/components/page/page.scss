@@ -40,6 +40,15 @@
 
         &--has-toolbar {
             padding-top: $single-toolbar-height;
+
+            // argo-ui sets `.page--has-toolbar .page__top-bar` to two rows (100px) so the action
+            // menu can sit inside the fixed header. Those actions are rendered by FlexTopBar
+            // instead, and the second header row is empty. `.page-wrapper .page__top-bar` ties
+            // that rule on specificity and loses when argo-ui is loaded later, so the header stays
+            // 100px and its empty lower half covers New App, Connect Repo, and the other buttons.
+            .page__top-bar {
+                height: $single-toolbar-height;
+            }
         }
         &__top-bar {
             height: $single-toolbar-height;
