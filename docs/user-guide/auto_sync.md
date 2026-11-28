@@ -183,6 +183,23 @@ spec:
 - `backoff.factor`: multiplier applied after each failed attempt.
 - `backoff.maxDuration`: maximum wait time between retries, regardless of the number of attempts.
 
+An automated sync of an Application without a `retry` field is retried 5 times. To change that default for all such
+Applications, set `application.sync.retry.limit` in the `argocd-cm` ConfigMap. The same limit applies to the syncs
+that an ApplicationSet with the RollingSync strategy triggers:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  application.sync.retry.limit: "10"
+```
+
 ## Automatic Retry Refresh on new revisions
 
 This feature allows users to configure their applications to refresh on new revisions when the current sync is retrying. To enable automatic refresh during sync retries, run:

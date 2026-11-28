@@ -1382,7 +1382,7 @@ func TestSyncApplication(t *testing.T) {
 			input: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 			},
-			opts: progressiveSyncOptions{},
+			opts: progressiveSyncOptions{retryLimit: 5},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 				Operation: &v1alpha1.Operation{
@@ -1417,7 +1417,8 @@ func TestSyncApplication(t *testing.T) {
 					},
 				},
 			},
-			opts: progressiveSyncOptions{prune: true},
+			// The Application's own retry strategy takes precedence over the configured limit.
+			opts: progressiveSyncOptions{prune: true, retryLimit: 5},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SyncPolicy: &v1alpha1.SyncPolicy{
@@ -1460,7 +1461,8 @@ func TestSyncApplication(t *testing.T) {
 				},
 			},
 			opts: progressiveSyncOptions{
-				strategy: &v1alpha1.SyncStrategy{Hook: &v1alpha1.SyncStrategyHook{Force: true}},
+				strategy:   &v1alpha1.SyncStrategy{Hook: &v1alpha1.SyncStrategyHook{Force: true}},
+				retryLimit: 5,
 			},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
@@ -1497,7 +1499,7 @@ func TestSyncApplication(t *testing.T) {
 					Source: &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git"},
 				},
 			},
-			opts:      progressiveSyncOptions{},
+			opts:      progressiveSyncOptions{retryLimit: 5},
 			revisions: []string{"abc123"},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
@@ -1534,7 +1536,7 @@ func TestSyncApplication(t *testing.T) {
 					},
 				},
 			},
-			opts:      progressiveSyncOptions{},
+			opts:      progressiveSyncOptions{retryLimit: 5},
 			revisions: []string{"abc123", "def456"},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
@@ -1571,6 +1573,60 @@ func TestSyncApplication(t *testing.T) {
 			t.Parallel()
 			result := syncApplication(tt.input, tt.opts, tt.revisions)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+type fakeSyncRetryLimit int64
+
+func (f fakeSyncRetryLimit) GetSyncRetryLimit() int64 {
+	return int64(f)
+}
+
+func TestSyncDesiredApplications_RetryLimit(t *testing.T) {
+	t.Parallel()
+	logCtx := log.NewEntry(log.New())
+	appSet := &v1alpha1.ApplicationSet{
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{Application: "app-default", Status: v1alpha1.ProgressiveSyncPending},
+				{Application: "app-own-retry", Status: v1alpha1.ProgressiveSyncPending},
+			},
+		},
+	}
+	desiredApplications := func() []v1alpha1.Application {
+		return []v1alpha1.Application{
+			{Name: "app-default"},
+			{
+				Name: "app-own-retry",
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{Retry: &v1alpha1.RetryStrategy{Limit: 2}},
+				},
+			},
+		}
+	}
+	appsToSync := map[string]bool{"app-default": true, "app-own-retry": true}
+
+	tests := []struct {
+		name           string
+		syncRetryLimit SyncRetryLimitGetter
+		expectedLimit  int64
+	}{
+		{name: "no setting uses the default limit", syncRetryLimit: nil, expectedLimit: 5},
+		{name: "configured limit", syncRetryLimit: fakeSyncRetryLimit(10), expectedLimit: 10},
+		{name: "configured no retries", syncRetryLimit: fakeSyncRetryLimit(0), expectedLimit: 0},
+		{name: "configured unlimited retries", syncRetryLimit: fakeSyncRetryLimit(-1), expectedLimit: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Manager{dependencies: testDeps{}, SyncRetryLimit: tt.syncRetryLimit}
+			result := m.SyncDesiredApplications(logCtx, appSet, appsToSync, desiredApplications())
+			require.Len(t, result, 2)
+			require.NotNil(t, result[0].Operation)
+			assert.Equal(t, tt.expectedLimit, result[0].Operation.Retry.Limit)
+			require.NotNil(t, result[1].Operation)
+			assert.Equal(t, int64(2), result[1].Operation.Retry.Limit, "an Application's own retry strategy takes precedence")
 		})
 	}
 }
