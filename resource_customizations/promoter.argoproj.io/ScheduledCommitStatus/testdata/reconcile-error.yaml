@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ScheduledCommitStatus
+metadata:
+  name: webservice-tier-1
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  key: promotion-window
+  promotionStrategyRef:
+    name: webservice-tier-1
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: ReconciliationError
+      message: "Reconciliation failed: PromotionStrategy not found"
+      observedGeneration: 1

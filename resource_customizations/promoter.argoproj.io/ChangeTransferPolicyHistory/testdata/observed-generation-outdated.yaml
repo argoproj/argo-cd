@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicyHistory
+metadata:
+  name: example-promotion-strategy-environment-dev-history
+  namespace: gitops-promoter
+  generation: 2
+spec:
+  gitRepositoryRef:
+    name: example-git-repository
+  activeBranch: environment/dev
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation succeeded
+      observedGeneration: 1

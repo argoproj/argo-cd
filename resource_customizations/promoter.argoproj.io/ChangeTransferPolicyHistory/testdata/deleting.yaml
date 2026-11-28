@@ -1,0 +1,10 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicyHistory
+metadata:
+  name: example-promotion-strategy-environment-dev-history
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  gitRepositoryRef:
+    name: example-git-repository
+  activeBranch: environment/dev

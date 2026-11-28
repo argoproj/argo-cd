@@ -1,0 +1,10 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: example-dag
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: example-promotion-strategy

@@ -1,0 +1,11 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ScheduledCommitStatus
+metadata:
+  name: webservice-tier-1
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  key: promotion-window
+  promotionStrategyRef:
+    name: webservice-tier-1
+  timezone: UTC

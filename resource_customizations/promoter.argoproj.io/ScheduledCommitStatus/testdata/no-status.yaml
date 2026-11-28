@@ -1,0 +1,12 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ScheduledCommitStatus
+metadata:
+  name: webservice-tier-1
+  namespace: gitops-promoter
+spec:
+  key: promotion-window
+  promotionStrategyRef:
+    name: webservice-tier-1
+  timezone: UTC
+  environments:
+    - branch: environment/development

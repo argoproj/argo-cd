@@ -1,0 +1,19 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: RestoreActiveCommit
+metadata:
+  name: restore-abcdef1234567890abcdef1234567890abcdef12
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  promotionStrategyRef:
+    name: example-promotion-strategy
+  branch: environment/production
+  sha: abcdef1234567890abcdef1234567890abcdef12
+  blockEnvironment: true
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation succeeded
+      observedGeneration: 1
