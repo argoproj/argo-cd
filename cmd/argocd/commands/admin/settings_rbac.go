@@ -197,7 +197,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				log.Fatalf("could not create k8s client: %v", err)
 			}
 
-			userPolicy, newDefaultRole, matchMode := getPolicy(ctx, policyFile, realClientset, namespace)
+			userPolicy, newDefaultRole, matchMode, caseInsensitiveSubjects := getPolicy(ctx, policyFile, realClientset, namespace)
 
 			// Use built-in policy as augmentation if requested
 			builtinPolicy := ""
@@ -217,7 +217,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				log.SetLevel(log.ErrorLevel)
 			}
 
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, caseInsensitiveSubjects, strict)
 			if res {
 				if !quiet {
 					fmt.Println("Yes")
@@ -290,7 +290,7 @@ argocd admin settings rbac validate --namespace argocd
 				log.Fatalf("could not create k8s client: %v", err)
 			}
 
-			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
+			userPolicy, _, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Print("Policy is valid.\n")
@@ -311,29 +311,30 @@ argocd admin settings rbac validate --namespace argocd
 
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
-func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
+func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string, caseInsensitiveSubjects bool) {
 	if policyFile != "" {
 		// load from file
-		userPolicy, defaultRole, matchMode = getPolicyFromFile(policyFile)
+		userPolicy, defaultRole, matchMode, caseInsensitiveSubjects = getPolicyFromFile(policyFile)
 	} else {
 		cm, err := getPolicyConfigMap(ctx, kubeClient, namespace)
 		if err != nil {
 			log.Fatalf("could not get configmap: %v", err)
 		}
-		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(cm)
+		userPolicy, defaultRole, matchMode, caseInsensitiveSubjects = getPolicyFromConfigMap(cm)
 	}
 
-	return userPolicy, defaultRole, matchMode
+	return userPolicy, defaultRole, matchMode, caseInsensitiveSubjects
 }
 
 // getPolicyFromFile loads an RBAC policy from the given path. The file may be
 // raw policy text or a serialized ConfigMap. If [os.ReadFile] fails, it calls
 // log.Fatalf (which exits the process) and does not return to the caller.
-func getPolicyFromFile(policyFile string) (string, string, string) {
+func getPolicyFromFile(policyFile string) (string, string, string, bool) {
 	var (
-		userPolicy  string
-		defaultRole string
-		matchMode   string
+		userPolicy              string
+		defaultRole             string
+		matchMode               string
+		caseInsensitiveSubjects bool
 	)
 
 	upol, err := os.ReadFile(policyFile)
@@ -348,14 +349,14 @@ func getPolicyFromFile(policyFile string) (string, string, string) {
 	if err != nil {
 		userPolicy = string(upol)
 	} else {
-		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
+		userPolicy, defaultRole, matchMode, caseInsensitiveSubjects = getPolicyFromConfigMap(upolCM)
 	}
 
-	return userPolicy, defaultRole, matchMode
+	return userPolicy, defaultRole, matchMode, caseInsensitiveSubjects
 }
 
 // Retrieve policy information from a ConfigMap
-func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
+func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string, bool) {
 	var (
 		defaultRole string
 		ok          bool
@@ -366,7 +367,7 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 		defaultRole = ""
 	}
 
-	return rbac.PolicyCSV(cm.Data), defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
+	return rbac.PolicyCSV(cm.Data), defaultRole, cm.Data[rbac.ConfigMapMatchModeKey], rbac.ParseCaseInsensitiveSubjects(cm.Data[rbac.ConfigMapCaseInsensitiveSubjectsKey])
 }
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
@@ -380,10 +381,11 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, caseInsensitiveSubjects, strict bool) bool {
 	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
+	enf.SetCaseInsensitiveSubjects(caseInsensitiveSubjects)
 	if builtinPolicy != "" {
 		if err := enf.SetBuiltinPolicy(builtinPolicy); err != nil {
 			log.Fatalf("could not set built-in policy: %v", err)
@@ -462,7 +464,8 @@ func isGroupSubject(subject string) bool {
 // policy, ignoring the default role (which is enforced independently of groups).
 func hasDirectGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) bool {
 	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
-	ok, err := casbinEnf.Enforce(subject, resource, action, subResource)
+	// the raw casbin call bypasses Enforcer.Enforce, so normalize the subject the same way it would
+	ok, err := casbinEnf.Enforce(enf.NormalizeSubject(casbinEnf, subject), resource, action, subResource)
 	return err == nil && ok
 }
 
@@ -475,6 +478,8 @@ func hasGroupBinding(enf *rbac.Enforcer, subject string) bool {
 		log.WithError(err).Warn("could not read grouping policy to check group binding")
 		return false
 	}
+	// grouping policies are stored normalized (lowercased when case-insensitive subjects are enabled)
+	subject = enf.NormalizeSubject(casbinEnf, subject)
 	for _, gp := range groupingPolicies {
 		if len(gp) > 0 && gp[0] == subject {
 			return true

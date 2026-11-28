@@ -427,6 +427,48 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 > For performance tuning of glob pattern matching, see the `server.glob.cache.size` config key in
 > [High Availability - argocd-server](high_availability.md#argocd-server).
 
+### Subject matching
+
+`policy.matchMode` only applies to the resource, action and object tokens. The subject (the user identifier,
+a group claim value, or a role such as `role:admin`) is always compared as a whole and, by default,
+case-sensitively: `User.Name@example.org` in an OIDC token does not match `user.name@example.org` in
+`policy.csv` or in the `groups` of an AppProject role.
+
+Email addresses are case-insensitive for most identity providers, and some providers return them with the
+letter case in which they were entered. To compare subjects case-insensitively, set
+`policy.caseInsensitiveSubjects` to `"true"` in `argocd-rbac-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |
+    g, user.name@example.org, role:admin
+  policy.caseInsensitiveSubjects: "true"
+  scopes: '[email, groups]'
+```
+
+When enabled, the subject of every `p` rule, both sides of every `g` binding (including those generated from
+AppProject roles), the default role and the subject of each request have their ASCII letters `A-Z` lowercased
+before matching. Only ASCII letters are folded: non-ASCII characters are compared exactly as written, so a
+subject containing look-alike characters (for example the Kelvin sign `U+212A`) can never match a subject
+written with a plain `k`. Folding also applies to role names, so `role:Admin` and `role:admin` refer to the
+same role. Resources, actions and objects are not affected and keep their case-sensitive glob or regex
+matching.
+
+> [!WARNING]
+> With this option enabled, subjects that differ only in letter case are treated as the same subject. Only
+> enable it when your identity provider guarantees that the claims you use as RBAC subjects (`sub`, `email`,
+> group names, ...) are unique regardless of case. If two different users or groups can have claim values that
+> differ only in case, one of them would receive the permissions of the other.
+
+The option is off by default, so existing policies keep their exact matching. Invalid values are treated as
+`"false"` and logged as a warning. `argocd admin settings rbac can` honours the setting when it reads a
+ConfigMap, either from the cluster or via `--policy-file`.
+
 ## Using SSO Users/Groups
 
 The `scopes` field controls which OIDC scopes to examine during RBAC enforcement (in addition to `sub` scope).
