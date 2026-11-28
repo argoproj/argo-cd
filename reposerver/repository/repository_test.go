@@ -313,6 +313,54 @@ func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
 	assert.NotNil(t, res)
 }
 
+func Test_GenerateManifest_KustomizeVersionBuildOptions(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "kustomization.yaml"), []byte("resources:\n- guestbook.yaml\n"), os.FileMode(0o600)))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "guestbook.yaml"), []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: guestbook\n"), os.FileMode(0o400)))
+
+	service := newService(t, tempDir)
+	newRequest := func(appName, versionBuildOptions string) apiclient.ManifestRequest {
+		return apiclient.ManifestRequest{
+			AppName: appName,
+			Repo:    &v1alpha1.Repository{},
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				BuildOptions: "--load-restrictor LoadRestrictionsNone",
+				Versions: []v1alpha1.KustomizeVersion{
+					{
+						Name:         "v9.9.9",
+						Path:         "kustomize",
+						BuildOptions: versionBuildOptions,
+					},
+				},
+			},
+			ApplicationSource: &v1alpha1.ApplicationSource{
+				Path: ".",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					Version: "v9.9.9",
+				},
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+	}
+
+	t.Run("version options replace global options", func(t *testing.T) {
+		q := newRequest("version-options", "--enable-helm")
+		res, err := service.GenerateManifest(t.Context(), &q)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"kustomize build . --enable-helm"}, res.Commands)
+	})
+
+	t.Run("version without options falls back to global options", func(t *testing.T) {
+		q := newRequest("global-options", "")
+		res, err := service.GenerateManifest(t.Context(), &q)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"kustomize build . --load-restrictor LoadRestrictionsNone"}, res.Commands)
+	})
+}
+
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 	t.Parallel()
 
