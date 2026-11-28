@@ -1366,6 +1366,42 @@ func TestSync_Replace(t *testing.T) {
 	}
 }
 
+func TestSync_DisableReplace(t *testing.T) {
+	testCases := []struct {
+		name        string
+		target      *unstructured.Unstructured
+		live        *unstructured.Unstructured
+		replace     bool
+		commandUsed string
+	}{
+		{"SyncReplace", testingutils.NewPod(), testingutils.NewPod(), true, "replace"},
+		{"SyncReplaceDisabledOnTarget", withDisableReplaceAnnotation(testingutils.NewPod()), testingutils.NewPod(), true, "apply"},
+		{"ReplaceOnLiveDisabledOnTarget", withDisableReplaceAnnotation(testingutils.NewPod()), withReplaceAnnotation(testingutils.NewPod()), false, "apply"},
+		{"SyncReplaceDisabledOnTargetLiveMissing", withDisableReplaceAnnotation(testingutils.NewPod()), nil, true, "apply"},
+		{"DisabledOnTargetWithoutSyncReplace", withDisableReplaceAnnotation(testingutils.NewPod()), testingutils.NewPod(), false, "apply"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithReplace(tc.replace))
+
+			tc.target.SetNamespace(testingutils.FakeArgoCDNamespace)
+			if tc.live != nil {
+				tc.live.SetNamespace(testingutils.FakeArgoCDNamespace)
+			}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{tc.live},
+				Target: []*unstructured.Unstructured{tc.target},
+			})
+
+			syncCtx.Sync(context.Background())
+
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
+		})
+	}
+}
+
 func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) {
 	// This test a race condition when Delete is called on an already deleted object
 	// LiveObj is set, but then the resource is deleted asynchronously in kubernetes

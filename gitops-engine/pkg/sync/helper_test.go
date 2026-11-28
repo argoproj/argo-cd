@@ -47,6 +47,11 @@ func withReplaceAnnotation(un *unstructured.Unstructured) *unstructured.Unstruct
 	return un
 }
 
+func withDisableReplaceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionDisableReplace})
+	return un
+}
+
 func withServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
 	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionServerSideApply})
 	return un
