@@ -3,9 +3,11 @@ package fixture
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	stderrors "errors"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -862,12 +864,41 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			return err
 		},
 		func() error {
+			oldLoginTarget := ""
+			restarts := false
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+				oldLoginTarget = ssoLoginTarget(cm.Data)
+				for _, k := range apiServerRestartKeys {
+					restarts = restarts || cm.Data[k] != ""
+				}
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
+			}
+			if oldLoginTarget != "" && IsLocal() {
+				// Removing the SSO config makes the API server restart itself. Wait for
+				// that before any request, or it fails with "connection refused".
+				// Only in local mode, which is what CI runs; remote mode is unchanged.
+				if err := WaitForAPIServerLoginIssuer(t, oldLoginTarget, false); err != nil {
+					return err
+				}
+			}
+			// The previous test may have switched to a non-admin user, so log in as admin again.
+			// The login runs here, after the wait, and not in parallel with it.
+			// A restart with no SSO redirect to watch (for example, only url changed)
+			// can still be underway, so retry the login until it gets through.
+			loginTimeout := time.Duration(0)
+			if restarts && IsLocal() {
+				loginTimeout = 2 * time.Minute
+			}
+			var loginErr error
+			if pollErr := pollUntil(t, loginTimeout, func() (bool, error) {
+				loginErr = LoginAs(adminUsername)
+				return loginErr == nil, nil
+			}, "admin login failed"); pollErr != nil {
+				return fmt.Errorf("%w: %w", pollErr, loginErr)
 			}
 			err = updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
@@ -895,10 +926,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return nil
 			}
 			return err
-		},
-		func() error {
-			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-			return LoginAs(adminUsername)
 		},
 		func() error {
 			// If /tmp/argocd-e2e-env exists restart app controller with no environment variables
@@ -1043,7 +1070,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			if err != nil {
 				return err
 			}
-			_, err = Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit")
+			// The test ID keeps this commit's SHA unique. Two tests starting in the same
+			// second otherwise produce the same SHA, and the repo-server then skips the
+			// fetch and never sees refs (such as tags) the new test adds.
+			_, err = Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit for "+state.id)
 			if err != nil {
 				return err
 			}
@@ -1442,6 +1472,97 @@ func RestartRepoServer(t *testing.T) {
 		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 		// wait longer to avoid error on s390x
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// oidcIssuer returns the issuer from an oidc.config value, or "" when there is none.
+func oidcIssuer(oidcConfig string) string {
+	var cfg struct {
+		Issuer string `json:"issuer"`
+	}
+	if yaml.Unmarshal([]byte(oidcConfig), &cfg) != nil {
+		return ""
+	}
+	return cfg.Issuer
+}
+
+// ssoLoginTarget returns where /auth/login redirects for the given argocd-cm data: the
+// OIDC issuer, or the url for Dex (which is served under it). "" means no redirect.
+// A dex.config change restarts the API server the same way an oidc.config change does.
+func ssoLoginTarget(data map[string]string) string {
+	if issuer := oidcIssuer(data["oidc.config"]); issuer != "" {
+		return issuer
+	}
+	if data["dex.config"] != "" && data["url"] != "" {
+		return data["url"]
+	}
+	return ""
+}
+
+// apiServerRestartKeys are the argocd-cm keys whose change makes the API server
+// restart itself in-process (see server.watchSettings).
+var apiServerRestartKeys = []string{"url", "additionalUrls", "oidc.config", "dex.config"}
+
+// WaitForAPIServerLoginIssuer waits until the API server answers /auth/login and its
+// redirect does (want=true) or does not (want=false) point at loginTarget.
+//
+// The API server builds its SSO login handler from the settings it started with. It
+// restarts itself in-process when oidc.config, dex.config or url in argocd-cm changes.
+// In local mode nothing else signals that restart, so this tells a test that the
+// running server uses the new config. Requests made during the restart fail with
+// "connection refused".
+func WaitForAPIServerLoginIssuer(t *testing.T, loginTarget string, want bool) error {
+	t.Helper()
+	scheme := "https"
+	if IsPlainText() {
+		scheme = "http"
+	}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // e2e API server uses a self-signed certificate
+		},
+	}
+	defer client.CloseIdleConnections()
+	loginURL := scheme + "://" + GetApiServerAddress() + common.LoginEndpoint
+	// A poll loop that returns an error, not require.Eventually: this also runs inside
+	// RunFunctionsInParallelAndCheckErrors goroutines, where t.FailNow must not be called.
+	return pollUntil(t, 2*time.Minute, func() (bool, error) {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, loginURL, http.NoBody)
+		if err != nil {
+			return false, err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return false, nil
+		}
+		_ = resp.Body.Close()
+		// Any reply counts, including an error status. Without SSO the server doesn't
+		// register /auth/login at all, so only the redirect tells the two servers apart.
+		return strings.HasPrefix(resp.Header.Get("Location"), loginTarget) == want, nil
+	}, "API server did not restart with the new SSO config")
+}
+
+// pollUntil calls cond every 200ms until it reports true or returns an error, for at
+// most timeout. It is safe to call from goroutines other than the test's own.
+func pollUntil(t *testing.T, timeout time.Duration, cond func() (bool, error), msg string) error {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		ok, err := cond()
+		if err != nil {
+			return err
+		}
+		if ok {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s after %s", msg, timeout)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
