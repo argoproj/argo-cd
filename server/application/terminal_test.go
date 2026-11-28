@@ -1,23 +1,105 @@
 package application
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	utilexec "k8s.io/client-go/util/exec"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
+
+func TestStartProcessWithShells(t *testing.T) {
+	t.Parallel()
+
+	t.Run("does not start a canceled session", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		err := startProcessWithShells(ctx, nil, nil, "default", "pod", "container", []string{"bash", "sh"}, nil)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	for _, testCase := range []struct {
+		name            string
+		cancelOnRequest bool
+	}{
+		{name: "does not fall back after transport failure"},
+		{name: "stops after session cancellation", cancelOnRequest: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+
+			var bashRequests atomic.Int32
+			var shRequests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				commands := r.URL.Query()["command"]
+				if len(commands) > 0 {
+					switch commands[0] {
+					case "bash":
+						bashRequests.Add(1)
+					case "sh":
+						shRequests.Add(1)
+					}
+				}
+				if testCase.cancelOnRequest {
+					cancel()
+				}
+				http.Error(w, "exec failed", http.StatusInternalServerError)
+			}))
+			defer server.Close()
+
+			cfg := &rest.Config{Host: server.URL}
+			client, err := kubernetes.NewForConfig(cfg)
+			require.NoError(t, err)
+
+			err = startProcessWithShells(ctx, client, cfg, "default", "pod", "container", []string{"bash", "sh"}, &terminalSession{ctx: ctx})
+			require.Error(t, err)
+			assert.Positive(t, bashRequests.Load())
+			assert.Zero(t, shRequests.Load())
+		})
+	}
+}
+
+func TestIsShellInitializationError(t *testing.T) {
+	t.Parallel()
+	for _, testCase := range []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "command not found", err: utilexec.CodeExitError{Err: errors.New("not found"), Code: 127}, expected: true},
+		{name: "command not executable", err: utilexec.CodeExitError{Err: errors.New("not executable"), Code: 126}, expected: true},
+		{name: "command exited", err: utilexec.CodeExitError{Err: errors.New("exited"), Code: 1}},
+		{name: "transport failure", err: errors.New("connection reset")},
+		{name: "no error"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCase.expected, isShellInitializationError(testCase.err))
+		})
+	}
+}
 
 func TestPodExists(t *testing.T) {
 	for _, tcase := range []struct {

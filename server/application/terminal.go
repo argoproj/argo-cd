@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/netip"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	utilexec "k8s.io/client-go/util/exec"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/streaming/pkg/httpstream"
 
@@ -245,18 +247,11 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// load balancers which may close an idle connection after some period of time
 	go session.StartKeepalives(time.Second * 5)
 
+	shells := s.allowedShells
 	if slices.Contains(s.allowedShells, shell) {
-		cmd := []string{shell}
-		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
-	} else {
-		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
-		for _, testShell := range s.allowedShells {
-			cmd := []string{testShell}
-			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
-				break
-			}
-		}
+		shells = []string{shell}
 	}
+	err = startProcessWithShells(session.ctx, kubeClientset, config, namespace, podName, container, shells, session)
 
 	if err != nil {
 		http.Error(w, "Failed to exec container", http.StatusBadRequest)
@@ -311,6 +306,25 @@ type TerminalMessage struct {
 // TerminalCommand is the struct for websocket commands,For example you need ask client to reconnect
 type TerminalCommand struct {
 	Code int
+}
+
+// startProcessWithShells tries the next shell only after a shell initialization error.
+func startProcessWithShells(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, shells []string, ptyHandler PtyHandler) error {
+	var err error
+	for _, shell := range shells {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err = startProcess(ctx, k8sClient, cfg, namespace, podName, containerName, []string{shell}, ptyHandler); err == nil || ctx.Err() != nil || !isShellInitializationError(err) {
+			return err
+		}
+	}
+	return err
+}
+
+func isShellInitializationError(err error) bool {
+	var exitErr utilexec.ExitError
+	return errors.As(err, &exitErr) && (exitErr.ExitStatus() == 126 || exitErr.ExitStatus() == 127)
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)

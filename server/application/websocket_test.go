@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -56,6 +57,122 @@ func newEnforcer() *rbac.Enforcer {
 func reconnect(w http.ResponseWriter, r *http.Request) {
 	ts := newTestTerminalSession(w, r)
 	_, _ = ts.reconnect()
+}
+
+func newTerminalWebSocketConnection(t *testing.T) *websocket.Conn {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _, _ = conn.ReadMessage()
+	}))
+	t.Cleanup(server.Close)
+
+	wsConn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = wsConn.Close() })
+	return wsConn
+}
+
+func TestNewTerminalSessionCloseCancelsContext(t *testing.T) {
+	t.Parallel()
+	sessions := make(chan *terminalSession, 1)
+	errs := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: "header.payload.signature"})
+		session, err := newTerminalSession(r.Context(), w, r, nil, nil, "", nil)
+		if err != nil {
+			errs <- err
+			return
+		}
+		sessions <- session
+	}))
+	defer server.Close()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
+	require.NoError(t, err)
+	defer wsConn.Close()
+
+	var session *terminalSession
+	select {
+	case session = <-sessions:
+	case err := <-errs:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("terminal session was not created")
+	}
+	require.NoError(t, session.Close())
+	assert.ErrorIs(t, session.ctx.Err(), context.Canceled)
+}
+
+func TestTerminalSessionErrorsCancelContext(t *testing.T) {
+	t.Parallel()
+	for _, testCase := range []struct {
+		name string
+		fail func(*terminalSession) error
+	}{
+		{
+			name: "read",
+			fail: func(session *terminalSession) error {
+				_, err := session.Read(make([]byte, 1))
+				return err
+			},
+		},
+		{name: "ping", fail: (*terminalSession).Ping},
+		{
+			name: "write",
+			fail: func(session *terminalSession) error {
+				_, err := session.Write([]byte("output"))
+				return err
+			},
+		},
+		{
+			name: "reconnect",
+			fail: func(session *terminalSession) error {
+				_, err := session.reconnect()
+				return err
+			},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			wsConn := newTerminalWebSocketConnection(t)
+			require.NoError(t, wsConn.Close())
+
+			session := terminalSession{
+				ctx:          ctx,
+				cancel:       cancel,
+				wsConn:       wsConn,
+				terminalOpts: &TerminalOptions{DisableAuth: true},
+			}
+			require.Error(t, testCase.fail(&session))
+			assert.ErrorIs(t, ctx.Err(), context.Canceled)
+		})
+	}
+}
+
+func TestTerminalSessionDoneCancelsContext(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	session := terminalSession{
+		ctx:      ctx,
+		cancel:   cancel,
+		doneChan: make(chan struct{}),
+	}
+
+	session.Done()
+
+	assert.ErrorIs(t, ctx.Err(), context.Canceled)
+	select {
+	case <-session.doneChan:
+	default:
+		t.Fatal("done channel was not closed")
+	}
 }
 
 func TestReconnect(t *testing.T) {
