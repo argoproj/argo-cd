@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -2312,6 +2315,146 @@ func TestMaxPendingResourcesFlag(t *testing.T) {
 			require.Error(t, command.ParseFlags([]string{"--max-pending-resources", "-1"}))
 		})
 	}
+}
+
+func TestMaxPendingResourcesCommandCallSites(t *testing.T) {
+	tests := []struct {
+		name       string
+		newCommand func(*argocdclient.ClientOptions) *cobra.Command
+		verify     func(*testing.T, *commandTestApplicationServer)
+	}{
+		{
+			name:       "wait",
+			newCommand: NewApplicationWaitCommand,
+		},
+		{
+			name:       "sync",
+			newCommand: NewApplicationSyncCommand,
+			verify: func(t *testing.T, server *commandTestApplicationServer) {
+				t.Helper()
+				assert.Equal(t, 1, server.syncCallCount())
+			},
+		},
+		{
+			name:       "rollback",
+			newCommand: NewApplicationRollbackCommand,
+			verify: func(t *testing.T, server *commandTestApplicationServer) {
+				t.Helper()
+				assert.Equal(t, 1, server.rollbackCallCount())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientOpts, server := newCommandTestServer(t)
+			command := tt.newCommand(clientOpts)
+			command.SilenceErrors = true
+			command.SilenceUsage = true
+			command.SetContext(t.Context())
+			command.SetArgs([]string{"test", "--output", "json", "--max-pending-resources", "3"})
+			_, err := captureOutput(command.Execute)
+			require.NoError(t, err)
+			if tt.verify != nil {
+				tt.verify(t, server)
+			}
+		})
+	}
+}
+
+type commandTestApplicationServer struct {
+	applicationpkg.UnimplementedApplicationServiceServer
+	app           *v1alpha1.Application
+	mu            sync.Mutex
+	syncCalls     int
+	rollbackCalls int
+}
+
+func newCommandTestServer(t *testing.T) (*argocdclient.ClientOptions, *commandTestApplicationServer) {
+	t.Helper()
+	listenConfig := net.ListenConfig{}
+	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	objectMeta := metav1.ObjectMeta{Name: "test", Namespace: "argocd"}
+	finishedAt := metav1.Now()
+	server := &commandTestApplicationServer{
+		app: &v1alpha1.Application{
+			ObjectMeta: objectMeta,
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+				SyncPolicy:  &v1alpha1.SyncPolicy{},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{
+					Phase:      synccommon.OperationSucceeded,
+					SyncResult: &v1alpha1.SyncOperationResult{},
+					FinishedAt: &finishedAt,
+				},
+				ReconciledAt: &finishedAt,
+				History: []v1alpha1.RevisionHistory{
+					{ID: 1},
+					{ID: 2},
+				},
+			},
+		},
+	}
+
+	grpcServer := grpc.NewServer()
+	applicationpkg.RegisterApplicationServiceServer(grpcServer, server)
+	settingspkg.RegisterSettingsServiceServer(grpcServer, &commandTestSettingsServer{})
+	versionpkg.RegisterVersionServiceServer(grpcServer, &fakeVersionServer{})
+	go func() { _ = grpcServer.Serve(listener) }()
+	t.Cleanup(grpcServer.Stop)
+
+	return &argocdclient.ClientOptions{
+		ConfigPath: filepath.Join(t.TempDir(), "config"),
+		ServerAddr: listener.Addr().String(),
+		PlainText:  true,
+		AuthToken:  "test-token",
+	}, server
+}
+
+type commandTestSettingsServer struct {
+	settingspkg.UnimplementedSettingsServiceServer
+}
+
+func (s *commandTestSettingsServer) Get(_ context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+	return &settingspkg.Settings{URL: "http://localhost:8080"}, nil
+}
+
+func (s *commandTestApplicationServer) Get(_ context.Context, _ *applicationpkg.ApplicationQuery) (*v1alpha1.Application, error) {
+	return s.app.DeepCopy(), nil
+}
+
+func (s *commandTestApplicationServer) Sync(_ context.Context, _ *applicationpkg.ApplicationSyncRequest) (*v1alpha1.Application, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.syncCalls++
+	return s.app.DeepCopy(), nil
+}
+
+func (s *commandTestApplicationServer) Rollback(_ context.Context, _ *applicationpkg.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rollbackCalls++
+	return s.app.DeepCopy(), nil
+}
+
+func (s *commandTestApplicationServer) syncCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.syncCalls
+}
+
+func (s *commandTestApplicationServer) rollbackCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rollbackCalls
 }
 
 func TestFormatPendingResources(t *testing.T) {
