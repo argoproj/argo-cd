@@ -73,6 +73,7 @@ const (
 	revisionAndSpecChangedMsg         = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg                = "Application has pending changes, setting status to Waiting"
 	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
+	applicationOutOfSyncMsg           = "Application is OutOfSync for the current target revision, setting status to Waiting"
 )
 
 var defaultPreservedFinalizers = []string{
