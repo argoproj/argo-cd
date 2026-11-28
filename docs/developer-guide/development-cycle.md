@@ -31,6 +31,13 @@ As build dependencies change over time, you have to synchronize your development
 
 These commands run `pnpm install --frozen-lockfile` command, which only brings package versions that are defined in the `pnpm-lock.yaml` file without trying to resolve and download new package versions.
 
+> [!NOTE]
+> If an older build left root-owned files or directories in `ui/dist`, restore their ownership once before rebuilding:
+>
+> ```shell
+> sudo chown -R "$(id -u):$(id -g)" ui/dist
+> ```
+
 ### Updating UI build dependencies
 
 If you need to add new UI dependencies or update existing ones you need 
