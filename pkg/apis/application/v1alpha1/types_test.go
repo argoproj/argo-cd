@@ -37,7 +37,7 @@ import (
 
 func TestAppProject_RolePoliciesString(t *testing.T) {
 	proj := AppProject{
-		Name: "user1",
+		ObjectMeta: metav1.ObjectMeta{Name: "user1"},
 		Spec: AppProjectSpec{
 			Roles: []ProjectRole{
 				{
