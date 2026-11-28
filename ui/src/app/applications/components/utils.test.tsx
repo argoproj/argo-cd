@@ -11,6 +11,7 @@ import {
     State,
     SyncStatuses
 } from '../../shared/models';
+import {formatTimestamp} from '../../shared/components/timestamp';
 import * as jsYaml from 'js-yaml';
 import {
     appRBACName,
@@ -1352,6 +1353,12 @@ describe('formatCreationTimestamp', () => {
         expect(html).toMatch(/2020/);
         expect(html).toMatch(/ago/i);
         expect(html).not.toContain('<time');
+    });
+
+    it('formats the creation time in the browser locale', () => {
+        const date = '2026-09-03T12:00:00Z';
+        const html = renderMarkup(formatCreationTimestamp(date) as React.ReactElement);
+        expect(html).toContain(formatTimestamp(date));
     });
 });
 
