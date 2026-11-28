@@ -361,6 +361,11 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			if err != nil {
 				return err
 			}
+			// The list replaced the events the previous watch didn't deliver, so
+			// handle the CRDs it may have brought in.
+			if kube.IsCRDGroupVersionKind(api.GroupKind.WithVersion(api.GroupVersionResource.Version)) {
+				c.handleCRDRelist(e)
+			}
 		}
 
 		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
