@@ -449,3 +449,22 @@ resume   false
 		assert.Contains(t, out, "false")
 	})
 }
+
+func TestCreateSettingsManager_EmptyFiles(t *testing.T) {
+	emptyCM := t.TempDir() + "/empty-cm.yaml"
+	err := os.WriteFile(emptyCM, []byte("# comment only\n"), 0o600)
+	require.NoError(t, err)
+
+	emptySecret := t.TempDir() + "/empty-secret.yaml"
+	err = os.WriteFile(emptySecret, []byte(""), 0o600)
+	require.NoError(t, err)
+
+	opts := &settingsOpts{
+		argocdCMPath:     emptyCM,
+		argocdSecretPath: emptySecret,
+	}
+
+	mgr, err := opts.createSettingsManager(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, mgr)
+}

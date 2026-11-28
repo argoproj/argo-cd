@@ -345,7 +345,7 @@ func getPolicyFromFile(policyFile string) (string, string, string) {
 	// assume config map input. Otherwise, we treat it as
 	var upolCM *corev1.ConfigMap
 	err = yaml.Unmarshal(upol, &upolCM)
-	if err != nil {
+	if err != nil || upolCM == nil {
 		userPolicy = string(upol)
 	} else {
 		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
@@ -356,6 +356,9 @@ func getPolicyFromFile(policyFile string) (string, string, string) {
 
 // Retrieve policy information from a ConfigMap
 func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
+	if cm == nil || cm.Data == nil {
+		return "", "", ""
+	}
 	var (
 		defaultRole string
 		ok          bool

@@ -1,6 +1,10 @@
 package admin
 
 import (
+	"bytes"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	clustermocks "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
@@ -186,4 +190,27 @@ app3
 >       repoURL: ""
 >   status: OutOfSync
 `, logs)
+}
+
+func TestNewGenAppSpecCommand_EmptyFile(t *testing.T) {
+	if emptyFile := os.Getenv("TEST_EMPTY_APP_FILE"); emptyFile != "" {
+		cmd := NewGenAppSpecCommand()
+		cmd.SetArgs([]string{"--file", emptyFile})
+		_ = cmd.Execute()
+		return
+	}
+
+	emptyFile := filepath.Join(t.TempDir(), "empty.yaml")
+	require.NoError(t, os.WriteFile(emptyFile, []byte(""), 0o600))
+
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestNewGenAppSpecCommand_EmptyFile$")
+	cmd.Env = append(os.Environ(), "TEST_EMPTY_APP_FILE="+emptyFile)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.False(t, exitErr.Success())
+	assert.Contains(t, stderr.String(), "failed to generate spec, no application found")
 }

@@ -402,3 +402,27 @@ func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
 		assert.Empty(t, lastWarning())
 	})
 }
+
+func TestGetPolicyFromFile_EmptyOrCommentFile(t *testing.T) {
+	t.Run("empty file does not panic", func(t *testing.T) {
+		emptyFile := t.TempDir() + "/empty.csv"
+		err := os.WriteFile(emptyFile, []byte(""), 0o600)
+		require.NoError(t, err)
+
+		policy, defaultRole, matchMode := getPolicyFromFile(emptyFile)
+		assert.Empty(t, policy)
+		assert.Empty(t, defaultRole)
+		assert.Empty(t, matchMode)
+	})
+
+	t.Run("comment only file does not panic", func(t *testing.T) {
+		commentFile := t.TempDir() + "/comment.csv"
+		err := os.WriteFile(commentFile, []byte("# this is a comment\n# another comment\n"), 0o600)
+		require.NoError(t, err)
+
+		policy, defaultRole, matchMode := getPolicyFromFile(commentFile)
+		assert.Equal(t, "# this is a comment\n# another comment\n", policy)
+		assert.Empty(t, defaultRole)
+		assert.Empty(t, matchMode)
+	})
+}
