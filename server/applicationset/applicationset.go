@@ -53,28 +53,29 @@ import (
 )
 
 type Server struct {
-	ns                       string
-	db                       db.ArgoDB
-	enf                      *rbac.Enforcer
-	k8sClient                kubernetes.Interface
-	dynamicClient            dynamic.Interface
-	client                   client.Client
-	repoClientSet            repoapiclient.Clientset
-	appclientset             appclientset.Interface
-	appLister                applisters.ApplicationLister
-	appsetInformer           cache.SharedIndexInformer
-	appsetLister             applisters.ApplicationSetLister
-	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
-	auditLogger              *argo.AuditLogger
-	projectLock              sync.KeyLock
-	enabledNamespaces        []string
-	clusterInformer          *settings.ClusterInformer
-	GitSubmoduleEnabled      bool
-	EnableNewGitFileGlobbing bool
-	ScmRootCAPath            string
-	AllowedScmProviders      []string
-	EnableScmProviders       bool
-	EnableGitHubAPIMetrics   bool
+	ns                                 string
+	db                                 db.ArgoDB
+	enf                                *rbac.Enforcer
+	k8sClient                          kubernetes.Interface
+	dynamicClient                      dynamic.Interface
+	client                             client.Client
+	repoClientSet                      repoapiclient.Clientset
+	appclientset                       appclientset.Interface
+	appLister                          applisters.ApplicationLister
+	appsetInformer                     cache.SharedIndexInformer
+	appsetLister                       applisters.ApplicationSetLister
+	appSetBroadcaster                  broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
+	auditLogger                        *argo.AuditLogger
+	projectLock                        sync.KeyLock
+	enabledNamespaces                  []string
+	clusterInformer                    *settings.ClusterInformer
+	GitSubmoduleEnabled                bool
+	EnableNewGitFileGlobbing           bool
+	EnableSCMProviderFilterORSemantics bool
+	ScmRootCAPath                      string
+	AllowedScmProviders                []string
+	EnableScmProviders                 bool
+	EnableGitHubAPIMetrics             bool
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
@@ -186,6 +187,7 @@ func NewServer(
 	enabledNamespaces []string,
 	gitSubmoduleEnabled bool,
 	enableNewGitFileGlobbing bool,
+	enableSCMProviderFilterORSemantics bool,
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
@@ -208,28 +210,29 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                       namespace,
-		db:                       db,
-		enf:                      enf,
-		dynamicClient:            dynamicClientset,
-		client:                   kubeControllerClientset,
-		k8sClient:                kubeclientset,
-		repoClientSet:            repoClientSet,
-		appclientset:             appclientset,
-		appLister:                appLister,
-		appsetInformer:           appsetInformer,
-		appsetLister:             appsetLister,
-		appSetBroadcaster:        appSetBroadcaster,
-		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
-		enabledNamespaces:        enabledNamespaces,
-		clusterInformer:          clusterInformer,
-		GitSubmoduleEnabled:      gitSubmoduleEnabled,
-		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
-		ScmRootCAPath:            scmRootCAPath,
-		AllowedScmProviders:      allowedScmProviders,
-		EnableScmProviders:       enableScmProviders,
-		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+		ns:                                 namespace,
+		db:                                 db,
+		enf:                                enf,
+		dynamicClient:                      dynamicClientset,
+		client:                             kubeControllerClientset,
+		k8sClient:                          kubeclientset,
+		repoClientSet:                      repoClientSet,
+		appclientset:                       appclientset,
+		appLister:                          appLister,
+		appsetInformer:                     appsetInformer,
+		appsetLister:                       appsetLister,
+		appSetBroadcaster:                  appSetBroadcaster,
+		projectLock:                        projectLock,
+		auditLogger:                        argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
+		enabledNamespaces:                  enabledNamespaces,
+		clusterInformer:                    clusterInformer,
+		GitSubmoduleEnabled:                gitSubmoduleEnabled,
+		EnableNewGitFileGlobbing:           enableNewGitFileGlobbing,
+		EnableSCMProviderFilterORSemantics: enableSCMProviderFilterORSemantics,
+		ScmRootCAPath:                      scmRootCAPath,
+		AllowedScmProviders:                allowedScmProviders,
+		EnableScmProviders:                 enableScmProviders,
+		EnableGitHubAPIMetrics:             enableGitHubAPIMetrics,
 	}
 	return s
 }
@@ -370,7 +373,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true, generators.WithSCMProviderFilterORSemantics(s.EnableSCMProviderFilterORSemantics))
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
 
