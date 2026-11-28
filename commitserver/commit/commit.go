@@ -159,21 +159,17 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 
 	/* git note changes
-	1. Get the git note
-	2. If found, short-circuit, log a warn and return
-	3. If not, get the last manifest from git  for every path, compare it with the hydrated manifest
-	3a. If manifest has no changes, continue.. no need to commit it
-	3b. Else, hydrate the manifest.
-	3c. Push the updated note
+	1. Get the git note to check whether this dry SHA is already recorded on the current hydrated commit
+	2. Get the last manifest from git for every path, compare it with the hydrated manifest
+	2a. If no manifest changed, don't commit; add the note only if it isn't already recorded
+	2b. Else, commit the manifests and push the updated note
 	*/
 	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
-	// short-circuit if already hydrated
 	if isHydrated {
 		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
-		return "", hydratedSha, nil
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -182,12 +178,13 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 	if !shouldCommit {
-		// Manifests did not change, so we don't need to create a new commit.
-		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
-		logCtx.Debug("Adding commit note")
-		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		// Manifests did not change, so no new commit is needed; only add the note if it isn't already there.
+		if !isHydrated {
+			logCtx.Debug("Adding commit note")
+			err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to add commit note: %w", err)
+			}
 		}
 		return "", hydratedSha, nil
 	}
