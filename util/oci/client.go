@@ -56,6 +56,9 @@ const (
 	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
 )
 
+// URLPrefix is the scheme prefix that identifies an OCI registry URL.
+const URLPrefix = "oci://"
+
 var _ Client = &nativeOCIClient{}
 
 type tagsCache interface {
@@ -129,7 +132,7 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
-	ociRepo := strings.TrimPrefix(repoURL, "oci://")
+	ociRepo := strings.TrimPrefix(repoURL, URLPrefix)
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
@@ -360,6 +363,8 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 	}
 	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, isHelmChart)
 	if err != nil {
+		// Nothing owns the directory on failure, so drop whatever was already extracted into it.
+		_ = os.RemoveAll(manifestsDir)
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
 
