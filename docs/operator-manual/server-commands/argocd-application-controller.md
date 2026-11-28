@@ -16,7 +16,7 @@ argocd-application-controller [flags]
 
 ```
       --app-hard-resync int                                         Time period in seconds for application hard resync.
-      --app-resync int                                              Time period in seconds for application resync. (default 120)
+      --app-resync int                                              Time period in seconds for application resync. DEPRECATED: use timeout.reconciliation in the argocd-cm ConfigMap instead. (default 120)
       --app-resync-jitter int                                       Maximum time period in seconds to add as a delay jitter for application resync. (default 60)
       --app-state-cache-expiration duration                         Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                              List of additional namespaces that applications are allowed to be reconciled from
