@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ var upgrader = func() websocket.Upgrader {
 // terminalSession implements PtyHandler
 type terminalSession struct {
 	ctx            context.Context
+	cancel         context.CancelFunc
 	wsConn         *websocket.Conn
 	sizeChan       chan remotecommand.TerminalSize
 	doneChan       chan struct{}
@@ -85,8 +87,10 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithCancel(ctx)
 	session := &terminalSession{
 		ctx:            ctx,
+		cancel:         cancel,
 		wsConn:         conn,
 		sizeChan:       make(chan remotecommand.TerminalSize),
 		doneChan:       make(chan struct{}),
@@ -98,8 +102,15 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	return session, nil
 }
 
+func (t *terminalSession) cancelContext() {
+	if t.cancel != nil {
+		t.cancel()
+	}
+}
+
 // Done close the done channel.
 func (t *terminalSession) Done() {
+	t.cancelContext()
 	close(t.doneChan)
 }
 
@@ -116,6 +127,8 @@ func (t *terminalSession) StartKeepalives(dur time.Duration) {
 			}
 		case <-t.doneChan:
 			return
+		case <-t.ctx.Done():
+			return
 		}
 	}
 }
@@ -127,11 +140,18 @@ func (t *terminalSession) Next() *remotecommand.TerminalSize {
 		return &size
 	case <-t.doneChan:
 		return nil
+	case <-t.ctx.Done():
+		return nil
 	}
 }
 
 // reconnect send reconnect code to client and ask them init new ws session
-func (t *terminalSession) reconnect() (int, error) {
+func (t *terminalSession) reconnect() (n int, err error) {
+	defer func() {
+		if err != nil {
+			t.cancelContext()
+		}
+	}()
 	reconnectCommand, _ := json.Marshal(TerminalCommand{
 		Code: ReconnectCode,
 	})
@@ -141,7 +161,7 @@ func (t *terminalSession) reconnect() (int, error) {
 	})
 	t.writeLock.Lock()
 	defer t.writeLock.Unlock()
-	err := t.wsConn.WriteMessage(websocket.TextMessage, reconnectMessage)
+	err = t.wsConn.WriteMessage(websocket.TextMessage, reconnectMessage)
 	if err != nil {
 		log.Errorf("write message err: %v", err)
 		return 0, err
@@ -199,7 +219,12 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 }
 
 // Read called in a loop from remote command as long as the process is running
-func (t *terminalSession) Read(p []byte) (int, error) {
+func (t *terminalSession) Read(p []byte) (n int, err error) {
+	defer func() {
+		if err != nil {
+			t.cancelContext()
+		}
+	}()
 	code, err := t.performValidationsAndReconnect(p)
 	if err != nil {
 		return code, err
@@ -225,8 +250,14 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	case "stdin":
 		return copy(p, msg.Data), nil
 	case "resize":
-		t.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}
-		return 0, nil
+		select {
+		case t.sizeChan <- remotecommand.TerminalSize{Width: msg.Cols, Height: msg.Rows}:
+			return 0, nil
+		case <-t.ctx.Done():
+			return copy(p, EndOfTransmission), t.ctx.Err()
+		case <-t.doneChan:
+			return copy(p, EndOfTransmission), io.EOF
+		}
 	default:
 		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
 	}
@@ -239,6 +270,7 @@ func (t *terminalSession) Ping() error {
 	t.writeLock.Unlock()
 	if err != nil {
 		log.Errorf("ping message err: %v", err)
+		t.cancelContext()
 	}
 	return err
 }
@@ -258,6 +290,7 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 	t.writeLock.Unlock()
 	if err != nil {
 		log.Errorf("write message err: %v", err)
+		t.cancelContext()
 		return 0, err
 	}
 	return len(p), nil
@@ -265,5 +298,6 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 
 // Close closes websocket connection
 func (t *terminalSession) Close() error {
+	t.cancelContext()
 	return t.wsConn.Close()
 }
