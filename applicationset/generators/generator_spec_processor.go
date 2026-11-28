@@ -28,14 +28,6 @@ type TransformResult struct {
 
 // Transform a spec generator to list of paramSets and a template
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]any, client client.Client) ([]TransformResult, error) {
-	// This is a custom version of the `LabelSelectorAsSelector` that is in k8s.io/apimachinery. This has been copied
-	// verbatim from that package, with the difference that we do not have any restrictions on label values. This is done
-	// so that, among other things, we can match on cluster urls.
-	selector, err := utils.LabelSelectorAsSelector(requestedGenerator.Selector)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing label selector: %w", err)
-	}
-
 	res := []TransformResult{}
 	var firstError error
 	interpolatedGenerator := requestedGenerator.DeepCopy()
@@ -65,6 +57,15 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 		}
+		// The selector is parsed from the interpolated generator, so that the second generator of a
+		// matrix can use the parameters of the first one in it.
+		// This is a custom version of the `LabelSelectorAsSelector` that is in k8s.io/apimachinery. This has been copied
+		// verbatim from that package, with the difference that we do not have any restrictions on label values. This is done
+		// so that, among other things, we can match on cluster urls.
+		selector, err := utils.LabelSelectorAsSelector(interpolatedGenerator.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing label selector: %w", err)
+		}
 		params, err = g.GenerateParams(interpolatedGenerator, appSet, client)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
@@ -86,7 +87,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 
-			if requestedGenerator.Selector != nil && !selector.Matches(labels.Set(flatParam)) {
+			if interpolatedGenerator.Selector != nil && !selector.Matches(labels.Set(flatParam)) {
 				continue
 			}
 			filterParams = append(filterParams, param)
