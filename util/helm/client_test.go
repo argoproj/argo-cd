@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math"
 	"net/http"
@@ -1017,4 +1019,34 @@ version: %s
 	require.NoError(t, tarWriter.Close())
 	require.NoError(t, gzipWriter.Close())
 	return archive.Bytes()
+}
+
+func TestNewTLSConfig_RepositoryCAPreservesSystemTrustStore(t *testing.T) {
+	t.Parallel()
+
+	systemPool, err := x509.SystemCertPool()
+	if err != nil || systemPool == nil {
+		t.Skip("system certificate pool is not available")
+	}
+	//nolint:staticcheck // Subjects is the only way to inspect which roots a cert pool contains.
+	if len(systemPool.Subjects()) == 0 {
+		t.Skip("system certificate pool is empty")
+	}
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+
+	caPath := filepath.Join(t.TempDir(), "ca.crt")
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	require.NoError(t, os.WriteFile(caPath, caPEM, 0o600))
+
+	tlsConfig, err := newTLSConfig(HelmCreds{CAPath: caPath})
+	require.NoError(t, err)
+	require.NotNil(t, tlsConfig.RootCAs)
+
+	//nolint:staticcheck // Subjects is the only way to inspect which roots a cert pool contains.
+	subjects := tlsConfig.RootCAs.Subjects()
+	assert.Contains(t, subjects, server.Certificate().RawSubject, "the repository CA must be trusted")
+	//nolint:staticcheck // Subjects is the only way to inspect which roots a cert pool contains.
+	assert.Len(t, subjects, len(systemPool.Subjects())+1, "the repository CA must be added to the system trust store, not replace it")
 }
