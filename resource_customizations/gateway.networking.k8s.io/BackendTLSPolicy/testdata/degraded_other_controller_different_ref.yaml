@@ -1,0 +1,46 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: missing-service
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # A different controller accepted a DIFFERENT target. This acceptance says
+  # nothing about the rejected target below, so it must not suppress the
+  # TargetNotFound rejection for missing-service.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: other-service
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: BackendTLSPolicy is accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: istio.io/mesh-controller
+  # The responsible controller genuinely could not resolve this target and no
+  # controller accepted this same ancestorRef, so the rejection is a real
+  # failure and must degrade the resource under the ancestorRef-scoped skip.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: missing-service
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'Service "missing-service" not found'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
