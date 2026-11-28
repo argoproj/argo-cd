@@ -436,6 +436,50 @@ func TestNewClient_ReturnsErrorForMalformedHeader(t *testing.T) {
 	require.ErrorContains(t, err, "additional headers must be colon(:)-separated: no-colon")
 }
 
+func TestCheckServerAddr(t *testing.T) {
+	tests := []struct {
+		addr    string
+		wantErr string // empty when the address is accepted
+	}{
+		{addr: "https://argocd.example.com", wantErr: `remove the "https://" scheme`},
+		{addr: "https://localhost:8080", wantErr: `remove the "https://" scheme`},
+		{addr: "http://argocd.example.com:8080", wantErr: `remove the "http://" scheme`},
+		{addr: "HTTPS://Host", wantErr: `remove the "HTTPS://" scheme`},
+		{addr: "argocd.example.com"},
+		{addr: "argocd.example.com:443"},
+		{addr: "localhost:8080"},
+		{addr: "[::1]:8080"},
+		{addr: "localhost:8080/argocd"}, // a path is not a scheme, so this check leaves it alone
+	}
+	for _, tt := range tests {
+		t.Run(tt.addr, func(t *testing.T) {
+			err := CheckServerAddr(tt.addr)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, "invalid server address "+strconv.Quote(tt.addr))
+			require.ErrorContains(t, err, tt.wantErr)
+			require.ErrorContains(t, err, "--plaintext")
+			require.ErrorContains(t, err, "--grpc-web-root-path")
+		})
+	}
+}
+
+func TestNewClient_RejectsServerAddrWithScheme(t *testing.T) {
+	for _, addr := range []string{"https://localhost:8080", "http://localhost:8080", "HTTPS://Host"} {
+		t.Run(addr, func(t *testing.T) {
+			_, err := NewClient(&ClientOptions{
+				ServerAddr: addr,
+				PlainText:  true,
+				GRPCWeb:    true, // skip the plain gRPC probe, which would try to reach the server
+			})
+
+			require.ErrorContains(t, err, "invalid server address")
+		})
+	}
+}
+
 // TestNewClient_HttpRetryMax_TLSTransport is a regression test for the bug
 // where --http-retry-max was silently ignored on TLS (non-plaintext)
 // connections. The retryable client's Transport must survive TLS setup.
