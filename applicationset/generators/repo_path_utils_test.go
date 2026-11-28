@@ -1,11 +1,27 @@
 package generators
 
 import (
+	"context"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+// repoServerFiles is what the repo-server returns for a pattern set: the union of the
+// include matches with the exclude matches removed. Both filters are applied there now,
+// so the generator issues a single call and receives the already-filtered result.
+func repoServerFiles(includeFiles, excludeFiles map[string][]byte) map[string][]byte {
+	files := maps.Clone(includeFiles)
+	for path := range excludeFiles {
+		delete(files, path)
+	}
+	return files
+}
 
 func TestParseFileParams(t *testing.T) {
 	defaultContent := []byte(`
@@ -456,4 +472,75 @@ func TestResolveProjectName(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestGenerateRepoSourceFileParamsSingleCall pins the contract that made this shared:
+// however many include and exclude patterns a generator declares, the repo source is
+// asked exactly once, since resolving it (cloning a repo, or fetching and decompressing
+// an OCI artifact) is the expensive part.
+func TestGenerateRepoSourceFileParamsSingleCall(t *testing.T) {
+	t.Parallel()
+
+	t.Run("every pattern travels in one call", func(t *testing.T) {
+		t.Parallel()
+		src := &countingRepoSource{files: map[string][]byte{"apps/prod/config.json": []byte(`{"env":"prod"}`)}}
+
+		params, err := generateRepoSourceFileParams(t.Context(), repoSourceCallParams{
+			src:  src,
+			kind: repoSourceKindOCI,
+			spec: repoSourceSpec{
+				URL:      "oci://ghcr.io/example/manifests",
+				Revision: "v1.0.0",
+				Files: []pathPattern{
+					{Path: "apps/*/config.json"},
+					{Path: "shared/*.json"},
+					{Path: "apps/skip/config.json", Exclude: true},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, src.calls)
+		assert.Equal(t, []string{"apps/*/config.json", "shared/*.json"}, src.includePatterns)
+		assert.Equal(t, []string{"apps/skip/config.json"}, src.excludePatterns)
+		assert.Len(t, params, 1)
+		assert.Equal(t, "prod", params[0]["env"])
+	})
+
+	t.Run("exclude patterns alone fetch nothing", func(t *testing.T) {
+		t.Parallel()
+		src := &countingRepoSource{}
+
+		params, err := generateRepoSourceFileParams(t.Context(), repoSourceCallParams{
+			src:  src,
+			kind: repoSourceKindGit,
+			spec: repoSourceSpec{Files: []pathPattern{{Path: "apps/*.json", Exclude: true}}},
+		})
+		require.NoError(t, err)
+		assert.Empty(t, params)
+		assert.Equal(t, 0, src.calls)
+	})
+}
+
+// countingRepoSource records what getFiles was asked for and how often.
+type countingRepoSource struct {
+	files           map[string][]byte
+	calls           int
+	includePatterns []string
+	excludePatterns []string
+}
+
+func (s *countingRepoSource) resolveSourceIntegrity(_ context.Context, _ *argoprojiov1alpha1.ApplicationSet, _ client.Client) (*argoprojiov1alpha1.SourceIntegrity, error) {
+	return nil, nil
+}
+
+func (s *countingRepoSource) listDirectories(_ context.Context, _, _, _ string, _ bool, _ *argoprojiov1alpha1.SourceIntegrity) ([]string, error) {
+	return nil, nil
+}
+
+func (s *countingRepoSource) getFiles(_ context.Context, _, _, _ string, includePatterns, excludePatterns []string, _ bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
+	s.calls++
+	s.includePatterns = includePatterns
+	s.excludePatterns = excludePatterns
+	return s.files, nil
 }

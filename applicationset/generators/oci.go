@@ -97,6 +97,6 @@ func (o *OciGenerator) listDirectories(ctx context.Context, repoURL, revision, p
 	return o.repos.GetOciDirectories(ctx, repoURL, revision, project, noRevisionCache)
 }
 
-func (o *OciGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
-	return o.repos.GetOciFiles(ctx, repoURL, revision, project, pattern, noRevisionCache)
+func (o *OciGenerator) getFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool, _ *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
+	return o.repos.GetOciFiles(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)
 }
