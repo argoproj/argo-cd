@@ -119,6 +119,71 @@ func TestUpdateSyncsCache(t *testing.T) {
 	require.Equal(t, "bar-UPDATED", updated.(*application.Application).Labels["foo"])
 }
 
+func TestPatchSyncsCache(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	c, store := newClient(t, withObjects(app))
+
+	live := &application.Application{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(app), live))
+	patched := live.DeepCopy()
+	patched.Labels["foo"] = "bar-PATCHED"
+	require.NoError(t, c.Patch(t.Context(), patched, client.MergeFrom(live)))
+
+	got, exists, err := store.GetByKey("test")
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "bar-PATCHED", got.(*application.Application).Labels["foo"])
+}
+
+// TestPatchDoesNotResurrectEvictedCacheEntry covers a manually deleted Application that is never
+// recreated. A reconcile reads the Application from the cache and patches it; while the Patch is in
+// flight the informer processes the DELETED event and drops the entry. The Patch itself succeeds,
+// and syncing its response back into the store would re-add an Application that no longer exists.
+// Nothing evicts that phantom afterwards (the informer sees no further event), so every later
+// cache-backed Get reports the Application as present and unchanged and it is never recreated until
+// the controller restarts. A Patch must therefore only refresh an entry that is still in the store.
+func TestPatchDoesNotResurrectEvictedCacheEntry(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	// The store starts empty, i.e. the informer has already handled the DELETED event.
+	c, store := newClient(t)
+	require.NoError(t, c.Client.Create(t.Context(), app))
+
+	patched := app.DeepCopy()
+	patched.Labels["foo"] = "bar-PATCHED"
+	require.NoError(t, c.Patch(t.Context(), patched, client.MergeFrom(app)))
+
+	require.Empty(t, store.List(), "a successful Patch must not add an entry the informer has already evicted")
+}
+
+// TestUpdateDoesNotResurrectEvictedCacheEntry is the Update counterpart of
+// TestPatchDoesNotResurrectEvictedCacheEntry.
+func TestUpdateDoesNotResurrectEvictedCacheEntry(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	c, store := newClient(t)
+	require.NoError(t, c.Client.Create(t.Context(), app))
+
+	updated := app.DeepCopy()
+	updated.Labels["foo"] = "bar-UPDATED"
+	require.NoError(t, c.Update(t.Context(), updated))
+
+	require.Empty(t, store.List(), "a successful Update must not add an entry the informer has already evicted")
+}
+
 func TestDeleteSyncsCache(t *testing.T) {
 	t.Parallel()
 	app := &application.Application{
