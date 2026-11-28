@@ -35,6 +35,36 @@ import (
 	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
 )
 
+func TestAppProject_RolePoliciesString(t *testing.T) {
+	proj := AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "user1"},
+		Spec: AppProjectSpec{
+			Roles: []ProjectRole{
+				{
+					Name:     "admin",
+					Policies: []string{"p, proj:user1:admin, applications, *, user1/*, allow"},
+					Groups:   []string{"team1"},
+				},
+				{
+					Name:     "pipeline",
+					Policies: []string{"p, proj:user1:pipeline, applications, sync, user1/*, allow"},
+					Groups:   []string{"user1-pipeline"},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, "p, proj:user1:admin, projects, get, user1, allow\n"+
+		"p, proj:user1:admin, applications, *, user1/*, allow\n"+
+		"g, team1, proj:user1:admin", proj.RolePoliciesString(proj.Spec.Roles[0]))
+	assert.Equal(t, "p, proj:user1:pipeline, projects, get, user1, allow\n"+
+		"p, proj:user1:pipeline, applications, sync, user1/*, allow\n"+
+		"g, user1-pipeline, proj:user1:pipeline", proj.RolePoliciesString(proj.Spec.Roles[1]))
+
+	// the project-wide string is still every role in order
+	assert.Equal(t, proj.RolePoliciesString(proj.Spec.Roles[0])+"\n"+proj.RolePoliciesString(proj.Spec.Roles[1]), proj.ProjectPoliciesString())
+}
+
 func TestAppProject_IsSourcePermitted(t *testing.T) {
 	testData := []struct {
 		name        string

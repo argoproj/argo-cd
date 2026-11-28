@@ -606,7 +606,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			fmt.Printf(printRoleFmtStr, "Role Name:", roleName)
 			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
 			fmt.Print("Policies:\n")
-			fmt.Printf("%s\n", proj.ProjectPoliciesString())
+			fmt.Printf("%s\n", proj.RolePoliciesString(*role))
 			fmt.Print("Groups:\n")
 			// if the group exists in the role
 			// range over each group and print it
