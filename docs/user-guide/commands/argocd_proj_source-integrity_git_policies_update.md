@@ -24,20 +24,25 @@ argocd proj source-integrity git policies update PROJECT POLICY_ID [flags]
   argocd proj source-integrity git policies update PROJECT POLICY_ID \
   --gpg-mode strict \
   --add-gpg-key D56C4FCA57A46444
+  
+  # Update to require annotated tags for a policy
+  argocd proj source-integrity git policies update PROJECT POLICY_ID \
+  --signed-revision-only=true
 ```
 
 ### Options
 
 ```
-      --add-gpg-key strings       Add GPG key ID
-      --add-repo-url strings      Add repository URL pattern
-      --delete-gpg-key strings    Delete GPG key ID
-      --delete-repo-url strings   Delete repository URL pattern
-      --gpg-key strings           Set GPG key ID (replaces existing)
-      --gpg-mode string           Set GPG verification mode (strict, head, or none)
-  -h, --help[=true|false]         help for update
-      --repo-url strings          Set repository URL pattern (replaces existing)
-  -y, --yes[=true|false]          Skip explicit confirmation
+      --add-gpg-key strings                 Add GPG key ID
+      --add-repo-url strings                Add repository URL pattern
+      --delete-gpg-key strings              Delete GPG key ID
+      --delete-repo-url strings             Delete repository URL pattern
+      --gpg-key strings                     Set GPG key ID (replaces existing)
+      --gpg-mode string                     Set GPG verification mode (strict, head, or none)
+  -h, --help[=true|false]                   help for update
+      --repo-url strings                    Set repository URL pattern (replaces existing)
+      --signed-revision-only[=true|false]   Only permit syncing from annotated tags and commit SHAs
+  -y, --yes[=true|false]                    Skip explicit confirmation
 ```
 
 ### Options inherited from parent commands
