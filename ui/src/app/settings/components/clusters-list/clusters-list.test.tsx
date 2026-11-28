@@ -1,6 +1,7 @@
 /* eslint-env jest */
 declare const test: any;
 declare const expect: any;
+import {createMemoryHistory} from 'history';
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
@@ -111,7 +112,7 @@ describe('ClustersList', () => {
         render(
             <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
                 <Provider
-                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: createMemoryHistory()} as any}>
                     <MemoryRouter>
                         <ClustersList />
                     </MemoryRouter>

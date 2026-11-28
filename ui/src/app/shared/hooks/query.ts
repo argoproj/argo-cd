@@ -4,10 +4,13 @@ import {map} from 'rxjs/operators';
 
 import {Context} from '../context';
 
+// The current URL query params. Subscribes to history so that query-only
+// navigation (e.g. ?editRole=foo) re-renders the caller; reading
+// history.location during render alone is not enough once the React Compiler
+// memoizes the component.
 const useSearchParams = () => {
-    const context = React.useContext(Context);
-
-    return new URLSearchParams(context?.history?.location.search);
+    const search = useLocationSearch();
+    return React.useMemo(() => new URLSearchParams(search), [search]);
 };
 
 function useObservableQuery() {
@@ -35,10 +38,10 @@ function useObservableQuery() {
 
 // The current URL query string, re-rendering when navigation changes it.
 function useLocationSearch(): string {
-    const history = React.useContext(Context).history;
+    const history = React.useContext(Context)?.history;
     return React.useSyncExternalStore(
-        React.useCallback(onChange => history.listen(onChange), [history]),
-        () => history.location.search
+        React.useCallback(onChange => (history ? history.listen(() => onChange()) : () => {}), [history]),
+        () => history?.location.search ?? ''
     );
 }
 

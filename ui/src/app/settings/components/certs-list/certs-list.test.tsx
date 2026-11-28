@@ -1,3 +1,4 @@
+import {createMemoryHistory} from 'history';
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
@@ -33,7 +34,7 @@ const cert = {serverName: 'github.com', certType: 'ssh', certSubType: 'ssh-ed255
 const renderList = (show = jest.fn(), search = '') =>
     render(
         <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-            <Provider value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+            <Provider value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: createMemoryHistory()} as any}>
                 <MemoryRouter initialEntries={[`/settings/certs${search}`]}>
                     <Route path='/settings/certs' component={CertsList} />
                 </MemoryRouter>

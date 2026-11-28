@@ -1,3 +1,4 @@
+import {createMemoryHistory} from 'history';
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitFor, within} from '@testing-library/react';
@@ -51,7 +52,7 @@ const renderList = (show = jest.fn(), client = new QueryClient({defaultOptions: 
     render(
         <QueryClientProvider client={client}>
             <Provider
-                value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: createMemoryHistory()} as any}>
                 <MemoryRouter initialEntries={[`/settings/repos${search}`]}>
                     <Route path='/settings/repos' component={ReposList} />
                 </MemoryRouter>
