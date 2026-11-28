@@ -2,7 +2,9 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -1396,15 +1398,24 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 			return nil
 		}
 
-		// Generate the migration patch using the csaupgrade package
-		// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
-		patchData, patchErr := csaupgrade.UpgradeManagedFieldsPatch(
+		// Generate the migration patch using the csaupgrade package, preserving any
+		// Update entries whose apiVersion differs from the target Apply entry so
+		// ownership is not silently dropped.
+		patchData, preservedEntries, patchErr := buildCSAUpgradeMigrationPatch(
 			freshObj,
 			sets.New(csaFieldManager),
 			sc.serverSideApplyManager,
 		)
 		if patchErr != nil {
 			return fmt.Errorf("failed to generate csaupgrade migration patch: %w", patchErr)
+		}
+		for _, entry := range preservedEntries {
+			sc.log.WithValues(
+				"resource", kubeutil.GetResourceKey(liveObj),
+				"csaManager", entry.Manager,
+				"csaAPIVersion", entry.APIVersion,
+				"ssaManager", sc.serverSideApplyManager,
+			).V(1).Info("Preserving CSA Update managedFields entry with incompatible apiVersion")
 		}
 		if patchData == nil {
 			// No migration needed
@@ -1426,6 +1437,94 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 			"Successfully migrated managed fields using csaupgrade")
 		return nil
 	})
+}
+
+// buildCSAUpgradeMigrationPatch computes a JSON patch to migrate CSA Update entries in
+// csaManagers to ssaManager. Because csaupgrade.UpgradeManagedFieldsPatch only unions
+// Update entries whose APIVersion matches the target Apply entry and discards all other
+// matching Update entries, any Update entry with a differing APIVersion is preserved
+// rather than silently dropped.
+func buildCSAUpgradeMigrationPatch(obj *unstructured.Unstructured, csaManagers sets.Set[string], ssaManager string) ([]byte, []metav1.ManagedFieldsEntry, error) {
+	if obj == nil || len(csaManagers) == 0 {
+		return nil, nil, nil
+	}
+
+	managedFields := obj.GetManagedFields()
+	if len(managedFields) == 0 {
+		return nil, nil, nil
+	}
+
+	// Determine the target Apply entry's APIVersion. If no Apply entry exists yet for
+	// ssaManager, csaupgrade promotes the first matching Update entry to Apply.
+	var targetAPIVersion string
+	hasTargetAPIVersion := false
+	for _, entry := range managedFields {
+		if entry.Manager == ssaManager && entry.Operation == metav1.ManagedFieldsOperationApply && entry.Subresource == "" {
+			targetAPIVersion = entry.APIVersion
+			hasTargetAPIVersion = true
+			break
+		}
+	}
+	if !hasTargetAPIVersion {
+		for _, entry := range managedFields {
+			if csaManagers.Has(entry.Manager) && entry.Operation == metav1.ManagedFieldsOperationUpdate && entry.Subresource == "" {
+				targetAPIVersion = entry.APIVersion
+				hasTargetAPIVersion = true
+				break
+			}
+		}
+	}
+	if !hasTargetAPIVersion {
+		return nil, nil, nil
+	}
+
+	migratableFields := make([]metav1.ManagedFieldsEntry, 0, len(managedFields))
+	var preservedEntries []metav1.ManagedFieldsEntry
+	for _, entry := range managedFields {
+		if csaManagers.Has(entry.Manager) && entry.Operation == metav1.ManagedFieldsOperationUpdate && entry.Subresource == "" && entry.APIVersion != targetAPIVersion {
+			preservedEntries = append(preservedEntries, entry)
+			continue
+		}
+		migratableFields = append(migratableFields, entry)
+	}
+
+	if len(preservedEntries) == 0 {
+		patchData, err := csaupgrade.UpgradeManagedFieldsPatch(obj, csaManagers, ssaManager)
+		return patchData, nil, err
+	}
+
+	migratableObj := obj.DeepCopy()
+	migratableObj.SetManagedFields(migratableFields)
+	if err := csaupgrade.UpgradeManagedFields(migratableObj, csaManagers, ssaManager); err != nil {
+		return nil, preservedEntries, err
+	}
+
+	upgradedFields := migratableObj.GetManagedFields()
+	if reflect.DeepEqual(migratableFields, upgradedFields) {
+		return nil, preservedEntries, nil
+	}
+
+	resultFields := make([]metav1.ManagedFieldsEntry, 0, len(upgradedFields)+len(preservedEntries))
+	resultFields = append(resultFields, upgradedFields...)
+	resultFields = append(resultFields, preservedEntries...)
+
+	jsonPatch := []map[string]any{
+		{
+			"op":    "replace",
+			"path":  "/metadata/managedFields",
+			"value": resultFields,
+		},
+		{
+			"op":    "replace",
+			"path":  "/metadata/resourceVersion",
+			"value": obj.GetResourceVersion(),
+		},
+	}
+	patchData, err := json.Marshal(jsonPatch)
+	if err != nil {
+		return nil, preservedEntries, err
+	}
+	return patchData, preservedEntries, nil
 }
 
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {

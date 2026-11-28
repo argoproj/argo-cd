@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic/fake"
@@ -3333,6 +3334,275 @@ func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
 	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
 	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
 	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
+}
+
+func TestPerformCSAUpgradeMigration_PreservesDifferingAPIVersion(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:    "kubectl-client-side-apply",
+			Operation:  metav1.ManagedFieldsOperationUpdate,
+			APIVersion: "v1",
+			FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:labels":{"f:app":{}}}}`),
+		},
+		{
+			Manager:    "kubectl-client-side-apply",
+			Operation:  metav1.ManagedFieldsOperationUpdate,
+			APIVersion: "v1beta1",
+			FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:annotations":{"f:note":{}}}}`),
+		},
+		{
+			Manager:    "argocd-controller",
+			Operation:  metav1.ManagedFieldsOperationApply,
+			APIVersion: "v1",
+			FieldsV1:   metav1.NewFieldsV1(`{"f:spec":{"f:containers":{}}}`),
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
+	require.NoError(t, err)
+
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	managedFields := updatedObj.GetManagedFields()
+	var foundApply, foundV1Update, foundV1Beta1Update bool
+	for _, mf := range managedFields {
+		if mf.Manager == "argocd-controller" && mf.Operation == metav1.ManagedFieldsOperationApply && mf.APIVersion == "v1" {
+			foundApply = true
+			assert.Contains(t, mf.FieldsV1.GetRawString(), `"f:labels"`)
+			assert.Contains(t, mf.FieldsV1.GetRawString(), `"f:containers"`)
+		}
+		if mf.Manager == "kubectl-client-side-apply" && mf.Operation == metav1.ManagedFieldsOperationUpdate && mf.APIVersion == "v1" {
+			foundV1Update = true
+		}
+		if mf.Manager == "kubectl-client-side-apply" && mf.Operation == metav1.ManagedFieldsOperationUpdate && mf.APIVersion == "v1beta1" {
+			foundV1Beta1Update = true
+			assert.Contains(t, mf.FieldsV1.GetRawString(), `"f:annotations"`)
+		}
+	}
+
+	assert.True(t, foundApply, "argocd-controller Apply entry should exist with merged v1 fields")
+	assert.False(t, foundV1Update, "matching v1 Update entry should be removed after migration")
+	assert.True(t, foundV1Beta1Update, "differing v1beta1 Update entry must be preserved")
+}
+
+func TestPerformCSAUpgradeMigration_OnlyDifferingAPIVersion(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:    "kubectl-client-side-apply",
+			Operation:  metav1.ManagedFieldsOperationUpdate,
+			APIVersion: "v1beta1",
+			FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:annotations":{"f:note":{}}}}`),
+		},
+		{
+			Manager:    "argocd-controller",
+			Operation:  metav1.ManagedFieldsOperationApply,
+			APIVersion: "v1",
+			FieldsV1:   metav1.NewFieldsV1(`{"f:spec":{"f:containers":{}}}`),
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+	patchCount := 0
+	dynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (bool, runtime.Object, error) {
+		patchCount++
+		return false, nil, nil
+	})
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
+	require.NoError(t, err)
+	assert.Equal(t, 0, patchCount, "no patch should be sent when only differing-apiVersion Update entries exist")
+
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	liveObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Len(t, liveObj.GetManagedFields(), 2)
+}
+
+func TestBuildCSAUpgradeMigrationPatch(t *testing.T) {
+	t.Run("multiple Update managers with matching and differing apiVersion", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetResourceVersion("42")
+		obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    "kubectl-edit",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:labels":{"f:app":{}}}}`),
+			},
+			{
+				Manager:    "aptakube",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1beta1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:annotations":{"f:note":{}}}}`),
+			},
+			{
+				Manager:    "argocd-controller",
+				Operation:  metav1.ManagedFieldsOperationApply,
+				APIVersion: "v1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:spec":{"f:replicas":{}}}`),
+			},
+		})
+
+		patchBytes, preserved, err := buildCSAUpgradeMigrationPatch(obj, sets.New("kubectl-edit", "aptakube"), "argocd-controller")
+		require.NoError(t, err)
+		require.NotNil(t, patchBytes)
+		require.Len(t, preserved, 1)
+		assert.Equal(t, "aptakube", preserved[0].Manager)
+		assert.Equal(t, "v1beta1", preserved[0].APIVersion)
+
+		var ops []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(patchBytes, &ops))
+		require.Len(t, ops, 2)
+
+		var patchedFields []metav1.ManagedFieldsEntry
+		require.NoError(t, json.Unmarshal(ops[0]["value"], &patchedFields))
+		require.Len(t, patchedFields, 2)
+
+		var hasApply, hasAptakube bool
+		for _, mf := range patchedFields {
+			if mf.Manager == "argocd-controller" && mf.Operation == metav1.ManagedFieldsOperationApply {
+				hasApply = true
+				assert.Contains(t, mf.FieldsV1.GetRawString(), `"f:labels"`)
+				assert.Contains(t, mf.FieldsV1.GetRawString(), `"f:replicas"`)
+			}
+			if mf.Manager == "aptakube" && mf.Operation == metav1.ManagedFieldsOperationUpdate && mf.APIVersion == "v1beta1" {
+				hasAptakube = true
+			}
+			assert.NotEqual(t, "kubectl-edit", mf.Manager)
+		}
+		assert.True(t, hasApply)
+		assert.True(t, hasAptakube)
+	})
+
+	t.Run("no existing Apply entry promotes first Update and preserves differing apiVersion", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetResourceVersion("7")
+		obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    "kubectl-client-side-apply",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:labels":{"f:app":{}}}}`),
+			},
+			{
+				Manager:    "kubectl-client-side-apply",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1beta1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:annotations":{"f:note":{}}}}`),
+			},
+		})
+
+		patchBytes, preserved, err := buildCSAUpgradeMigrationPatch(obj, sets.New("kubectl-client-side-apply"), "argocd-controller")
+		require.NoError(t, err)
+		require.NotNil(t, patchBytes)
+		require.Len(t, preserved, 1)
+		assert.Equal(t, "v1beta1", preserved[0].APIVersion)
+
+		var ops []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(patchBytes, &ops))
+		var patchedFields []metav1.ManagedFieldsEntry
+		require.NoError(t, json.Unmarshal(ops[0]["value"], &patchedFields))
+		require.Len(t, patchedFields, 2)
+		assert.Equal(t, "argocd-controller", patchedFields[0].Manager)
+		assert.Equal(t, metav1.ManagedFieldsOperationApply, patchedFields[0].Operation)
+		assert.Equal(t, "v1", patchedFields[0].APIVersion)
+		assert.Equal(t, "kubectl-client-side-apply", patchedFields[1].Manager)
+		assert.Equal(t, metav1.ManagedFieldsOperationUpdate, patchedFields[1].Operation)
+		assert.Equal(t, "v1beta1", patchedFields[1].APIVersion)
+	})
+
+	t.Run("nil object, empty managed fields, or no matching managers", func(t *testing.T) {
+		patchBytes, preserved, err := buildCSAUpgradeMigrationPatch(nil, sets.New("kubectl-client-side-apply"), "argocd-controller")
+		require.NoError(t, err)
+		assert.Nil(t, patchBytes)
+		assert.Nil(t, preserved)
+
+		emptyObj := testingutils.NewPod()
+		patchBytes, preserved, err = buildCSAUpgradeMigrationPatch(emptyObj, sets.New("kubectl-client-side-apply"), "argocd-controller")
+		require.NoError(t, err)
+		assert.Nil(t, patchBytes)
+		assert.Nil(t, preserved)
+
+		patchBytes, preserved, err = buildCSAUpgradeMigrationPatch(emptyObj, sets.New[string](), "argocd-controller")
+		require.NoError(t, err)
+		assert.Nil(t, patchBytes)
+		assert.Nil(t, preserved)
+
+		noMatchObj := testingutils.NewPod()
+		noMatchObj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    "other-manager",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:metadata":{"f:labels":{}}}`),
+			},
+		})
+		patchBytes, preserved, err = buildCSAUpgradeMigrationPatch(noMatchObj, sets.New("kubectl-client-side-apply"), "argocd-controller")
+		require.NoError(t, err)
+		assert.Nil(t, patchBytes)
+		assert.Nil(t, preserved)
+	})
+
+	t.Run("subresource Update entry and empty FieldsV1 with differing apiVersion", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetResourceVersion("9")
+		obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:     "kubectl-client-side-apply",
+				Operation:   metav1.ManagedFieldsOperationUpdate,
+				APIVersion:  "v1beta1",
+				Subresource: "status",
+				FieldsV1:    metav1.NewFieldsV1(`{"f:status":{}}`),
+			},
+			{
+				Manager:    "kubectl-client-side-apply",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "v1beta1",
+				FieldsV1:   metav1.NewFieldsV1(`{}`),
+			},
+			{
+				Manager:    "argocd-controller",
+				Operation:  metav1.ManagedFieldsOperationApply,
+				APIVersion: "v1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:spec":{"f:containers":{}}}`),
+			},
+		})
+
+		patchBytes, preserved, err := buildCSAUpgradeMigrationPatch(obj, sets.New("kubectl-client-side-apply"), "argocd-controller")
+		require.NoError(t, err)
+		assert.Nil(t, patchBytes)
+		require.Len(t, preserved, 1)
+		assert.Empty(t, preserved[0].Subresource)
+		assert.Equal(t, "v1beta1", preserved[0].APIVersion)
+	})
 }
 
 func diffResultListClusterResource() *diff.DiffResultList {
