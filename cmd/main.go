@@ -20,6 +20,7 @@ import (
 	notification "github.com/argoproj/argo-cd/v3/cmd/argocd-notification/commands"
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
+	sshproxy "github.com/argoproj/argo-cd/v3/cmd/argocd-ssh-proxy/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -59,6 +60,8 @@ var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI
 		return notification.NewCommand(), false
 	case common.CommandGitAskPass:
 		return gitaskpass.NewCommand(), true
+	case common.CommandSSHProxy:
+		return sshproxy.NewCommand(), true
 	case common.CommandApplicationSetController:
 		return applicationset.NewCommand(), false
 	case common.CommandK8sAuth:

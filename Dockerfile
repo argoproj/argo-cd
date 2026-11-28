@@ -55,7 +55,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install --no-install-recommends -y \
-    git=${GIT_APT_VERSION} tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
+    git=${GIT_APT_VERSION} tini ca-certificates gpg gpg-agent tzdata openssh-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 

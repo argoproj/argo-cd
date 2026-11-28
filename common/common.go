@@ -29,6 +29,7 @@ const (
 	CommandCMPServer                = "argocd-cmp-server"
 	CommandCommitServer             = "argocd-commit-server"
 	CommandGitAskPass               = "argocd-git-ask-pass"
+	CommandSSHProxy                 = "argocd-ssh-proxy"
 	CommandNotifications            = "argocd-notifications"
 	CommandK8sAuth                  = "argocd-k8s-auth"
 	CommandDex                      = "argocd-dex"

@@ -267,7 +267,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, "socks5://127.0.0.1:1080")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
-		require.Len(t, env, 2)
+		require.Len(t, env, 3)
 
 		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
 
@@ -282,13 +282,9 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 
-		proxyScript := proxyScriptFromSSHCommand(t, env[1])
-		assert.FileExists(t, proxyScript)
-
-		scriptBytes, err := os.ReadFile(proxyScript)
-		require.NoError(t, err)
-		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
-		assert.Contains(t, string(scriptBytes), "connect-proxy")
+		assert.Equal(t, sshProxyCommand, proxyCommandFromSSHCommand(t, env[1]))
+		assert.NotContains(t, env[1], "127.0.0.1", "the proxy must not be in the shell-interpreted GIT_SSH_COMMAND")
+		assert.Equal(t, SSHProxyURLEnv+"=socks5://127.0.0.1:1080", env[2])
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
@@ -297,25 +293,19 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
-		assert.NoFileExists(t, proxyScript)
 	}
 }
 
-func proxyScriptFromSSHCommand(t *testing.T, gitSSHCommandEnv string) string {
+// proxyCommandFromSSHCommand returns the ProxyCommand option of a GIT_SSH_COMMAND environment
+// variable, checking that it reaches ssh as a single argument.
+func proxyCommandFromSSHCommand(t *testing.T, gitSSHCommandEnv string) string {
 	t.Helper()
 	args, err := shellquote.Split(strings.TrimPrefix(gitSSHCommandEnv, "GIT_SSH_COMMAND="))
 	require.NoError(t, err)
 	for _, arg := range args {
-		proxyCommand, ok := strings.CutPrefix(arg, "ProxyCommand=")
-		if !ok {
-			continue
+		if proxyCommand, ok := strings.CutPrefix(arg, "ProxyCommand="); ok {
+			return proxyCommand
 		}
-		fields, err := shellquote.Split(proxyCommand)
-		require.NoError(t, err)
-		require.Len(t, fields, 4, "ProxyCommand must be a single argument")
-		assert.Equal(t, "/bin/sh", fields[0])
-		assert.Equal(t, []string{"%h", "%p"}, fields[2:])
-		return fields[1]
 	}
 	require.FailNow(t, "GIT_SSH_COMMAND has no ProxyCommand", gitSSHCommandEnv)
 	return ""
@@ -330,20 +320,14 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, "socks5://user:password@127.0.0.1:1080")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
-		require.Len(t, env, 4)
+		require.Len(t, env, 3)
 
 		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
 
 		assert.True(t, strings.HasPrefix(env[1], "GIT_SSH_COMMAND="))
-		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
-		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
-
-		proxyScript := proxyScriptFromSSHCommand(t, env[1])
-		assert.FileExists(t, proxyScript)
-
-		scriptBytes, err := os.ReadFile(proxyScript)
-		require.NoError(t, err)
-		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
+		assert.Equal(t, sshProxyCommand, proxyCommandFromSSHCommand(t, env[1]))
+		assert.NotContains(t, env[1], "password", "proxy credentials must not be in GIT_SSH_COMMAND")
+		assert.Equal(t, SSHProxyURLEnv+"=socks5://user:password@127.0.0.1:1080", env[2], "the proxy URL, credentials included, must be passed in the environment")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
@@ -352,11 +336,13 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
-		assert.NoFileExists(t, proxyScript)
 	}
 }
 
-func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) {
+// Test_SSHCreds_Environ_ProxyCommandRunsArgocdSSHProxy runs git with the environment SSHCreds
+// returns and checks that ssh starts argocd as argocd-ssh-proxy with the target host and port and
+// the proxy URL, even when the calling component has ARGOCD_BINARY_NAME set to its own name.
+func Test_SSHCreds_Environ_ProxyCommandRunsArgocdSSHProxy(t *testing.T) {
 	if _, err := exec.LookPath("ssh"); err != nil {
 		t.Skip("ssh is not installed")
 	}
@@ -365,35 +351,31 @@ func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) 
 	}
 
 	binDir := t.TempDir()
-	argsFile := path.Join(t.TempDir(), "connect-proxy-args")
-	fakeConnectProxy := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CONNECT_PROXY_ARGS_FILE\"\nexit 1\n"
-	require.NoError(t, os.WriteFile(path.Join(binDir, "connect-proxy"), []byte(fakeConnectProxy), 0o755))
+	recordFile := path.Join(t.TempDir(), "argocd-invocation")
+	fakeArgocd := "#!/bin/sh\n{ echo \"$ARGOCD_BINARY_NAME\"; echo \"$" + SSHProxyURLEnv + "\"; printf '%s\\n' \"$@\"; } > \"$RECORD_FILE\"\nexit 1\n"
+	require.NoError(t, os.WriteFile(path.Join(binDir, "argocd"), []byte(fakeArgocd), 0o755))
 
-	closer, env, err := NewSSHCreds("sshPrivateKey", "", true, "socks5://127.0.0.1:1080").Environ()
+	closer, env, err := NewSSHCreds("sshPrivateKey", "", true, "socks5://user:password@127.0.0.1:1080").Environ()
 	require.NoError(t, err)
 	defer utilio.Close(closer)
-
-	proxyScript := proxyScriptFromSSHCommand(t, env[0])
-	info, err := os.Stat(proxyScript)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the proxy script must run without the exec bit, /dev/shm is often mounted noexec")
 
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "ls-remote", "ssh://git@git.example.com:2222/org/repo.git")
 	cmd.WaitDelay = 5 * time.Second
-	cmd.Env = append(os.Environ(), env...)
+	cmd.Env = append(os.Environ(), "ARGOCD_BINARY_NAME=argocd-repo-server")
+	cmd.Env = append(cmd.Env, env...)
 	cmd.Env = append(cmd.Env,
 		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"CONNECT_PROXY_ARGS_FILE="+argsFile,
+		"RECORD_FILE="+recordFile,
 		"GIT_TERMINAL_PROMPT=0",
 	)
 	out, err := cmd.CombinedOutput()
-	require.Error(t, err, "the fake connect-proxy always fails")
+	require.Error(t, err, "the fake argocd always fails")
 
-	args, readErr := os.ReadFile(argsFile)
-	require.NoError(t, readErr, "connect-proxy was never invoked: %s", out)
-	assert.Equal(t, []string{"-5", "-S", "127.0.0.1:1080", "git.example.com", "2222"}, strings.Fields(string(args)))
+	record, readErr := os.ReadFile(recordFile)
+	require.NoError(t, readErr, "argocd was never invoked: %s", out)
+	assert.Equal(t, []string{"argocd-ssh-proxy", "socks5://user:password@127.0.0.1:1080", "git.example.com", "2222"}, strings.Fields(string(record)))
 }
 
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
@@ -480,6 +462,24 @@ func TestValidateProxyURL_RejectsUnsafeHostnames(t *testing.T) {
 			t.Parallel()
 			err := validateProxyURL(tc.url)
 			require.Error(t, err, "expected rejection of: %s", tc.url)
+		})
+	}
+}
+
+func TestValidateProxyURL_MalformedURLErrorsOmitPassword(t *testing.T) {
+	t.Parallel()
+	for _, rawURL := range []string{
+		"socks5://user:secret@127.0.0.1:bad",
+		"socks5://user:secret@[::1",
+		"socks5://user:secret@host:1080/%zz",
+		"socks5://user:secret%zz@127.0.0.1:1080",
+	} {
+		t.Run(rawURL, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(rawURL)
+			require.ErrorContains(t, err, "invalid proxy URL")
+			assert.NotContains(t, err.Error(), "secret")
+			assert.NotContains(t, err.Error(), "%zz")
 		})
 	}
 }
@@ -1634,22 +1634,4 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
-}
-
-func Test_SSHCreds_Environ_ClosesProxyScriptOnWriteError(t *testing.T) {
-	var f *os.File
-	orig := createTemp
-	t.Cleanup(func() { createTemp = orig })
-	// A read-only file makes the proxy script write fail.
-	createTemp = func(_, _ string) (*os.File, error) {
-		p := path.Join(t.TempDir(), "ro")
-		require.NoError(t, os.WriteFile(p, nil, 0o600))
-		var err error
-		f, err = os.Open(p)
-		return f, err
-	}
-
-	_, _, err := NewSSHCreds("sshPrivateKey", "", false, "socks5://127.0.0.1:1080").Environ()
-	require.ErrorContains(t, err, "failed to write proxy command script")
-	require.ErrorIs(t, f.Close(), os.ErrClosed)
 }

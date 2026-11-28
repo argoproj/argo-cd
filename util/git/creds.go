@@ -117,6 +117,14 @@ func ValidateHTTPProxyURL(rawURL string) error {
 func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
+		// url.Error quotes the whole URL, proxy password included; callers log this error.
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			err = urlErr.Err
+		}
+		// EscapeError quotes the bad escape, which may come from the password.
+		if _, ok := errors.AsType[url.EscapeError](err); ok {
+			err = errors.New("invalid percent-encoding")
+		}
 		return fmt.Errorf("invalid proxy URL: %w", err)
 	}
 
@@ -402,8 +410,12 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
-// createTemp is swapped in tests to exercise write failures.
-var createTemp = os.CreateTemp
+// sshProxyCommand is the ProxyCommand ssh runs for SSH repositories that have a SOCKS5 proxy
+// configured: the argocd binary as argocd-ssh-proxy (see ProxySSHConnection), which reads the
+// proxy URL from SSHProxyURLEnv. It is a constant on purpose: nothing from the repository
+// configuration ends up in this shell-interpreted string. env sets ARGOCD_BINARY_NAME explicitly
+// because the Argo CD component running git may have it set to its own name.
+const sshProxyCommand = "env ARGOCD_BINARY_NAME=" + common.CommandSSHProxy + " argocd %h %p"
 
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
@@ -444,79 +456,22 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile="+knownHostsFile)
 	}
 
-	// Handle SSH socks5 proxy settings
+	// SOCKS5 proxy: ssh connects through argocd-ssh-proxy, which gets the proxy URL (credentials
+	// included) from the environment rather than from the command line.
 	var proxyEnv []string
-	var proxyScriptPath string
-
 	if c.proxy != "" {
 		if err := validateProxyURL(c.proxy); err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("unsafe proxy URL rejected: %w", err)
 		}
-
-		parsedProxyURL, err := url.Parse(c.proxy)
-		if err != nil {
-			sshCloser.Close()
-			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
-		}
-
-		// Write a temporary wrapper script instead of embedding the hostname and port directly into the
-		// shell-interpreted GIT_SSH_COMMAND string.
-		proxyScriptContent := fmt.Sprintf(
-			"#!/bin/sh\nexec connect-proxy -5 -S %s:%s \"$@\"\n",
-			parsedProxyURL.Hostname(),
-			parsedProxyURL.Port(),
-		)
-
-		proxyScript, err := createTemp(argoio.TempDir, "argocd-proxy-cmd-*")
-		if err != nil {
-			sshCloser.Close()
-			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
-		}
-		proxyScriptPath = proxyScript.Name()
-
-		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
-			_ = proxyScript.Close()
-			_ = os.Remove(proxyScriptPath)
-			sshCloser.Close()
-			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
-		}
-		if err := proxyScript.Close(); err != nil {
-			_ = os.Remove(proxyScriptPath)
-			sshCloser.Close()
-			return nil, nil, fmt.Errorf("failed to close proxy command script: %w", err)
-		}
-		args = append(args, "-o", "ProxyCommand="+shellquote.Join("/bin/sh", proxyScriptPath)+" %h %p")
-
-		if parsedProxyURL.User != nil {
-			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
-			if socks5Passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
-				proxyEnv = append(proxyEnv, "SOCKS5_PASSWD="+socks5Passwd)
-			}
-		}
+		args = append(args, "-o", "ProxyCommand="+sshProxyCommand)
+		proxyEnv = append(proxyEnv, SSHProxyURLEnv+"="+c.proxy)
 	}
 
 	env = append(env, []string{"GIT_SSH_COMMAND=" + shellquote.Join(args...)}...)
 	env = append(env, proxyEnv...)
 
-	// We need a combined closer that removes both the SSH private key tempfile
-	// and the proxy script tempfile (if one was created).
-	combinedCloser := utilio.NewCloser(func() error {
-		keyErr := sshCloser.Close()
-		var proxyErr error
-		if proxyScriptPath != "" {
-			proxyErr = os.Remove(proxyScriptPath)
-			if os.IsNotExist(proxyErr) {
-				proxyErr = nil
-			}
-		}
-		if keyErr != nil {
-			return keyErr
-		}
-		return proxyErr
-	})
-
-	return combinedCloser, env, nil
+	return sshCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application

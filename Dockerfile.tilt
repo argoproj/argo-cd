@@ -19,8 +19,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     zip \
     tini \
     gpg \
-    tzdata \
-    connect-proxy
+    tzdata
 
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
