@@ -642,6 +642,28 @@ func TestSetHelmIndex(t *testing.T) {
 	})
 }
 
+func TestHelmIndexValidators(t *testing.T) {
+	t.Parallel()
+	t.Run("Set and get validators", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		err := fixtures.cache.SetHelmIndexValidators("test-repo", "W/\"12345\"", "Wed, 21 Oct 2025 07:28:00 GMT")
+		require.NoError(t, err)
+		etag, lastModified, err := fixtures.cache.GetHelmIndexValidators("test-repo")
+		require.NoError(t, err)
+		assert.Equal(t, "W/\"12345\"", etag)
+		assert.Equal(t, "Wed, 21 Oct 2025 07:28:00 GMT", lastModified)
+	})
+	t.Run("Get validators on cache miss", func(t *testing.T) {
+		t.Parallel()
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		_, _, err := fixtures.cache.GetHelmIndexValidators("non-existent-repo")
+		require.Error(t, err)
+	})
+}
+
 func TestRevisionChartDetails(t *testing.T) {
 	t.Parallel()
 	t.Run("GetRevisionChartDetails cache miss", func(t *testing.T) {
