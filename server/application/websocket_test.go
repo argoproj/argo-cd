@@ -7,22 +7,27 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/remotecommand"
-
 	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSession {
@@ -113,6 +118,167 @@ func TestNewTerminalSessionCloseCancelsContext(t *testing.T) {
 	require.NoError(t, session.ctx.Err())
 	require.NoError(t, session.Close())
 	assert.ErrorIs(t, session.ctx.Err(), context.Canceled)
+}
+
+type terminalTestDB struct {
+	db.ArgoDB
+	cluster *appv1.Cluster
+}
+
+func (d terminalTestDB) GetCluster(context.Context, string) (*appv1.Cluster, error) {
+	return d.cluster, nil
+}
+
+func TestTerminalHandlerBrowserCloseCancelsExec(t *testing.T) {
+	t.Setenv("KUBECTL_REMOTE_COMMAND_WEBSOCKETS", "true")
+
+	var bashRequests atomic.Int32
+	var shRequests atomic.Int32
+	execStarted := make(chan struct{}, 1)
+	execClosed := make(chan struct{}, 1)
+	execErrors := make(chan error, 1)
+	wsUpgrader := websocket.Upgrader{
+		Subprotocols: []string{"v5.channel.k8s.io"},
+	}
+	kubeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		commands := r.URL.Query()["command"]
+		if len(commands) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(&corev1.Pod{
+				APIVersion: "v1",
+				Kind:       "Pod",
+				Name:       "pod",
+				Namespace:  "default",
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{{
+						Name: "container",
+						State: corev1.ContainerState{
+							Running: &corev1.ContainerStateRunning{},
+						},
+					}},
+				},
+			})
+			return
+		}
+
+		switch commands[0] {
+		case "bash":
+			bashRequests.Add(1)
+			conn, err := wsUpgrader.Upgrade(w, r, nil)
+			if err != nil {
+				execErrors <- err
+				return
+			}
+			defer conn.Close()
+			select {
+			case execStarted <- struct{}{}:
+			default:
+			}
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					select {
+					case execClosed <- struct{}{}:
+					default:
+					}
+					return
+				}
+			}
+		case "sh":
+			shRequests.Add(1)
+			http.Error(w, "unexpected shell fallback", http.StatusInternalServerError)
+		default:
+			http.Error(w, "unexpected command", http.StatusBadRequest)
+		}
+	}))
+	defer kubeServer.Close()
+	defer kubeServer.CloseClientConnections()
+
+	app := &appv1.Application{
+		Name:      "app",
+		Namespace: testNamespace,
+		UID:       "app-uid",
+		Spec: appv1.ApplicationSpec{
+			Project: "project",
+			Destination: appv1.ApplicationDestination{
+				Server: kubeServer.URL,
+			},
+		},
+	}
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, indexer.Add(app))
+
+	enf := newEnforcer()
+	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	enf.SetDefaultRole("role:admin")
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool { return true })
+	handler := &terminalHandler{
+		appLister:     applisters.NewApplicationLister(indexer),
+		db:            terminalTestDB{cluster: &appv1.Cluster{Server: kubeServer.URL}},
+		allowedShells: []string{"bash", "sh"},
+		namespace:     testNamespace,
+		terminalOptions: &TerminalOptions{
+			DisableAuth: true,
+			Enf:         enf,
+		},
+		appResourceTreeFn: func(context.Context, *appv1.Application) (*appv1.ApplicationTree, error) {
+			return &appv1.ApplicationTree{Nodes: []appv1.ResourceNode{{
+				Group:     "",
+				Kind:      "Pod",
+				UID:       "pod-uid",
+				Name:      "pod",
+				Namespace: "default",
+			}}}, nil
+		},
+	}
+
+	handlerDone := make(chan struct{})
+	terminalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+		close(handlerDone)
+	}))
+	defer terminalServer.Close()
+	defer terminalServer.CloseClientConnections()
+
+	params := url.Values{
+		"pod":          {"pod"},
+		"container":    {"container"},
+		"appName":      {"app"},
+		"projectName":  {"project"},
+		"namespace":    {"default"},
+		"appNamespace": {testNamespace},
+	}
+	headers := http.Header{}
+	headers.Add("Cookie", common.AuthCookieName+"=header.payload.signature")
+	wsConn, resp, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(terminalServer.URL, "http")+"?"+params.Encode(), headers)
+	if err != nil && resp != nil {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("terminal WebSocket handshake failed: %s: %s", resp.Status, body)
+	}
+	require.NoError(t, err)
+	defer wsConn.Close()
+
+	select {
+	case <-execStarted:
+	case err := <-execErrors:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("container exec did not start")
+	}
+
+	require.NoError(t, wsConn.Close())
+	select {
+	case <-execClosed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("container exec remained active after the browser WebSocket closed")
+	}
+	select {
+	case <-handlerDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("terminal handler did not return after the browser WebSocket closed")
+	}
+
+	assert.Positive(t, bashRequests.Load())
+	assert.Zero(t, shRequests.Load())
 }
 
 func TestTerminalSessionResizeDeliveryAndCancellation(t *testing.T) {
