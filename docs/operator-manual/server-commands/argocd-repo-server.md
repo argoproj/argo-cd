@@ -24,6 +24,7 @@ argocd-repo-server [flags]
       --disable-tls[=true|false]                                Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config[=true|false]                  Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
       --git-ls-remote-optimized[=true|false]                    Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
+      --helm-index-cache-expiration duration                    Freshness window for cached HTTP helm repository indexes; records older than this are revalidated with the origin via conditional GET before reuse. 0 revalidates on every use; negative values fall back to the default (default 1m0s)
       --helm-manifest-max-extracted-size string                 Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string                     Maximum size of registry index file (default "1G")
   -h, --help[=true|false]                                       help for argocd-repo-server

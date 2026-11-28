@@ -3073,7 +3073,7 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 func (s *Service) newHelmClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	opts := []helm.ClientOpts{helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)}
+	opts := []helm.ClientOpts{helm.WithIndexCacheScopedByCreds(s.cache), helm.WithChartPaths(s.chartPaths)}
 	if repo.InsecureOCIForceHttp {
 		opts = append(opts, helm.WithPlainHTTP())
 	}
@@ -3247,7 +3247,7 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCacheScopedByCreds(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
 		return nil, err
 	}

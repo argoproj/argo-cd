@@ -37,3 +37,18 @@ func TestIndex_GetEntries(t *testing.T) {
 		assert.Len(t, ts, len(index.Entries["argo-cd"]))
 	})
 }
+
+const parseIndexFixture = "apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: 1.0.0\n"
+
+func TestParseIndexBodyAcceptsTrailingEmptyDocument(t *testing.T) {
+	require.NoError(t, parseIndexBody([]byte(parseIndexFixture+"---\n")))
+	require.NoError(t, parseIndexBody([]byte(parseIndexFixture+"---\n---\n")))
+}
+
+func TestParseIndexBodyRejectsTrailingDocument(t *testing.T) {
+	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\nentries:\n  other: []\n")))
+	// An explicit !!null tag on a non-empty mapping is still content.
+	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\n!!null {entries: {other: []}}\n")))
+	// Explicit null scalars are content too; only an empty document is allowed.
+	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\n~\n")))
+}
