@@ -4,6 +4,10 @@ tests:
     message: "Waiting for ScaledJob"
   inputPath: testdata/keda-progressing.yaml
 - healthStatus:
+    status: Progressing
+    message: "Waiting for ScaledJob"
+  inputPath: testdata/keda-progressing-paused.yaml
+- healthStatus:
     status: Degraded
     message: "Triggers defined in ScaledJob are not working correctly"
   inputPath: testdata/keda-degraded.yaml
@@ -16,6 +20,10 @@ tests:
     message: "Some triggers defined in ScaledJob are not working correctly"
   inputPath: testdata/keda-unknown.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "ScaledJob is paused"
-  inputPath: testdata/keda-suspended.yaml
+  inputPath: testdata/keda-healthy-paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Triggers defined in ScaledJob are not working correctly"
+  inputPath: testdata/keda-degraded-paused.yaml
