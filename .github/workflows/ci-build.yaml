@@ -762,6 +762,11 @@ jobs:
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
+          # Log the garbage collector's per-object decisions. e2e tests that delete an
+          # ApplicationSet wait for it to delete the Applications, and when that is slow
+          # the Argo CD logs do not say why. Set on k3s itself: its components share one
+          # process, and a per-component logging flag makes the controller-manager exit.
+          INSTALL_K3S_EXEC: --vmodule=garbagecollector=5
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
@@ -837,8 +842,8 @@ jobs:
         run: |
           set -x
           make test-e2e-local
-          # gotestsum retries failures (--rerun-fails), so a green job can still hide a
-          # flake. Flag it so the server logs below are kept for diagnosis.
+          # With ARGOCD_E2E_RERUN_FAILS > 0, gotestsum retries failures, so a green job can
+          # still hide a flake. Flag it so the server logs below are kept for diagnosis.
           if [ -s rerunreport.txt ]; then
             echo "reran=true" >> "$GITHUB_OUTPUT"
             echo "::warning::e2e tests were retried; see the e2e-server log artifact"
@@ -846,6 +851,11 @@ jobs:
           fi
           goreman run stop-all || echo "goreman trouble"
           sleep 30
+      - name: Save k3s logs
+        if: ${{ failure() || steps.e2e.outputs.reran == 'true' }}
+        run: |
+          # shellcheck disable=SC2024
+          sudo journalctl -u k3s --no-pager > /tmp/k3s.log
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -869,6 +879,7 @@ jobs:
           name: e2e-server-k8s${{ matrix.k3s.version }}-shard${{ matrix.shard }}.log
           path: |
             /tmp/e2e-server.log
+            /tmp/k3s.log
             rerunreport.txt
         if: ${{ failure() || steps.e2e.outputs.reran == 'true' }}
 
