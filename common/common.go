@@ -294,6 +294,8 @@ const (
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
+	// EnvGitCodeCommitIAMEnabled enables authenticating to AWS CodeCommit repositories without credentials using the AWS identity of the process, false by default
+	EnvGitCodeCommitIAMEnabled = "ARGOCD_GIT_CODECOMMIT_IAM_ENABLED"
 	// EnvHelmUserAgent specifies the User-Agent header for Helm repository requests
 	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification

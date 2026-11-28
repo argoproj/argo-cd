@@ -78,6 +78,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: commitserver.git.request.timeout
                 optional: true
+          - name: ARGOCD_GIT_CODECOMMIT_IAM_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.git.codecommit.iam.enabled
+                optional: true
         ports:
         - containerPort: 8086
         - containerPort: 8087

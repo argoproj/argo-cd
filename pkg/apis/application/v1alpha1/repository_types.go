@@ -300,6 +300,11 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 			WithNoProxy(repo.NoProxy)
 		return creds
 	}
+	// Only reached when no credentials are configured: use the AWS identity of the process for
+	// AWS CodeCommit repositories, if enabled for this component.
+	if creds, ok := git.NewCodeCommitCreds(repo.Repo, store); ok {
+		return creds
+	}
 	return git.NopCreds{}
 }
 
