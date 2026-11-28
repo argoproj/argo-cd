@@ -501,8 +501,8 @@ data:
   applicationsetcontroller.wq.bucket.qps: "500"
   # Workqueue per-item rate limiter base delay, in nanoseconds (default "1000000", 1ms)
   applicationsetcontroller.wq.basedelay.ns: "1000000"
-  # Workqueue per-item rate limiter max delay, in nanoseconds (default "1000000000", 1s)
-  applicationsetcontroller.wq.maxdelay.ns: "1000000000"
+  # Workqueue per-item rate limiter max delay, in nanoseconds (default "1000000000000", 16m40s)
+  applicationsetcontroller.wq.maxdelay.ns: "1000000000000"
   # Workqueue per-item rate limiter backoff factor (default "1.5")
   applicationsetcontroller.wq.backoff.factor: "1.5"
   # Workqueue per-item rate limiter cooldown duration, in nanoseconds. 0 disables the per-item rate limiter (default "0")
