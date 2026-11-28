@@ -493,6 +493,7 @@ argocd cluster rm cluster-name`,
 			}
 		}),
 	}
+	command.Flags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm remove of cluster resources")
 	return command
 }
