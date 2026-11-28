@@ -104,6 +104,35 @@ func (ctrl *ApplicationController) isAppHook(live *unstructured.Unstructured, ho
 		resourceTracking.GetAppName(live, appLabelKey, trackingMethod, installationID) == app.InstanceName(ctrl.namespace)
 }
 
+// lastDeployedSources returns the sources and revisions of the last sync in the application's history,
+// which is what a rollback deploys. It returns false when that sync cannot stand in for the target: there
+// is no history, it used a different source mode than the current spec, which decides how the repo server
+// treats the sources, or the project no longer permits one of its sources.
+func lastDeployedSources(app *appv1.Application, proj *appv1.AppProject) (appv1.ApplicationSources, []string, bool) {
+	if len(app.Status.History) == 0 {
+		return nil, nil, false
+	}
+	last := app.Status.History.LastRevisionHistory()
+	multipleSources := len(last.Sources) > 0
+	if multipleSources != app.Spec.HasMultipleSources() {
+		return nil, nil, false
+	}
+	sources := appv1.ApplicationSources{last.Source}
+	revisions := []string{last.Revision}
+	if multipleSources {
+		sources, revisions = last.Sources, last.Revisions
+	}
+	if len(revisions) != len(sources) {
+		return nil, nil, false
+	}
+	for i, src := range sources {
+		if src.RepoURL == "" || revisions[i] == "" || !proj.IsSourcePermitted(src) {
+			return nil, nil, false
+		}
+	}
+	return sources, revisions, true
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
@@ -132,7 +161,18 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 	// Fetch target objects from Git to know which hooks should exist
 	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
-		return false, err
+		// The target often stops rendering when the application is deleted, because the files behind it
+		// are removed from Git in the same commit. The last deployed sync still holds the hooks, so render
+		// them from there rather than blocking the deletion on every reconciliation.
+		deployedSources, deployedRevisions, ok := lastDeployedSources(app, proj)
+		if !ok {
+			return false, err
+		}
+		logCtx.WithError(err).Warnf("Failed to generate %s hooks at the target revision, generating them from the last deployed revision", hookType)
+		targets, _, _, err = ctrl.appStateManager.GetRepoObjs(ctx, app, deployedSources, appLabelKey, deployedRevisions, false, false, nil, proj, true)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	// Find existing hooks of the specified type
