@@ -1,5 +1,5 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {AppContext, AppContextReact, DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {AppContext, AppContextReact, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
@@ -11,6 +11,7 @@ import {PageSuspense} from './shared/components/page-suspense';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
+import {useViewPreferences} from './shared/hooks/use-view-preferences';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {newQueryClient} from './shared/query-client';
 import {services} from './shared/services';
@@ -99,6 +100,20 @@ const navItems: NavItem[] = [
     }
 ];
 
+const AppPopup = (props: {popupProps: PopupProps}) => {
+    const theme = useViewPreferences(pref => pref.theme);
+    return <ThemeWrapper theme={theme}>{props.popupProps && <Popup {...props.popupProps} />}</ThemeWrapper>;
+};
+
+const AppLayout = (props: {navItems: NavItem[]; onVersionClick: () => void; children: React.ReactNode}) => {
+    const pref = useViewPreferences();
+    return (
+        <Layout onVersionClick={props.onVersionClick} navItems={props.navItems} pref={pref}>
+            <Banner>{props.children}</Banner>
+        </Layout>
+    );
+};
+
 const versionLoader = services.version.version();
 
 async function fetchUserInfoSafe(): Promise<UserInfo> {
@@ -155,6 +170,7 @@ export class App extends React.Component<
     private routes: Routes;
     private popupPropsSubscription: Subscription;
     private unauthorizedSubscription: Subscription;
+    private systemLevelListener = this.onAddSystemLevelExtension.bind(this);
 
     constructor(props: {}) {
         super(props);
@@ -175,7 +191,7 @@ export class App extends React.Component<
         this.routes = routes;
         this.popupPropsSubscription = null;
         this.unauthorizedSubscription = null;
-        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
+        services.extensions.addEventListener('systemLevel', this.systemLevelListener);
     }
 
     public componentDidMount() {
@@ -248,6 +264,7 @@ export class App extends React.Component<
     }
 
     public componentWillUnmount() {
+        services.extensions.removeEventListener('systemLevel', this.systemLevelListener);
         if (this.popupPropsSubscription) {
             this.popupPropsSubscription.unsubscribe();
         }
@@ -300,6 +317,11 @@ export class App extends React.Component<
             router: {history, route: {location: history.location, match: {params: {}, isExact: false, path: '', url: ''}}}
         };
 
+        // Built per render: system-level extensions add routes after startup.
+        const paths = Object.keys(this.routes);
+        const noLayoutPaths = paths.filter(path => this.routes[path].noLayout);
+        const layoutPaths = paths.filter(path => !this.routes[path].noLayout);
+
         return (
             <React.Fragment>
                 <Helmet>
@@ -316,47 +338,53 @@ export class App extends React.Component<
                           save/update/delete) throws "this.appContext is undefined".
                         */}
                             <AppContextReact.Provider value={appContext}>
-                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                    {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
-                                </DataLoader>
+                                <AppPopup popupProps={this.state.popupProps} />
                                 <AuthSettingsCtx.Provider value={this.state.authSettings}>
                                     <Router history={history}>
                                         <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
                                             <Switch>
                                                 <Redirect exact={true} path='/' to='/applications' />
-                                                {Object.keys(this.routes).map(path => {
-                                                    const route = this.routes[path];
+                                                {noLayoutPaths.map(path => {
+                                                    const Component = this.routes[path].component;
                                                     return (
                                                         <Route
                                                             key={path}
                                                             path={path}
-                                                            render={routeProps =>
-                                                                route.noLayout ? (
-                                                                    <div>
-                                                                        <PageSuspense>
-                                                                            <route.component {...routeProps} />
-                                                                        </PageSuspense>
-                                                                    </div>
-                                                                ) : (
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {pref => (
-                                                                            <Layout
-                                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                                navItems={this.navItems}
-                                                                                pref={pref}>
-                                                                                <Banner>
-                                                                                    <PageSuspense>
-                                                                                        <route.component {...routeProps} />
-                                                                                    </PageSuspense>
-                                                                                </Banner>
-                                                                            </Layout>
-                                                                        )}
-                                                                    </DataLoader>
-                                                                )
-                                                            }
+                                                            render={routeProps => (
+                                                                <div>
+                                                                    <PageSuspense>
+                                                                        <Component {...routeProps} />
+                                                                    </PageSuspense>
+                                                                </div>
+                                                            )}
                                                         />
                                                     );
                                                 })}
+                                                {/* One Route for every page with the layout, so the sidebar and banner stay mounted
+                                                    across sections instead of refetching on each change. */}
+                                                <Route
+                                                    path={layoutPaths}
+                                                    render={() => (
+                                                        <AppLayout navItems={this.navItems} onVersionClick={() => this.setState({showVersionPanel: true})}>
+                                                            <Switch>
+                                                                {layoutPaths.map(path => {
+                                                                    const Component = this.routes[path].component;
+                                                                    return (
+                                                                        <Route
+                                                                            key={path}
+                                                                            path={path}
+                                                                            render={routeProps => (
+                                                                                <PageSuspense>
+                                                                                    <Component {...routeProps} />
+                                                                                </PageSuspense>
+                                                                            )}
+                                                                        />
+                                                                    );
+                                                                })}
+                                                            </Switch>
+                                                        </AppLayout>
+                                                    )}
+                                                />
                                             </Switch>
                                         </ErrorBoundary>
                                     </Router>

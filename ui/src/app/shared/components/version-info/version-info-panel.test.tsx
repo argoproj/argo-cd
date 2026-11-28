@@ -2,6 +2,7 @@ import {QueryClientProvider} from '@tanstack/react-query';
 import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {createMemoryHistory} from 'history';
 import * as React from 'react';
+import {MemoryRouter} from 'react-router';
 
 import {Sidebar} from '../../../sidebar/sidebar';
 import {Provider} from '../../context';
@@ -53,7 +54,11 @@ describe('VersionPanel', () => {
         const content = (shown: boolean) => (
             <QueryClientProvider client={client}>
                 <Provider value={{history: createMemoryHistory(), baseHref: '/'} as any}>
-                    {sidebar && <Sidebar navItems={[]} pref={services.viewPreferences.getCurrentPreferences()} onVersionClick={jest.fn()} />}
+                    {sidebar && (
+                        <MemoryRouter>
+                            <Sidebar navItems={[]} pref={services.viewPreferences.getCurrentPreferences()} onVersionClick={jest.fn()} />
+                        </MemoryRouter>
+                    )}
                     <VersionPanel isShown={shown} onClose={onClose} />
                 </Provider>
             </QueryClientProvider>

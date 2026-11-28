@@ -5,15 +5,23 @@ import '@testing-library/jest-dom';
 import {services} from './shared/services';
 import {App} from './app';
 
-jest.mock('./shared/services', () => ({
-    services: {
-        viewPreferences: {init: jest.fn(), getPreferences: jest.fn(() => ({subscribe: jest.fn(() => ({unsubscribe: jest.fn()}))}))},
-        version: {version: jest.fn(() => Promise.resolve({Version: 'v0.0.0'}))},
-        extensions: {addEventListener: jest.fn()},
-        authService: {settings: jest.fn()},
-        users: {get: jest.fn()}
-    }
-}));
+jest.mock('./shared/services', () => {
+    // Stable snapshot: useSyncExternalStore loops if getCurrentPreferences returns a new object each call.
+    const preferences = {theme: 'light'};
+    return {
+        services: {
+            viewPreferences: {
+                init: jest.fn(),
+                getPreferences: jest.fn(() => ({subscribe: jest.fn(() => ({unsubscribe: jest.fn()}))})),
+                getCurrentPreferences: jest.fn(() => preferences)
+            },
+            version: {version: jest.fn(() => Promise.resolve({Version: 'v0.0.0'}))},
+            extensions: {addEventListener: jest.fn(), removeEventListener: jest.fn()},
+            authService: {settings: jest.fn()},
+            users: {get: jest.fn()}
+        }
+    };
+});
 
 jest.mock('./shared/services/requests', () => ({
     __esModule: true,
@@ -36,7 +44,7 @@ const renderApp = async () => {
 beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem(pausedKey, '0');
-    jest.mocked(services.authService.settings).mockResolvedValue({oidcConfig: {name: 'Keycloak'}, ssoAutoLogin: true} as any);
+    jest.mocked(services.authService.settings).mockResolvedValue({oidcConfig: {name: 'Keycloak'}, ssoAutoLogin: true, help: {}} as any);
     jest.spyOn(console, 'error');
 });
 
